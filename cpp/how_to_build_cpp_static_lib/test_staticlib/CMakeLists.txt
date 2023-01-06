@@ -12,7 +12,7 @@ set(LIB_ADD_SRCS
 set(LIB_OTHER_ADD_SRCS
         ${PROJECT_SOURCE_DIR}/libc/funcc.cc)
 
-add_library(addfunc_static STATIC ${LIB_ADD_SRCS}) # 
+add_library(addfunc_static STATIC ${LIB_ADD_SRCS}) # 编译静态库 
 add_library(addfunc_shared SHARED ${LIB_ADD_SRCS}) # 编译动态库
 add_library(other_addfunc_static_link_static STATIC ${LIB_OTHER_ADD_SRCS})
 add_library(other_addfunc_static_link_shared STATIC ${LIB_OTHER_ADD_SRCS})
