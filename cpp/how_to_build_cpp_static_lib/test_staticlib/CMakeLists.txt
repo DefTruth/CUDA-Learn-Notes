@@ -6,6 +6,7 @@ include_directories(${PROJECT_SOURCE_DIR})
 set(LIB_ADD_SRCS
         ${PROJECT_SOURCE_DIR}/liba/func.cc
         ${PROJECT_SOURCE_DIR}/liba/funca.cc
+        ${PROJECT_SOURCE_DIR}/liba/global.cc
         ${PROJECT_SOURCE_DIR}/libb/func.cc
         ${PROJECT_SOURCE_DIR}/libb/funcb.cc)
 
@@ -27,5 +28,13 @@ target_link_libraries(other_addfunc_shared_link_shared addfunc_shared) # 编译�
 add_executable(test_static ${PROJECT_SOURCE_DIR}/test.cc)
 add_executable(test_shared ${PROJECT_SOURCE_DIR}/test.cc)
 target_link_libraries(test_static addfunc_static)
+set_target_properties(test_static PROPERTIES LINK_FLAGS 
+                      "-Wl,--whole-archive libaddfunc_static.a -Wl,-no-whole-archive") 
+
 target_link_libraries(test_shared addfunc_shared)
+
+add_executable(test_a_inst_static ${PROJECT_SOURCE_DIR}/test_a_inst.cc)
+add_executable(test_a_inst_shared ${PROJECT_SOURCE_DIR}/test_a_inst.cc)
+target_link_libraries(test_a_inst_static addfunc_static)
+target_link_libraries(test_a_inst_shared addfunc_shared)
 
