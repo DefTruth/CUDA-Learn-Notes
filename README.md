@@ -1,2 +1,2 @@
-# Learn Optimize for CUDA and SIMD
-This is a personal notebook for C++, CUDA, PTX and SIMD optimization.
+# Learn Optimize for CUDA
+This is a personal notebook for C++, CUDA, PTX and CUDA-SIMD optimization.
