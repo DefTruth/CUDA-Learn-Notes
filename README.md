@@ -1,2 +1,2 @@
-# simd-notebook
-A brief notebook of SIMD (NEON/SSE/AVX).
+# Learn Optimize for CUDA and SIMD
+This is a personal notebook for C++, CUDA, PTX and SIMD optimization.
