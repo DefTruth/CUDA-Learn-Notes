@@ -1,3 +1,17 @@
+// sgemm
+// sgemv 
+// warp/block reduce
+// dot product 
+// elementwise
+// hist 
+// softmax 
+// safe softmax
+// sigmoid 
+// relu 
+// layer_norm 
+// rms_norm  
+// iou 
+// nms
 #include <stdio.h>
 #include <stdlib.h>
 #include <float.h>
@@ -280,11 +294,9 @@ __global__ void block_all_reduce_sum(float* a, float* y, int N) {
   int tid = threadIdx.x;
   int idx = blockIdx.x * NUM_THREADS + tid;
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
-  __shared__ float block_smem[NUM_THREADS];
   __shared__ float reduce_smem[NUM_WARPS];
-  block_smem[tid] = (idx < N) ? a[idx] : 0.0f;
-  __syncthreads();
-  float sum = block_smem[tid];
+  // keep the data in register is enougth for warp operaion.
+  float sum = (idx < N) ? a[idx] : 0.0f;
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
   // perform warp sync reduce.
@@ -306,14 +318,11 @@ __global__ void block_all_reduce_sum_vec4(float* a, float* y, int N) {
   int tid = threadIdx.x;
   int idx = (blockIdx.x * NUM_THREADS + tid) * 4;
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
-  __shared__ float block_smem[NUM_THREADS];
   __shared__ float reduce_smem[NUM_WARPS];
 
   float4 reg_a = FLOAT4(a[idx]);
-  block_smem[tid] = (idx < N) ? (reg_a.x + reg_a.y 
-                               + reg_a.z + reg_a.w) : 0.0f;
-  __syncthreads();
-  float sum = block_smem[tid];
+  // keep the data in register is enougth for warp operaion.
+  float sum = (idx < N) ? (reg_a.x + reg_a.y + reg_a.z + reg_a.w) : 0.0f;
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
   // perform warp sync reduce.
@@ -335,11 +344,10 @@ __global__ void dot(float* a, float* b, float* y, int N) {
   int tid = threadIdx.x;
   int idx = blockIdx.x * NUM_THREADS + tid;
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
-  __shared__ float block_smem[NUM_THREADS];
   __shared__ float reduce_smem[NUM_WARPS];
-  block_smem[tid] = (idx < N) ? a[idx] * b[idx] : 0.0f;
-  __syncthreads();
-  float prod = block_smem[tid];
+
+  // keep the data in register is enougth for warp operaion.
+  float prod = (idx < N) ? a[idx] * b[idx] : 0.0f;
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
   // perform warp sync reduce.
@@ -361,17 +369,12 @@ __global__ void dot_vec4(float* a, float* b, float* y, int N) {
   int tid = threadIdx.x;
   int idx = (blockIdx.x * NUM_THREADS + tid) * 4;
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
-  __shared__ float block_smem[NUM_THREADS];
   __shared__ float reduce_smem[NUM_WARPS];
 
   float4 reg_a = FLOAT4(a[idx]);
   float4 reg_b = FLOAT4(b[idx]);
-  block_smem[tid] = (idx < N) ? (reg_a.x * reg_b.x 
-                               + reg_a.y * reg_b.y 
-                               + reg_a.z * reg_b.z 
-                               + reg_a.w * reg_b.w) : 0.0f;
-  __syncthreads();
-  float prod = block_smem[tid];
+  float prod = (idx < N) ? (reg_a.x * reg_b.x + reg_a.y * reg_b.y 
+                          + reg_a.z * reg_b.z + reg_a.w * reg_b.w) : 0.0f;
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
   // perform warp sync reduce.
@@ -438,9 +441,35 @@ template<const int NUM_THREADS = 128>
 __global__ void softmax(float* x, float* y, float* total, int N) {
   const int tid = threadIdx.x;
   const int idx = blockIdx.x * blockDim.x + tid; 
+  constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
+  __shared__ float reduce_smem[NUM_WARPS];
+  
+  float sum = (idx < N) ? expf(x[idx]) : 0.0f;
+  int warp = tid / WARP_SIZE;
+  int lane = tid % WARP_SIZE;
+  sum = warp_reduce_sum<WARP_SIZE>(sum);
+  if (lane == 0) reduce_smem[warp] = sum;
+  __syncthreads();
+  // compute the final sum in each warp
+  sum = (lane < NUM_WARPS) ? reduce_smem[lane] : 0.0f;
+  sum = warp_reduce_sum<NUM_WARPS>(sum); // sum(e^x_0,...,e^x_n-1)
+  // get the total sum of all blocks.
+  if (tid == 0) atomicAdd(total, sum);
+  __threadfence(); // grid level memory fence
+  // e^x_i/sum(e^x_0,...,e^x_n-1) 
+  if (idx < N) y[idx] = block_smem[tid] / (*total); 
+}
+
+// Softmax x: N, y: N
+// grid(N/128), block(K=128)
+template<const int NUM_THREADS = 128>
+__global__ void softmax_v2(float* x, float* y, float* total, int N) {
+  const int tid = threadIdx.x;
+  const int idx = blockIdx.x * blockDim.x + tid; 
   
   float exp_val = (idx < N) ? expf(x[idx]) : 0.0f;
   float sum = block_reduce_sum<NUM_THREADS>(exp_val);
+  // get the total sum of all blocks.
   if (tid == 0) atomicAdd(total, sum);
   __threadfence(); // grid level memory fence
   // e^x_i/sum(e^x_0,...,e^x_n-1) 
@@ -450,7 +479,7 @@ __global__ void softmax(float* x, float* y, float* total, int N) {
 // Softmax Vec4 x: N, y: N
 // grid(N/128), block(128/4)
 template<const int NUM_THREADS = 128/4>
-__global__ void softmax_vec4(float* x, float* y, float* total, int N) {
+__global__ void softmax_v2_vec4(float* x, float* y, float* total, int N) {
   const int tid = threadIdx.x;
   const int idx = (blockIdx.x * blockDim.x + tid) * 4; 
   
@@ -462,6 +491,7 @@ __global__ void softmax_vec4(float* x, float* y, float* total, int N) {
   reg_exp.w = (idx < N) ? expf(reg_x.w) : 0.0f;
   float exp_val = (reg_exp.x + reg_exp.y + reg_exp.z + reg_exp.w);
   float sum = block_reduce_sum<NUM_THREADS>(exp_val);
+  // get the total sum of all blocks.
   if (tid == 0) atomicAdd(total, sum);
   __threadfence(); // grid level memory fence
   // e^x_i/sum(e^x_0,...,e^x_n-1) 
@@ -486,6 +516,7 @@ __global__ void softmax_safe(float* x, float* y, float* total, int N) {
   float max_val = block_reduce_max<NUM_THREADS>(ori_val);
   float exp_val = (idx < N) ? expf(ori_val - max_val) : 0.0f;
   float sum = block_reduce_sum<NUM_THREADS>(exp_val);
+  // get the total sum of all blocks.
   if (tid == 0) atomicAdd(total, sum);
   __threadfence(); // grid level memory fence
   // e^x_i/sum(e^x_0,...,e^x_n-1) 
@@ -570,10 +601,8 @@ __global__ void rms_norm_vec4(float* x, float* y, float g, int N, int K) {
 
   __shared__ float s_variance; // shared within block
   float4 reg_x = FLOAT4(x[idx]);
-  float variance = (idx < N * K) ? (reg_x.x * reg_x.x 
-                                  + reg_x.y * reg_x.y 
-                                  + reg_x.z * reg_x.z 
-                                  + reg_x.w * reg_x.w) : 0.0f;
+  float variance = (idx < N * K) ? (reg_x.x * reg_x.x + reg_x.y * reg_x.y 
+                                  + reg_x.z * reg_x.z + reg_x.w * reg_x.w) : 0.0f;
   variance = block_reduce_sum<NUM_THREADS>(variance);
   if (tid == 0) s_variance = rsqrtf(variance / (float) K + epsilon);
   // wait for s_variance in shared memory to be ready for all threads
@@ -637,10 +666,8 @@ __global__ void layer_norm_vec4(float* x, float* y, float g, float b, int N, int
   reg_x_hat.y = reg_x.y - s_mean;
   reg_x_hat.z = reg_x.z - s_mean;
   reg_x_hat.w = reg_x.w - s_mean;
-  float variance = reg_x_hat.x * reg_x_hat.x 
-                 + reg_x_hat.y * reg_x_hat.y 
-                 + reg_x_hat.z * reg_x_hat.z 
-                 + reg_x_hat.w * reg_x_hat.w;
+  float variance = reg_x_hat.x * reg_x_hat.x + reg_x_hat.y * reg_x_hat.y 
+                 + reg_x_hat.z * reg_x_hat.z + reg_x_hat.w * reg_x_hat.w;
   variance = block_reduce_sum<NUM_THREADS>(variance);
   if (tid == 0) s_variance = rsqrtf(variance / (float) K + epsilon);
   // wait for s_variance in shared memory to be ready for all threads
