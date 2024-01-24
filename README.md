@@ -1,6 +1,6 @@
 # CUDA高频面试题汇总/C++笔记/CUDA笔记  
 
-CUDA 笔记 / 高频面试题汇总 / C++笔记，个人笔记，更新随缘: sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、hist etc.  
+CUDA 笔记 / 高频面试题汇总 / C++笔记，个人笔记，更新随缘: sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、hist etc. 如果觉得有用，不妨给个🌟Star支持一下吧~
 
 ## 0x00 前言
 前段时间参加了一些面试，大部分都要手撕CUDA，因此也整体复习了一遍CUDA优化相关的内容，整理了一些高频题的基本写法，保存在这里也便于日后自己复习。当然，有些代码不一定是最优化解，比如GEMM，想要在面试短短的30分钟内写一个好的GEMM Kernel，是有些难度的。印象比较深刻的是，其中有一场面试2个多小时，一个小时问项目，剩下一个小时在写GEMM，说实话，如果不是事先有准备过一些，直接上手写优化版还是会有点慌。[代码文件](./cuda-check/check.cu)
