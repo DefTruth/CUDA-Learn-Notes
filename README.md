@@ -1,25 +1,27 @@
 # CUDA高频面试题汇总/C++笔记/CUDA笔记  
 
-CUDA 笔记 / 高频面试题汇总 / C++笔记，个人笔记，更新随缘: sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、hist etc. 如果觉得有用，不妨给个🌟Star支持一下吧~
+CUDA 笔记 / 高频面试题汇总 / C++笔记，个人笔记，更新随缘: sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、histogram、relu、sigmoid ...  
 
 ## 0x00 前言
-前段时间参加了一些面试，大部分都要手撕CUDA，因此也整体复习了一遍CUDA优化相关的内容，整理了一些高频题的基本写法，保存在这里也便于日后自己复习。当然，有些代码不一定是最优化解，比如GEMM，想要在面试短短的30分钟内写一个好的GEMM Kernel，是有些难度的。印象比较深刻的是，其中有一场面试2个多小时，一个小时问项目，剩下一个小时在写GEMM，说实话，如果不是事先有准备过一些，直接上手写优化版还是会有点慌。[代码文件](./cuda-check/check.cu)
+前段时间参加了一些`大模型`面试，大部分都要手撕CUDA，因此也整体复习了一遍CUDA优化相关的内容，整理了一些高频题的基本写法，保存在这里也便于日后自己复习。当然，有些代码不一定是最优化解，比如GEMM，想要在面试短短的30分钟内写一个好的`GEMM` Kernel，是有些难度的。印象比较深刻的是，其中有一场面试2个多小时，一个小时问项目，剩下一个小时在写GEMM，说实话，如果不是事先有准备过一些，直接上手写优化版还是会有点慌。[代码文件](./cuda-check/check.cu)
 TIPS: 文章整理为方便自己复习，不喜欢的请自动跳过哈。
 ## 0x01 高频面试题汇总简介
 相关kernel如下：
-- sgemm naive, sgemm + block-tile + k-tile + vec4
-- sgemv k32/k128/k16 kernel
-- warp/block reduce sum/max, block all reduce + vec4
-- dot product, dot product + vec4
-- elementwise, elementwise + vec4
-- histogram, histogram + vec4
-- softmax, softmax + vec4 (grid level memory fence)
-- safe softmax, safe softmax + vec4
-- sigmoid, sigmoid + vec4
-- relu, relu + vec4
-- layer_norm, layer_norm + vec4
-- rms_norm, rms_norm + vec4
-- ....
+- [x] sgemm naive, sgemm + block-tile + k-tile + vec4
+- [x] sgemv k32/k128/k16 kernel
+- [x] warp/block reduce sum/max, block all reduce + vec4
+- [x] dot product, dot product + vec4
+- [x] elementwise, elementwise + vec4
+- [x] histogram, histogram + vec4
+- [x] softmax, softmax + vec4 (grid level memory fence)
+- [x] safe softmax, safe softmax + vec4
+- [x] sigmoid, sigmoid + vec4
+- [x] relu, relu + vec4
+- [x] layer_norm, layer_norm + vec4
+- [x] rms_norm, rms_norm + vec4
+- [ ] sgemm + double buffer
+- [ ] sgemm + fp16
+
 
 题内话，大模型相关的岗位，手撕CUDA的概率非常大，leetcode反而写的少，就前段时间个人的经验，基本是4:1的比例，还是建议好好复习下CUDA。当然，这些只是最简单的kernel实现，比如flash_attn，FMHA, FMHCA这些优化手段，就不在这篇文章里写了，面试中基本都会问到。后边有空再补档一些文章吧。
 ## 0x02 sgemm naive, sgemm + block-tile + k-tile + vec4
