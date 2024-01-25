@@ -764,3 +764,9 @@ void hard_nms(std::vector<Box> &input, std::vector<Box> &output, float iou_thres
   }
 }
 ```
+
+©️License
+GNU General Public License v3.0
+
+🎉Contribute
+🌟如果觉得有用，不妨给个🌟👆🏻Star支持一下吧~
