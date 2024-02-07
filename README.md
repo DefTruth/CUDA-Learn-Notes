@@ -10,7 +10,7 @@
 </a>  
 </div>
 
-CUDA 笔记 / 高频面试题汇总 / C++笔记，个人笔记，更新随缘: sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、histogram、relu、sigmoid ...  
+CUDA-Learn-Note: CUDA 笔记 / 高频面试题汇总 / C++笔记，个人笔记，更新随缘: sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、histogram、relu、sigmoid ...  
 
 ## 0x00 前言
 前段时间参加了一些`大模型`面试，大部分都要手撕CUDA，因此也整体复习了一遍CUDA优化相关的内容，整理了一些高频题的基本写法，保存在这里也便于日后自己复习。当然，有些代码不一定是最优化解，比如GEMM，想要在面试短短的30分钟内写一个好的`GEMM` Kernel，是有些难度的。印象比较深刻的是，其中有一场面试2个多小时，一个小时问项目，剩下一个小时在写GEMM，虽然写的kernel很一般，但是印象还挺深刻的。[代码文件](./cuda-check/check.cu)
