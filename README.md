@@ -1,30 +1,48 @@
-# CUDA高频面试题汇总/C++笔记/CUDA笔记  
+# CUDA高频面试题汇总/C++笔记/CUDA笔记 📔📕📗
+
+<div align='center'>
+<a href="https://star-history.com/#DefTruth/Awesome-LLM-Inference&Date">
+  <picture align='center'>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=DefTruth/cuda-learn-note&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=DefTruth/cuda-learn-note&type=Date" />
+    <img width=450 height=300 alt="Star History Chart" src="https://api.star-history.com/svg?repos=DefTruth/cuda-learn-note&type=Date" />
+  </picture>
+</a>  
+</div>
 
 CUDA 笔记 / 高频面试题汇总 / C++笔记，个人笔记，更新随缘: sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、histogram、relu、sigmoid ...  
 
 ## 0x00 前言
-前段时间参加了一些`大模型`面试，大部分都要手撕CUDA，因此也整体复习了一遍CUDA优化相关的内容，整理了一些高频题的基本写法，保存在这里也便于日后自己复习。当然，有些代码不一定是最优化解，比如GEMM，想要在面试短短的30分钟内写一个好的`GEMM` Kernel，是有些难度的。印象比较深刻的是，其中有一场面试2个多小时，一个小时问项目，剩下一个小时在写GEMM，说实话，如果不是事先有准备过一些，直接上手写优化版还是会有点慌。[代码文件](./cuda-check/check.cu)
-TIPS: 文章整理为方便自己复习，不喜欢的请自动跳过哈。
+前段时间参加了一些`大模型`面试，大部分都要手撕CUDA，因此也整体复习了一遍CUDA优化相关的内容，整理了一些高频题的基本写法，保存在这里也便于日后自己复习。当然，有些代码不一定是最优化解，比如GEMM，想要在面试短短的30分钟内写一个好的`GEMM` Kernel，是有些难度的。印象比较深刻的是，其中有一场面试2个多小时，一个小时问项目，剩下一个小时在写GEMM，虽然写的kernel很一般，但是印象还挺深刻的。[代码文件](./cuda-check/check.cu)
+TIPS: 仓库整理的代码为方便自己复习回顾，不喜欢的请自动跳过哈。
+
 ## 0x01 高频面试题汇总简介
+<div id="kernellist"></div>  
+
 相关kernel如下：
-- [x] sgemm naive, sgemm + block-tile + k-tile + vec4
-- [x] sgemv k32/k128/k16 kernel
-- [x] warp/block reduce sum/max, block all reduce + vec4
-- [x] dot product, dot product + vec4
-- [x] elementwise, elementwise + vec4
-- [x] histogram, histogram + vec4
-- [x] softmax, softmax + vec4 (grid level memory fence)
-- [x] safe softmax, safe softmax + vec4
-- [x] sigmoid, sigmoid + vec4
-- [x] relu, relu + vec4
-- [x] layer_norm, layer_norm + vec4
-- [x] rms_norm, rms_norm + vec4
+- [x] [sgemm naive, sgemm + block-tile + k-tile + vec4](#sgemm)
+- [x] [sgemv k32/k128/k16 kernel](#sgemv)
+- [x] [warp/block reduce sum/max](#warpreduce)
+- [x] [block all reduce + vec4](#blockallreduce)
+- [x] [dot product, dot product + vec4](#dot)
+- [x] [elementwise, elementwise + vec4](#elementwise)
+- [x] [histogram, histogram + vec4](#histogram)
+- [x] [softmax, softmax + vec4 (grid level memory fence)](#softmax)
+- [x] [safe softmax, safe softmax + vec4](#safesoftmax)
+- [x] [sigmoid, sigmoid + vec4](#sigmoid)
+- [x] [relu, relu + vec4](#relu)
+- [x] [layer_norm, layer_norm + vec4](#layernorm)
+- [x] [rms_norm, rms_norm + vec4](#rmsnorm)
+- [x] [nms](#NMS) 
 - [ ] sgemm + double buffer
 - [ ] sgemm + fp16
+- [ ] ...
 
 
-题内话，大模型相关的岗位，手撕CUDA的概率非常大，leetcode反而写的少，就前段时间个人的经验，基本是4:1的比例，还是建议好好复习下CUDA。当然，这些只是最简单的kernel实现，比如flash_attn，FMHA, FMHCA这些优化手段，就不在这篇文章里写了，面试中基本都会问到。后边有空再补档一些文章吧。
-## 0x02 sgemm naive, sgemm + block-tile + k-tile + vec4
+题内话，大模型相关的岗位，手撕CUDA的概率非常大，leetcode反而写的少，就前段时间个人的经验，基本是4:1的比例，还是建议好好复习下CUDA。当然，这些只是最简单的kernel实现，比如flash_attn，FMHA这些优化手段，就不在这里写了，面试中基本都会问到。后边有空再补档一些文章吧。
+
+## 0x02 sgemm naive, sgemm + block-tile + k-tile + vec4  ([©️back👆🏻](#kernellist))  
+<div id="sgemm"></div>  
 
 ```c++
 #include <stdio.h>
@@ -171,7 +189,12 @@ __global__ void sgemm_thread_tile_vec4(
   }
 }
 ```
-## 0x03 warp/block reduce sum/max 
+这里gemm的实现比较简单，只使用了CUDA Cores，并且只实现Block Tile + K Tile以及Block Tile + K Tile+Thread Tile+向量化的版本。主要在于如何加载gmem中的数据到smem，也就是把全局内存中的数据索引mapping到共享内存中的。核心思维：把一个block中的线程id按照线性来理解，然后把这个线性的id和全局内存索引以及共享内存索引进行匹配。比如Block Tile + K Tile的实现，block内一共32x32个Threads，需要加载到smem的数据也是32x32，那么，最简单的做法，只需要每个线程加载一个互不重复数据即可。NOTE，本文的gemm kernel修改自：[紫气东来：CUDA（三）：通用矩阵乘法：从入门到熟练](https://zhuanlan.zhihu.com/p/657632577)
+
+
+## 0x03 warp/block reduce sum/max  ([©️back👆🏻](#kernellist))
+<div id="warpreduce"></div>  
+
 ```C++
 // Warp Reduce Sum
 template<const int kWarpSize = WARP_SIZE>
@@ -227,8 +250,11 @@ __device__ __forceinline__ float block_reduce_max(float val) {
   return val;
 }
 ```
+warp reduce几乎已经成为大部分reduce kernel的标准写法了，比如vLLM中，就是这种经典的写法。所以，先搞懂warp reduce（也就是搞懂各种warp functions的用法），再去写其他kernel，思路就会容易很多。需要注意的是，warp函数处理的是寄存器上的数据，也就是说，此时，没必要先加载数据到smem，再进行reduce，直接加载到寄存器即可（以前犯过这个小错误...）。Warp Functions建议参考：[jhang：CUDA编程入门之Warp-Level Primitives](https://zhuanlan.zhihu.com/p/572820783)
 
-## 0x04 block all reduce + vec4
+## 0x04 block all reduce + vec4  ([©️back👆🏻](#kernellist))
+<div id="blockallreduce"></div>  
+
 ```c++
 // Block All Reduce Sum
 // grid(N/128), block(128)
@@ -280,8 +306,11 @@ __global__ void block_all_reduce_sum_vec4(float* a, float* y, int N) {
   if (tid == 0) atomicAdd(y, sum);
 }
 ```
+block all reduce是在warp reduce的基础上进行的，reduce_smem这部分的共享内存申请无法避免，这是用来同步每个warp之间得到局部结果。注意，最后，还需要atomicAdd做一个block级别的原子操作，以得到全局的和。float4向量化优化访存，可以减缓WarpScheduler发送指令的压力。
 
-## 0x05 sgemv k32/k128/k16 kernel  
+## 0x05 sgemv k32/k128/k16 kernel   ([©️back👆🏻](#kernellist))
+<div id="sgemv"></div>  
+
 ```C++
 // SGEMV: Warp SGEMV K32
 // 假设K为32的倍数，每个warp负责一行
@@ -359,8 +388,11 @@ __global__ void sgemv_k16(float* A, float* x, float* y, int M, int K) {
   }
 }
 ```
+估计有些大佬倒立都能写sgemv的各种优化版了，核心思路其实也是基于warp reduce，考虑K的不同情况进行优化。本文的sgemv kernel修改自：[有了琦琦的棍子：深入浅出GPU优化系列：gemv优化](https://zhuanlan.zhihu.com/p/494144694)
 
-## 0x06 dot product, dot product + vec4 
+## 0x06 dot product, dot product + vec4  ([©️back👆🏻](#kernellist))
+<div id="dot"></div>  
+
 ```c++
 // Dot Product
 // grid(N/128), block(128)
@@ -414,8 +446,11 @@ __global__ void dot_vec4(float* a, float* b, float* y, int N) {
   if (tid == 0) atomicAdd(y, prod);
 }
 ```
+dot product kernel的核心就是block reduce，不多说了。
 
-## 0x07 elementwise, elementwise + vec4
+## 0x07 elementwise, elementwise + vec4  ([©️back👆🏻](#kernellist))
+<div id="elementwise"></div>  
+
 ```c++
 // ElementWise Add  
 // grid(N/128), block(128)
@@ -442,8 +477,11 @@ __global__ void elementwise_add_vec4(float* a, float* b, float* c, int N) {
   }
 }
 ```
+elementwise可以考虑加点向量化进行访存优化。
 
-## 0x08 histogram, histogram + vec4
+## 0x08 histogram, histogram + vec4  
+<div id="histogram"></div>  
+
 ```c++
 // Histogram
 // grid(N/128), block(128)
@@ -467,8 +505,11 @@ __global__ void histogram_vec4(int* a, int* y, int N) {
   }
 }
 ```
+统计频数直方图，很简单，两行代码搞定。
 
-## 0x09 softmax, softmax + vec4 (grid level memory fence)
+## 0x09 softmax, softmax + vec4 (grid level memory fence)   ([©️back👆🏻](#kernellist))
+<div id="softmax"></div>  
+
 ```c++
 // Softmax x: N, y: N
 // grid(N/128), block(K=128)
@@ -540,8 +581,11 @@ __global__ void softmax_v2_vec4(float* x, float* y, float* total, int N) {
   }
 }
 ```
+softmax稍微要注意的就是内存同步的问题，这里，你需要做一个网格级别的同步，而不能仅仅是block级别，否则拿不到全局的exp sum作为分母项。因此使用 __threadfence 这个网格及内存同步操作。不过效率我还没测过，实在要高效的话，可能得整成FA2那样的 1-pass + online softmax的实现。不过，如果是面试的话，就不要太为难自己了...，但是FA1/FA2的论文很经典，强烈建议多读几遍。
 
-## 0x0a safe softmax, safe softmax + vec4  
+## 0x0a safe softmax, safe softmax + vec4   ([©️back👆🏻](#kernellist)) 
+<div id="safesoftmax"></div>  
+
 ```c++
 // Safe Softmax x: N, y: N
 // grid(N/128), block(K=128)
@@ -561,8 +605,11 @@ __global__ void softmax_safe(float* x, float* y, float* total, int N) {
   if (idx < N) y[idx] = exp_val / (*total); 
 }
 ```
+对比softmax减去一个max值防止数值溢出，比如float16。
 
-## 0x0b sigmoid, sigmoid + vec4
+## 0x0b sigmoid, sigmoid + vec4   ([©️back👆🏻](#kernellist))
+<div id="sigmoid"></div>  
+
 ```c++
 // Sigmoid x: N, y: N y=1/(1+exp(-x))
 // grid(N/128), block(K=128) 
@@ -587,7 +634,9 @@ __global__ void sigmoid_vec4(float* x, float* y, int N) {
 }
 ```
 
-## 0x0c relu, relu + vec4
+## 0x0c relu, relu + vec4   ([©️back👆🏻](#kernellist))
+<div id="relu"></div>  
+
 ```c++
 // Relu x: N, y: N y=max(0,x)
 // grid(N/128), block(K=128) 
@@ -612,7 +661,9 @@ __global__ void relu_vec4(float* x, float* y, int N) {
 }
 ```
 
-## 0x0d layer_norm, layer_norm + vec4
+## 0x0d layer_norm, layer_norm + vec4   ([©️back👆🏻](#kernellist))
+<div id="layernorm"></div>  
+
 ```c++
 // Layer Norm: x: NxK(K=128<1024), y': NxK, y'=x-mean(x)/std(x) each row
 // mean(x) = sum(x)/K, 1/std(x) = rsqrtf( sum( (x-mean(x))^2 )/K ) each row
@@ -679,8 +730,11 @@ __global__ void layer_norm_vec4(float* x, float* y, float g, float b, int N, int
   if (idx < N * K) FLOAT4(y[idx]) = reg_y;
 }
 ```
+layer norm实现的核心同样也是block reduce和warp reduce，然后再整点向量化...
 
-## 0x0e rms_norm, rms_norm + vec4
+## 0x0e rms_norm, rms_norm + vec4   ([©️back👆🏻](#kernellist))
+<div id="rmsnorm"></div>  
+
 ```c++
 // RMS Norm: x: NxK(K=128<1024), y': NxK, y'=x/rms(x) each row
 // 1/rms(x) = rsqrtf( sum(x^2)/K ) each row
@@ -730,8 +784,11 @@ __global__ void rms_norm_vec4(float* x, float* y, float g, int N, int K) {
   if (idx < N * K) FLOAT4(y[idx]) = reg_y;
 }
 ```
+rms norm实现的核心同样也是block reduce和warp reduce...，然后再加点float4向量化什么的。
 
-## 0x0d NMS（CV相关的经常会要手撕NMS，也记录下）
+## 0x0d NMS  ([©️back👆🏻](#kernellist))
+<div id="NMS"></div>  
+
 ```c++
 struct Box {
   float x1, y1, x2, y2, score;
@@ -764,6 +821,10 @@ void hard_nms(std::vector<Box> &input, std::vector<Box> &output, float iou_thres
   }
 }
 ```
+CV相关的经常会要手撕NMS，也记录下。
+
+## 0x0f 总结  ([©️back👆🏻](#kernellist))
+可以发现，大部分kernel的基本写法都是依赖warp reduce和block reduce的，基本上只要熟练应用warp functions各种场景的写法，应该问题不大；softmax需要考虑网格级同步的问题，或者online softmax以及FlashAttention；sgemm的优化是个很大的课题，不是案例中写的这么简单，但是入门的话，基本就是tiling的思想以及如何做索引之间的mapping；sgemv的优化则主要考虑K不同的值（因为M为1了），比如K=16,64,128等情况下，如何按照warp来处理；relu、sigmoid等都是elementwise的操作，很好实现，可以再考虑加点向量化优化访存；layer norm和rms norm在数学上其实也是挺清晰简单的，落实到cuda kernel时，只要按照逐个token来处理，headdim没有超过1024的情况下（一个block最多可以放1024个threads），可以放到一个block处理，这样并行化就很好写。当然，核心还是warp reduce和block reduce；NMS是乱入的，没有CUDA版本，别问了...
 
 ## ©️License
 GNU General Public License v3.0
