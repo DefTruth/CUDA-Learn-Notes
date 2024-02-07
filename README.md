@@ -19,7 +19,8 @@ TIPS: 仓库整理的代码为方便自己复习回顾，不喜欢的请自动�
 ## 0x01 高频面试题汇总简介
 <div id="kernellist"></div>  
 
-相关kernel如下：
+相关kernel如下。也就是不到1000行代码，建议背下来，我个人是喜欢背记，背的过程中基本就慢慢理解所有细节。当然，每个人的学习方法都不一样哈，自己觉得舒服就行。
+
 - [x] [sgemm naive, sgemm + block-tile + k-tile + vec4](#sgemm)
 - [x] [sgemv k32/k128/k16 kernel](#sgemv)
 - [x] [warp/block reduce sum/max](#warpreduce)
