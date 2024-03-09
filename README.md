@@ -29,7 +29,6 @@ TIPS: 仓库整理的代码为方便自己复习回顾，不喜欢的请自动�
 - [x] [elementwise, elementwise + vec4](#elementwise)
 - [x] [histogram, histogram + vec4](#histogram)
 - [x] [softmax, softmax + vec4 (grid level memory fence)](#softmax)
-- [x] [safe softmax, safe softmax + vec4](#safesoftmax)
 - [x] [sigmoid, sigmoid + vec4](#sigmoid)
 - [x] [relu, relu + vec4](#relu)
 - [x] [layer_norm, layer_norm + vec4](#layernorm)
@@ -584,31 +583,7 @@ __global__ void softmax_v2_vec4(float* x, float* y, float* total, int N) {
 ```
 softmax稍微要注意的就是内存同步的问题，这里，你需要做一个网格级别的同步，而不能仅仅是block级别，否则拿不到全局的exp sum作为分母项。因此使用 __threadfence 这个网格及内存同步操作。不过效率我还没测过，实在要高效的话，可能得整成FA2那样的 1-pass + online softmax的实现。不过，如果是面试的话，就不要太为难自己了...，但是FA1/FA2的论文很经典，强烈建议多读几遍。
 
-## 0x0a safe softmax, safe softmax + vec4   ([©️back👆🏻](#kernellist)) 
-<div id="safesoftmax"></div>  
-
-```c++
-// Safe Softmax x: N, y: N
-// grid(N/128), block(K=128)
-template<const int NUM_THREADS = 128>
-__global__ void softmax_safe(float* x, float* y, float* total, int N) {
-  const int tid = threadIdx.x;
-  const int idx = blockIdx.x * blockDim.x + tid; 
-  
-  float ori_val = (idx < N) ? x[idx] : -FLT_MAX;
-  float max_val = block_reduce_max<NUM_THREADS>(ori_val);
-  float exp_val = (idx < N) ? expf(ori_val - max_val) : 0.0f;
-  float sum = block_reduce_sum<NUM_THREADS>(exp_val);
-  // get the total sum of all blocks.
-  if (tid == 0) atomicAdd(total, sum);
-  __threadfence(); // grid level memory fence
-  // e^x_i/sum(e^x_0,...,e^x_n-1) 
-  if (idx < N) y[idx] = exp_val / (*total); 
-}
-```
-对比softmax减去一个max值防止数值溢出，比如float16。
-
-## 0x0b sigmoid, sigmoid + vec4   ([©️back👆🏻](#kernellist))
+## 0x0a sigmoid, sigmoid + vec4   ([©️back👆🏻](#kernellist))
 <div id="sigmoid"></div>  
 
 ```c++
@@ -635,7 +610,7 @@ __global__ void sigmoid_vec4(float* x, float* y, int N) {
 }
 ```
 
-## 0x0c relu, relu + vec4   ([©️back👆🏻](#kernellist))
+## 0x0b relu, relu + vec4   ([©️back👆🏻](#kernellist))
 <div id="relu"></div>  
 
 ```c++
@@ -662,7 +637,7 @@ __global__ void relu_vec4(float* x, float* y, int N) {
 }
 ```
 
-## 0x0d layer_norm, layer_norm + vec4   ([©️back👆🏻](#kernellist))
+## 0x0c layer_norm, layer_norm + vec4   ([©️back👆🏻](#kernellist))
 <div id="layernorm"></div>  
 
 ```c++
@@ -733,7 +708,7 @@ __global__ void layer_norm_vec4(float* x, float* y, float g, float b, int N, int
 ```
 layer norm实现的核心同样也是block reduce和warp reduce，然后再整点向量化...
 
-## 0x0e rms_norm, rms_norm + vec4   ([©️back👆🏻](#kernellist))
+## 0x0d rms_norm, rms_norm + vec4   ([©️back👆🏻](#kernellist))
 <div id="rmsnorm"></div>  
 
 ```c++
@@ -787,7 +762,7 @@ __global__ void rms_norm_vec4(float* x, float* y, float g, int N, int K) {
 ```
 rms norm实现的核心同样也是block reduce和warp reduce...，然后再加点float4向量化什么的。
 
-## 0x0d NMS  ([©️back👆🏻](#kernellist))
+## 0x0e NMS  ([©️back👆🏻](#kernellist))
 <div id="NMS"></div>  
 
 ```c++
