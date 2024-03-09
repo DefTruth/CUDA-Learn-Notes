@@ -5,7 +5,6 @@
 // elementwise
 // hist 
 // softmax 
-// safe softmax
 // sigmoid 
 // relu 
 // layer_norm 
@@ -503,24 +502,6 @@ __global__ void softmax_v2_vec4(float* x, float* y, float* total, int N) {
     reg_y.w = reg_exp.w / (*total);
     FLOAT4(y[idx]) = reg_y; 
   }
-}
-
-// Safe Softmax x: N, y: N
-// grid(N/128), block(K=128)
-template<const int NUM_THREADS = 128>
-__global__ void softmax_safe(float* x, float* y, float* total, int N) {
-  const int tid = threadIdx.x;
-  const int idx = blockIdx.x * blockDim.x + tid; 
-  
-  float ori_val = (idx < N) ? x[idx] : -FLT_MAX;
-  float max_val = block_reduce_max<NUM_THREADS>(ori_val);
-  float exp_val = (idx < N) ? expf(ori_val - max_val) : 0.0f;
-  float sum = block_reduce_sum<NUM_THREADS>(exp_val);
-  // get the total sum of all blocks.
-  if (tid == 0) atomicAdd(total, sum);
-  __threadfence(); // grid level memory fence
-  // e^x_i/sum(e^x_0,...,e^x_n-1) 
-  if (idx < N) y[idx] = exp_val / (*total); 
 }
 
 // Sigmoid x: N, y: N y=1/(1+exp(-x))
