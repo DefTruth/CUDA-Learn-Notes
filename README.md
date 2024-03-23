@@ -9,7 +9,7 @@
   <img src=https://img.shields.io/badge/License-GPLv3.0-turquoise.svg >
  </div>   
 
-📒CUDA-Learn-Note: CUDA 笔记 / 高频面试题汇总 / C++笔记，个人笔记，更新随缘: sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、histogram、relu、sigmoid ... 
+📒CUDA-Learn-Note: CUDA 笔记 / 高频面试题汇总 / C++笔记，更新随缘: flash_attn、sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、histogram、relu、sigmoid etc.
 
 ## 0x00 前言
 前段时间参加了一些 **LLM/LMM AI Infra** 面试，大部分都要手撕 **CUDA**，因此也整体复习了一遍 **CUDA**，并整理了一些高频题的基本写法。当然，有些代码不一定是最优化解，比如 **GEMM**，想要在面试中写一个好的 **GEMM Kernel** 不容易。相关kernel **1000** 行代码左右，建议背下来。大模型推理相关，推荐：📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social)
@@ -33,6 +33,7 @@
 - [x] 📖[relu, relu + vec4](#relu)
 - [x] 📖[layer_norm, layer_norm + vec4](#layernorm)
 - [x] 📖[rms_norm, rms_norm + vec4](#rmsnorm)
+- [x] 📖[flash attention forward pass](./flash_attn.cu)
 - [x] 📖[nms](#NMS) 
 - [ ] 📖sgemm + double buffer
 - [ ] 📖sgemm + fp16
