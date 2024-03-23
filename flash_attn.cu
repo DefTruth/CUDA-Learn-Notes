@@ -1,4 +1,4 @@
-// fork from: https://github.com/tspeterkim/flash-attention-minimal/blob/main/flash.cu  
+// Modified from: https://github.com/tspeterkim/flash-attention-minimal/blob/main/flash.cu  
 #include <torch/types.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -82,7 +82,7 @@ void forward_kernel(const float* Q, const float* K, const float* V, const int N,
     }
 }
 
-torch::Tensor forward(torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
+torch::Tensor custom_flash_attn_fwd(torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
     // TODO: determine Bc, Br dynamically
     const int Bc = 32; const int Br = 32;
 
