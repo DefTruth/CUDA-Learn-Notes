@@ -12,9 +12,9 @@
 📒CUDA-Learn-Note: CUDA 笔记 / 高频面试题汇总 / C++笔记，个人笔记，更新随缘: sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、histogram、relu、sigmoid ...  🌟如果觉得有用，不妨给个🌟👆🏻Star支持一下吧~
 
 ## 0x00 前言
-前段时间参加了一些`大模型`面试，大部分都要手撕CUDA，因此也整体复习了一遍CUDA优化相关的内容，整理了一些高频题的基本写法，保存在这里也便于日后自己复习。当然，有些代码不一定是最优化解，比如GEMM，想要在面试短短的30分钟内写一个好的`GEMM` Kernel，是有些难度的。印象比较深刻的是，其中有一场面试2个多小时，一个小时问项目，剩下一个小时在写GEMM，虽然写的kernel很一般，但是印象还挺深刻的。相关kernel如下。也就是不到1000行代码，建议背下来，我个人是喜欢背记，背的过程中基本就慢慢理解所有细节。当然，每个人的学习方法都不一样哈，自己觉得舒服就行。  
-题内话，大模型相关的岗位，手撕CUDA的概率非常大，leetcode反而写的少，就前段时间个人的经验，基本是**4:1**的比例，还是建议好好复习下CUDA。当然，这些只是最简单的kernel实现，比如flash_attn，FMHA这些优化手段，就不在这里写了，面试中基本都会问到。后边有空再补档一些文章吧。
+前段时间参加了一些 **LLM/LMM AI Infra** 面试，大部分都要手撕 **CUDA**，因此也整体复习了一遍 **CUDA**，并整理了一些高频题的基本写法。当然，有些代码不一定是最优化解，比如 **GEMM**，想要在面试短短的30分钟内写一个好的 **GEMM Kernel** 不容易。相关kernel如下，也就是不到 **1000** 行代码，建议背下来，我个人是喜欢背记，背的过程中基本就慢慢理解所有细节。大模型推理相关，推荐：📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social)
 
+> 题内话，大模型相关的岗位，手撕CUDA的概率非常大，leetcode反而写的少，就前段时间个人的经验，基本是 **4:1** 的比例，还是建议好好复习下CUDA。当然，这些只是最简单的kernel实现，比如flash_attn，fMHA这些优化手段，面试中基本都会问到。
 
 ## 0x01 📖目录
 <div id="kernellist"></div>  
