@@ -1,36 +1,40 @@
-![cuda-learn-note](https://github.com/DefTruth/CUDA-Learn-Note/assets/31974251/882271fe-ab60-4b0e-9440-2e0fa3c0fb6f)
+![cuda-learn-note](https://github.com/DefTruth/CUDA-Learn-Note/assets/31974251/882271fe-ab60-4b0e-9440-2e0fa3c0fb6f)   
 
+<div align='center'>
+  <img src=https://img.shields.io/badge/Language-CUDA-brightgreen.svg >
+  <img src=https://img.shields.io/github/watchers/DefTruth/cuda-learn-note?color=9cc >
+  <img src=https://img.shields.io/github/forks/DefTruth/cuda-learn-note.svg?style=social >
+  <img src=https://img.shields.io/github/stars/DefTruth/cuda-learn-note.svg?style=social >
+  <img src=https://img.shields.io/badge/Release-v0.1-brightgreen.svg >
+  <img src=https://img.shields.io/badge/License-GPLv3.0-turquoise.svg >
+ </div>   
 
-CUDA-Learn-Note: CUDA 笔记 / 高频面试题汇总 / C++笔记，个人笔记，更新随缘: sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、histogram、relu、sigmoid ...  
+📒CUDA-Learn-Note: CUDA 笔记 / 高频面试题汇总 / C++笔记，个人笔记，更新随缘: sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、histogram、relu、sigmoid ...  🌟如果觉得有用，不妨给个🌟👆🏻Star支持一下吧~
 
 ## 0x00 前言
-前段时间参加了一些`大模型`面试，大部分都要手撕CUDA，因此也整体复习了一遍CUDA优化相关的内容，整理了一些高频题的基本写法，保存在这里也便于日后自己复习。当然，有些代码不一定是最优化解，比如GEMM，想要在面试短短的30分钟内写一个好的`GEMM` Kernel，是有些难度的。印象比较深刻的是，其中有一场面试2个多小时，一个小时问项目，剩下一个小时在写GEMM，虽然写的kernel很一般，但是印象还挺深刻的。[代码文件](./cuda-check/check.cu)
-TIPS: 仓库整理的代码为方便自己复习回顾，不喜欢的请自动跳过哈。
+前段时间参加了一些`大模型`面试，大部分都要手撕CUDA，因此也整体复习了一遍CUDA优化相关的内容，整理了一些高频题的基本写法，保存在这里也便于日后自己复习。当然，有些代码不一定是最优化解，比如GEMM，想要在面试短短的30分钟内写一个好的`GEMM` Kernel，是有些难度的。印象比较深刻的是，其中有一场面试2个多小时，一个小时问项目，剩下一个小时在写GEMM，虽然写的kernel很一般，但是印象还挺深刻的。相关kernel如下。也就是不到1000行代码，建议背下来，我个人是喜欢背记，背的过程中基本就慢慢理解所有细节。当然，每个人的学习方法都不一样哈，自己觉得舒服就行。  
+题内话，大模型相关的岗位，手撕CUDA的概率非常大，leetcode反而写的少，就前段时间个人的经验，基本是**4:1**的比例，还是建议好好复习下CUDA。当然，这些只是最简单的kernel实现，比如flash_attn，FMHA这些优化手段，就不在这里写了，面试中基本都会问到。后边有空再补档一些文章吧。
 
-## 0x01 高频面试题汇总简介
+
+## 0x01 📖目录
 <div id="kernellist"></div>  
 
-相关kernel如下。也就是不到1000行代码，建议背下来，我个人是喜欢背记，背的过程中基本就慢慢理解所有细节。当然，每个人的学习方法都不一样哈，自己觉得舒服就行。
-
-- [x] [sgemm naive, sgemm + block-tile + k-tile + vec4](#sgemm)
-- [x] [sgemv k32/k128/k16 kernel](#sgemv)
-- [x] [warp/block reduce sum/max](#warpreduce)
-- [x] [block all reduce + vec4](#blockallreduce)
-- [x] [dot product, dot product + vec4](#dot)
-- [x] [elementwise, elementwise + vec4](#elementwise)
-- [x] [histogram, histogram + vec4](#histogram)
-- [x] [softmax, softmax + vec4 (grid level memory fence)](#softmax)
-- [x] [sigmoid, sigmoid + vec4](#sigmoid)
-- [x] [relu, relu + vec4](#relu)
-- [x] [layer_norm, layer_norm + vec4](#layernorm)
-- [x] [rms_norm, rms_norm + vec4](#rmsnorm)
-- [x] [nms](#NMS) 
-- [ ] sgemm + double buffer
-- [ ] sgemm + fp16
+- [x] 📖[sgemm naive, sgemm + block-tile + k-tile + vec4](#sgemm)
+- [x] 📖[sgemv k32/k128/k16 kernel](#sgemv)
+- [x] 📖[warp/block reduce sum/max](#warpreduce)
+- [x] 📖[block all reduce + vec4](#blockallreduce)
+- [x] 📖[dot product, dot product + vec4](#dot)
+- [x] 📖[elementwise, elementwise + vec4](#elementwise)
+- [x] 📖[histogram, histogram + vec4](#histogram)
+- [x] 📖[softmax, softmax + vec4 (grid level memory fence)](#softmax)
+- [x] 📖[sigmoid, sigmoid + vec4](#sigmoid)
+- [x] 📖[relu, relu + vec4](#relu)
+- [x] 📖[layer_norm, layer_norm + vec4](#layernorm)
+- [x] 📖[rms_norm, rms_norm + vec4](#rmsnorm)
+- [x] 📖[nms](#NMS) 
+- [ ] 📖sgemm + double buffer
+- [ ] 📖sgemm + fp16
 - [ ] ...
-
-
-题内话，大模型相关的岗位，手撕CUDA的概率非常大，leetcode反而写的少，就前段时间个人的经验，基本是4:1的比例，还是建议好好复习下CUDA。当然，这些只是最简单的kernel实现，比如flash_attn，FMHA这些优化手段，就不在这里写了，面试中基本都会问到。后边有空再补档一些文章吧。
 
 ## 0x02 sgemm naive, sgemm + block-tile + k-tile + vec4  ([©️back👆🏻](#kernellist))  
 <div id="sgemm"></div>  
