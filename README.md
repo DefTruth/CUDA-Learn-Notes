@@ -10,13 +10,15 @@
  </div>   
 
 📒**CUDA-Learn-Note**: CUDA 笔记 / 高频面试题汇总 / C++笔记，更新随缘: flash_attn、sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、histogram、relu、sigmoid etc.
+<p align="center"> <a > 🌟如果觉得有用，不妨给个🌟👆🏻Star支持一下吧~ </a> </p>
 
 ## 0x00 前言
-之前参加了一些 **LLM AI Infra** 面试，大部分都要手撕 **CUDA**，于是整理了一些高频题。有些代码不一定是最优化解，比如 **GEMM**，想要在面试中写一个好的 **GEMM Kernel** 不容易。相关Kernel **1000** 行代码左右，建议背下来。**LLM AI Infra** 相关，推荐: 📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social)
+之前参加了一些 **LLM AI Infra** 面试，大部分都要手撕 **CUDA**，于是整理了一些高频题。相关Kernel **1000** 行代码左右，建议背下来。**LLM AI Infra** 相关，推荐: 📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social)
 
 > ⚡️题内话，大模型相关的岗位，手撕CUDA的概率大，leetcode少，个人经验，基本是 **4:1** 的比例。
 
- 🌟如果觉得有用，不妨给个🌟👆🏻Star支持一下吧~
+
+ 
  
 ## 0x01 📖目录
 <div id="kernellist"></div>  
