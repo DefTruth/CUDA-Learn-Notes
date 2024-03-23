@@ -803,6 +803,9 @@ CV相关的经常会要手撕NMS，也记录下。
 ## ©️License
 GNU General Public License v3.0
 
+## References  
+- [flash-attention-minimal](https://github.com/tspeterkim/flash-attention-minimal): Flash Attention in ~100 lines of CUDA (forward pass only)
+
 ## 🎉Contribute
 🌟如果觉得有用，不妨给个🌟👆🏻Star支持一下吧~
 
