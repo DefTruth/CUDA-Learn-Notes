@@ -4,3 +4,4 @@
 *.dll
 *.lib
 .DS_Store
+build
