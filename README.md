@@ -13,7 +13,7 @@
 <p align="center"> <a > 🌟如果觉得有用，不妨给个🌟👆🏻Star支持一下吧~ </a> </p>
 
 ## 0x00 前言
-**LLM AI Infra** 面试中，手撕 **CUDA**多，写leetcode少，个人经验是⚡️**4:1** 的比例。于是整理了一些高频题，方便复习，建议背下来。**LLM AI Infra**，推荐: 📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social)
+**LLM AI Infra** 面试，手撕 **CUDA**多，于是整理了一些笔记。另外，推荐: 📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social)
 
 > 
 
