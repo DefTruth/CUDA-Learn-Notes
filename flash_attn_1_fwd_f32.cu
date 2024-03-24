@@ -117,10 +117,9 @@ torch::Tensor flash_attn_1_fwd_f32(
 
     // Initialize O, l, m to HBM
     auto O = torch::zeros_like(Q);
-    auto l = torch::zeros({B, nh, N});
-    auto m = torch::full({B, nh, N}, -INFINITY);
-    torch::Device device(torch::kCUDA);
-    l = l.to(device); m = m.to(device);
+    auto options = torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCUDA, 0);
+    auto l = torch::zeros({B, nh, N}, options);
+    auto m = torch::full({B, nh, N}, -INFINITY, options);
 
     // Calculate SRAM size needed per block
     const int sram_size = (3 * Bc * d * sizeof(float)) + (Bc * Br * sizeof(float));

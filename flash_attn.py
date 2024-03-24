@@ -24,7 +24,9 @@ head_embd = 64
 q = torch.randn(batch_size, n_head, seq_len, head_embd).float().cuda()
 k = torch.randn(batch_size, n_head, seq_len, head_embd).float().cuda()
 v = torch.randn(batch_size, n_head, seq_len, head_embd).float().cuda()
-
+q.requires_grad = False
+k.requires_grad = False
+v.requires_grad = False
 print('=== profiling manual attention ===')
 
 def manual_attn(q, k, v):
@@ -33,14 +35,21 @@ def manual_attn(q, k, v):
     y = att @ v
     return y
 
-with torch.autograd.profiler.profile(use_cuda=True) as prof:
-    manual_result = manual_attn(q, k, v)
+for _ in range(2): 
+    manual_result = manual_attn(q, k, v) # warmup
+
+torch.cuda.synchronize()
+with torch.autograd.profiler.profile(use_cuda=True, with_flops=True) as prof:
+    with torch.autograd.profiler.record_function("manual_attn"):
+        manual_result = manual_attn(q, k, v)
 print(prof.key_averages().table(sort_by='cuda_time_total', row_limit=10))
 
-
+for _ in range(2): 
+    custom_result = custom_flash_attn.flash_attn_1_fwd_f32(q, k, v) # warmup
 print('=== profiling flash_attn_1_fwd_f32 attention === ')
-with torch.autograd.profiler.profile(use_cuda=True) as prof:
-    custom_result = custom_flash_attn.flash_attn_1_fwd_f32(q, k, v)
+with torch.autograd.profiler.profile(use_cuda=True, with_flops=True) as prof:
+     with torch.autograd.profiler.record_function("flash_attn_1_fwd_f32"):
+        custom_result = custom_flash_attn.flash_attn_1_fwd_f32(q, k, v)
 print(prof.key_averages().table(sort_by='cuda_time_total', row_limit=10))
 print('attn values sanity check:', torch.allclose(custom_result, manual_result, rtol=0, atol=1e-02))
 
