@@ -6,7 +6,13 @@ from torch.nn import functional as F
 from torch.utils.cpp_extension import load
 
 # Load the CUDA kernel as a python module
-custom_flash_attn = load(name='custom_flash_attn', sources=['flash_attn.cc', 'flash_attn.cu'], extra_cuda_cflags=['-O2'])
+custom_flash_attn = load(name='custom_flash_attn', 
+                         sources=[
+                            'flash_attn.cc',
+                            'flash_attn_1_fwd_f32.cu',
+                            'flash_attn_2_fwd_f32.cu'
+                         ], 
+                         extra_cuda_cflags=['-O2'])
 
 # Use small model params, otherwise slower than manual attention. See caveats in README.
 batch_size = 16
@@ -30,11 +36,9 @@ with torch.autograd.profiler.profile(use_cuda=True) as prof:
     manual_result = manual_attn(q, k, v)
 print(prof.key_averages().table(sort_by='cuda_time_total', row_limit=10))
 
-print('=== profiling minimal flash attention === ')
-
-# Modified from https://github.com/tspeterkim/flash-attention-minimal/blob/main/bench.py
+print('=== profiling flash_attn_1_fwd_f32 attention === ')
 with torch.autograd.profiler.profile(use_cuda=True) as prof:
-    custom_result = custom_flash_attn.custom_flash_attn_fwd(q, k, v)
+    custom_result = custom_flash_attn.flash_attn_1_fwd_f32(q, k, v)
 print(prof.key_averages().table(sort_by='cuda_time_total', row_limit=10))
 
 print('attn values sanity check:', torch.allclose(custom_result, manual_result, rtol=0, atol=1e-02))

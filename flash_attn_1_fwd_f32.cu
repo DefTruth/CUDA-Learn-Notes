@@ -3,10 +3,20 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-// This kernel source from: https://github.com/tspeterkim/flash-attention-minimal/blob/main/flash.cu  
-__global__ void forward_kernel(const float* Q, const float* K, const float* V, const int N, const int d,
-                               const int Tc, const int Tr, const int Bc, const int Br, const float softmax_scale,
-                               float* l, float *m, float* O) {
+__global__ void flash_attn_1_fwd_f32_kernel(
+    const float* Q, 
+    const float* K, 
+    const float* V, 
+    const int N, 
+    const int d,
+    const int Tc,
+    const int Tr, 
+    const int Bc, 
+    const int Br, 
+    const float softmax_scale,
+    float* l, 
+    float *m, 
+    float* O) {
     int tx = threadIdx.x;
     int bx = blockIdx.x; int by = blockIdx.y;  // batch and head index
 
@@ -82,7 +92,10 @@ __global__ void forward_kernel(const float* Q, const float* K, const float* V, c
     }
 }
 
-torch::Tensor custom_flash_attn_fwd(torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
+torch::Tensor flash_attn_1_fwd_f32(
+    torch::Tensor Q, 
+    torch::Tensor K, 
+    torch::Tensor V) {
     // TODO: determine Bc, Br dynamically
     const int Bc = 32; const int Br = 32;
 
@@ -108,7 +121,7 @@ torch::Tensor custom_flash_attn_fwd(torch::Tensor Q, torch::Tensor K, torch::Ten
     dim3 grid_dim(B, nh);  // batch_size x num_heads
     dim3 block_dim(Bc);  // Bc threads per block
 
-    forward_kernel<<<grid_dim, block_dim, sram_size>>>(
+    flash_attn_1_fwd_f32_kernel<<<grid_dim, block_dim, sram_size>>>(
         Q.data_ptr<float>(), K.data_ptr<float>(), V.data_ptr<float>(),
         N, d, Tc, Tr, Bc, Br, softmax_scale,
         l.data_ptr<float>(), m.data_ptr<float>(), O.data_ptr<float>()
