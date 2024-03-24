@@ -4,6 +4,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+#define ENABLE_NOTE_LOG 0
 
 __global__ void flash_attn_2_fwd_f32_kernel(
   const float* Q, 
@@ -119,8 +120,9 @@ torch::Tensor flash_attn_2_fwd_f32(
   const int sram_size = (3 * Bc * d * sizeof(float)) + (Bc * Br * sizeof(float));
   int max_sram_size;
   cudaDeviceGetAttribute(&max_sram_size, cudaDevAttrMaxSharedMemoryPerBlock, 0);
+#if ENABLE_NOTE_LOG
   printf("Max shared memory: %d, requested shared memory: %d \\n", max_sram_size, sram_size);
-
+#endif 
   dim3 grid_dim(B, nh);  // batch_size x num_heads
   dim3 block_dim(Bc);  // Bc threads per block
 
