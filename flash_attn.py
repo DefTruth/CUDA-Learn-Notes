@@ -34,11 +34,13 @@ def manual_attn(q, k, v):
 
 with torch.autograd.profiler.profile(use_cuda=True) as prof:
     manual_result = manual_attn(q, k, v)
+    torch.cuda.synchronize()
 print(prof.key_averages().table(sort_by='cuda_time_total', row_limit=10))
 
 print('=== profiling flash_attn_1_fwd_f32 attention === ')
 with torch.autograd.profiler.profile(use_cuda=True) as prof:
     custom_result = custom_flash_attn.flash_attn_1_fwd_f32(q, k, v)
+    torch.cuda.synchronize()
 print(prof.key_averages().table(sort_by='cuda_time_total', row_limit=10))
 
 print('attn values sanity check:', torch.allclose(custom_result, manual_result, rtol=0, atol=1e-02))
