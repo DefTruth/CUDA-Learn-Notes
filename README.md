@@ -33,7 +33,7 @@
 - [x] 📖[relu, relu + vec4](#relu)
 - [x] 📖[layer_norm, layer_norm + vec4](#layernorm)
 - [x] 📖[rms_norm, rms_norm + vec4](#rmsnorm)
-- [x] 📖[flash attention forward pass](./flash_attn.cu)
+- [x] 📖[flash attention forward pass](./flash_attn_1_fwd_f32.cu)
 - [x] 📖[nms](#NMS) 
 - [ ] 📖sgemm + double buffer
 - [ ] 📖sgemm + fp16
