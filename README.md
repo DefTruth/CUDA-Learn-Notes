@@ -13,7 +13,7 @@
 <p align="center"> <a > 🌟如果觉得有用，不妨给个🌟👆🏻Star支持一下吧~ </a> </p>
 
 ## 0x00 前言
-前段时间参加了一些**LLM AI Infra**面试，基本都要手撕**CUDA**⚡️，于是整体复习了一下**CUDA**优化相关的内容，也整理了一些高频题的基本写法。不求最优，但求有解，大佬路过请自动忽略。笔记分享在这里，不定期更新，也方便自己日后复习。关于**LLM AI Infra**，也推荐我整理的: 📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social)
+前段时间参加了一些**LLM AI Infra**面试，基本都要手撕**CUDA**⚡️，于是整体复习了一下**CUDA**优化相关的内容，也整理了一些高频题的基本写法。笔记分享在这里，不定期更新，也方便自己日后复习。关于**LLM AI Infra**，也推荐我整理的: 📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social)
 
 
 
