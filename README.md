@@ -15,7 +15,7 @@
 -->
 
 ## 0x00 前言
-前段时间参加了一些**LLM AI Infra**面试，基本都要手撕**CUDA**⚡️，于是整体复习了一下**CUDA**优化相关的内容，也整理了一些高频题的基本写法。笔记分享在这里，不定期更新，也方便自己日后复习。关于**LLM AI Infra**，也推荐我整理的: 📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social)
+前段时间参加了一些**LLM AI Infra**面试，基本都要手撕**CUDA**⚡️，于是整体复习了一下**CUDA**优化相关的内容，也整理了一些高频题的基本写法。笔记分享在这里，不定期更新。关于**LLM AI Infra**，也推荐我整理的: 📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social)
 
 
 
@@ -35,11 +35,11 @@
 - [x] 📖[relu, relu + vec4](#relu)
 - [x] 📖[layer_norm, layer_norm + vec4](#layernorm)
 - [x] 📖[rms_norm, rms_norm + vec4](#rmsnorm)
-- [x] 📖[flash attention forward pass](./flash_attn_1_fwd_f32.cu)
-- [x] 📖[nms](#NMS) 
-- [ ] 📖sgemm + double buffer
+- [x] 📖[flash_attn_1_fwd_f32](./flash_attn_1_fwd_f32.cu)
+- [ ] 📖flash_attn_2_fwd_f32
+- [ ] 📖flash_attn_2_fwd_f16
+- [ ] 📖flash_attn_2_fwd_f8
 - [ ] 📖sgemm + fp16
-- [ ] ...
 
 ## 0x02 sgemm naive, sgemm + block-tile + k-tile + vec4  ([©️back👆🏻](#kernellist))  
 <div id="sgemm"></div>  
