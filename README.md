@@ -23,29 +23,46 @@
 ## 0x00 前言
 前段时间参加了一些**LLM AI Infra**面试，基本都要手撕**CUDA**⚡️，于是整体复习了一下**CUDA**优化相关的内容，也整理了一些高频题的基本写法。笔记分享在这里，不定期更新。关于**LLM AI Infra**，也推荐我整理的: 📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social)
 
-
-
  
 ## 0x01 📖目录
 <div id="kernellist"></div>  
 
-- [x] 📖[sgemm naive, sgemm + block-tile + k-tile + vec4](#sgemm)
-- [x] 📖[sgemv k32/k128/k16 kernel](#sgemv)
-- [x] 📖[warp/block reduce sum/max](#warpreduce)
-- [x] 📖[block all reduce + vec4](#blockallreduce)
-- [x] 📖[dot product, dot product + vec4](#dot)
-- [x] 📖[elementwise, elementwise + vec4](#elementwise)
-- [x] 📖[histogram, histogram + vec4](#histogram)
-- [x] 📖[softmax, softmax + vec4 (grid level memory fence)](#softmax)
-- [x] 📖[sigmoid, sigmoid + vec4](#sigmoid)
-- [x] 📖[relu, relu + vec4](#relu)
-- [x] 📖[layer_norm, layer_norm + vec4](#layernorm)
-- [x] 📖[rms_norm, rms_norm + vec4](#rmsnorm)
-- [x] 📖[flash_attn_1_fwd_f32](./flash_attn_1_fwd_f32.cu)
-- [ ] 📖flash_attn_2_fwd_f32
-- [ ] 📖flash_attn_2_fwd_f16
-- [ ] 📖flash_attn_2_fwd_f8
-- [ ] 📖sgemm + fp16
+- [x] 📖 [sgemm_naive](#sgemm)
+- [x] 📖 [sgemm_block_tile_k_tile_vec4](#sgemm)
+- [x] 📖 [sgemv_k32_kernel](#sgemv)
+- [x] 📖 [sgemv_k128_kernel](#sgemv)
+- [x] 📖 [sgemv_k16_kernel](#sgemv)
+- [x] 📖 [warp/block_reduce_sum/max](#warpreduce)
+- [x] 📖 [block_all_reduce](#blockallreduce)
+- [x] 📖 [block_all_reduce_vec4](#blockallreduce)
+- [x] 📖 [dot_product_kernel](#dot)
+- [x] 📖 [dot_product_vec4_kernel](#dot)
+- [x] 📖 [elementwise_kernel](#elementwise)
+- [x] 📖 [elementwise_vec4_kernel](#elementwise)
+- [x] 📖 [histogram_kernel](#histogram)
+- [x] 📖 [histogram_vec4_kernel](#histogram)
+- [x] 📖 [softmax_kernel (grid level memory fence)](#softmax)
+- [x] 📖 [softmax_vec4_kernel (grid level memory fence)](#softmax)
+- [ ] 📖 [safe_softmax_kernel (per token)](#softmax)
+- [x] 📖 [sigmoid_kernel](#sigmoid)
+- [x] 📖 [sigmoid_vec4_kernel](#sigmoid)
+- [ ] 📖 [safe_sigmoid_kernel](#sigmoid)
+- [x] 📖 [relu_kernel](#relu)
+- [x] 📖 [relu_vec4_kernel](#relu)
+- [x] 📖 [layer_norm_kernel (per token)](#layernorm)
+- [x] 📖 [layer_norm_vec4_kernel (per token)](#layernorm)
+- [x] 📖 [rms_norm_vec4_kernel (per token)](#rmsnorm)
+- [x] 📖 [rms_norm_vec4_kernel (per token)](#rmsnorm)
+- [x] 📖 [flash_attn_1_fwd_f32](./flash_attn_1_fwd_f32.cu)
+- [ ] 📖 flash_attn_2_fwd_f32
+- [ ] 📖 flash_attn_2_fwd_f16
+- [ ] 📖 flash_attn_2_fwd_b16
+- [ ] 📖 flash_attn_2_fwd_f8
+- [ ] 📖 flash_attn_2_split_kv_f16
+- [ ] 📖 flash_attn_2_split_kv_b16
+- [ ] 📖 flash_attn_2_split_kv_f8
+- [ ] 📖 sgemm_fp16
+- [ ] 📖 sgemm_double_buffer
 
 ## 0x02 sgemm naive, sgemm + block-tile + k-tile + vec4  ([©️back👆🏻](#kernellist))  
 <div id="sgemm"></div>  
