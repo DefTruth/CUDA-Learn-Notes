@@ -27,14 +27,14 @@
 ## 0x01 📖目录
 <div id="kernellist"></div>  
 
-- [x] 📖 [sgemm_naive](#sgemm)
-- [x] 📖 [sgemm_block_tile_k_tile_vec4](#sgemm)
+- [x] 📖 [sgemm_naive_f32_kernel](#sgemm)
+- [x] 📖 [sgemm_block_tile_k_tile_vec4_f32_kernel](#sgemm)
 - [x] 📖 [sgemv_k32_kernel](#sgemv)
 - [x] 📖 [sgemv_k128_kernel](#sgemv)
 - [x] 📖 [sgemv_k16_kernel](#sgemv)
-- [x] 📖 [warp/block_reduce_sum/max](#warpreduce)
-- [x] 📖 [block_all_reduce](#blockallreduce)
-- [x] 📖 [block_all_reduce_vec4](#blockallreduce)
+- [x] 📖 [warp/block_reduce_sum/max_kernel](#warpreduce)
+- [x] 📖 [block_all_reduce_kernel](#blockallreduce)
+- [x] 📖 [block_all_reduce_vec4_kernel](#blockallreduce)
 - [x] 📖 [dot_product_kernel](#dot)
 - [x] 📖 [dot_product_vec4_kernel](#dot)
 - [x] 📖 [elementwise_kernel](#elementwise)
@@ -53,16 +53,16 @@
 - [x] 📖 [layer_norm_vec4_kernel (per token)](#layernorm)
 - [x] 📖 [rms_norm_vec4_kernel (per token)](#rmsnorm)
 - [x] 📖 [rms_norm_vec4_kernel (per token)](#rmsnorm)
-- [x] 📖 [flash_attn_1_fwd_f32](./flash_attn_1_fwd_f32.cu)
-- [ ] 📖 flash_attn_2_fwd_f32
-- [ ] 📖 flash_attn_2_fwd_f16
-- [ ] 📖 flash_attn_2_fwd_b16
-- [ ] 📖 flash_attn_2_fwd_f8
-- [ ] 📖 flash_attn_2_split_kv_f16
-- [ ] 📖 flash_attn_2_split_kv_b16
-- [ ] 📖 flash_attn_2_split_kv_f8
-- [ ] 📖 sgemm_fp16
-- [ ] 📖 sgemm_double_buffer
+- [x] 📖 [flash_attn_1_fwd_f32_kernel](./flash_attn_1_fwd_f32.cu)
+- [ ] 📖 flash_attn_2_fwd_f32_kernel
+- [ ] 📖 flash_attn_2_fwd_f16_kernel
+- [ ] 📖 flash_attn_2_fwd_b16_kernel
+- [ ] 📖 flash_attn_2_fwd_f8_kernel
+- [ ] 📖 flash_attn_2_split_kv_f16_kernel
+- [ ] 📖 flash_attn_2_split_kv_b16_kernel
+- [ ] 📖 flash_attn_2_split_kv_f8_kernel
+- [ ] 📖 sgemm_f16_kernel
+- [ ] 📖 sgemm_buf_f32_kernel
 
 ## 0x02 sgemm naive, sgemm + block-tile + k-tile + vec4  ([©️back👆🏻](#kernellist))  
 <div id="sgemm"></div>  
