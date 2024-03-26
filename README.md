@@ -64,7 +64,7 @@
 - [ ] 📖 flash_attn_2_split_kv_f16_kernel
 - [ ] 📖 flash_attn_2_split_kv_b16_kernel
 - [ ] 📖 flash_attn_2_split_kv_f8_kernel
-- [ ] 📖 sgemm_f16_kernel
+- [ ] 📖 hgemm_f16_kernel
 - [ ] 📖 sgemm_dbuf_f32_kernel
 
 ## 0x02 sgemm naive, sgemm + block-tile + k-tile + vec4  ([©️back👆🏻](#kernellist))  
