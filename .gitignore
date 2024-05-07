@@ -5,3 +5,4 @@
 *.lib
 .DS_Store
 build
+*.whl
