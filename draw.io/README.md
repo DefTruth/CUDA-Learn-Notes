@@ -1,4 +1,10 @@
 ## 个人博客资源  
-- [[Prefill优化][万字]🔥原理&图解vLLM Automatic Prefix Cache(RadixAttention): 首Token时延优化](https://zhuanlan.zhihu.com/p/693556044)
+
+- vLLM Automatic Prefix Cache(RadixAttention)
 
 ![](./vllm-automatic-prefix-caching.drawio.png)
+
+
+- vLLM Prefix Prefill Triton Kernel Tiling
+
+![](./vllm-prefix-prefill-triton-kernel-tiling.png)
