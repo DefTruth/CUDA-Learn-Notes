@@ -15,6 +15,9 @@
 -->
 
 ## 个人博客
+
+![](./vllm-prefix-prefill-triton-kernel-tiling.png)
+
 - [[Prefill优化][万字]🔥原理&图解vLLM Automatic Prefix Cache(RadixAttention): 首Token时延优化](https://zhuanlan.zhihu.com/p/693556044)
 - [[Attention优化][2w字]🔥原理&图解: 从Online-Softmax到FlashAttention V1/V2/V3](https://zhuanlan.zhihu.com/p/668888063)
 - [[Decoding优化]🔥原理&图解FlashDecoding/FlashDecoding++](https://zhuanlan.zhihu.com/p/696075602)
