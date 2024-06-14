@@ -18,7 +18,7 @@
 
 ![](./draw.io/vllm-prefix-prefill-triton-kernel-tiling.png)
 
-- [[LLM推理优化]🔥TensorRT-LLM部署调优-指北](https://zhuanlan.zhihu.com/p/699333691)
+- [[LLM推理优化][3w字]🔥TensorRT-LLM部署调优-指北](https://zhuanlan.zhihu.com/p/699333691)
 - [[Prefill优化]🔥图解vLLM Prefix Prefill Triton Kernel](https://zhuanlan.zhihu.com/p/695799736)
 - [[Prefill优化][万字]🔥原理&图解vLLM Automatic Prefix Cache(RadixAttention): 首Token时延优化](https://zhuanlan.zhihu.com/p/693556044)
 - [[Attention优化][2w字]🔥原理&图解: 从Online-Softmax到FlashAttention V1/V2/V3](https://zhuanlan.zhihu.com/p/668888063)
