@@ -16,7 +16,8 @@
 
 ## 个人博客
 
-![](./draw.io/vllm-prefix-prefill-triton-kernel-tiling.png)
+![prefill](./draw.io/vllm-prefix-prefill-triton-kernel-tiling.png)
+![trtllm](https://github.com/DefTruth/CUDA-Learn-Notes/assets/31974251/63f957dd-f7e3-4f7f-8d66-71fc8a5e9488)
 
 - [[LLM推理优化][4w字]🔥TensorRT-LLM部署调优-指北](https://zhuanlan.zhihu.com/p/699333691)
 - [[Prefill优化]🔥图解vLLM Prefix Prefill Triton Kernel](https://zhuanlan.zhihu.com/p/695799736)
