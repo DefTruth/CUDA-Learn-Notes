@@ -10,9 +10,9 @@
  </div>   
 
 📒**CUDA-Learn-Notes**: CUDA 笔记 / 大模型手撕CUDA / C++笔记，更新随缘: flash_attn、sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、histogram、relu、sigmoid etc.
-<!--
-<p align="center"> <a > 🌟如果觉得有用，不妨给个🌟👆🏻Star支持一下吧~ </a> </p>
--->
+
+> [!NOTE]
+> 哥尔·D·罗杰: 想要我的财宝吗？想要的话可以全部给你，去寻找吧！我把所有财宝都放在哪里了！
 
 ## 个人博客
 
