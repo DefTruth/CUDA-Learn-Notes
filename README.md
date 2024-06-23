@@ -11,7 +11,8 @@
 
 📒**CUDA-Learn-Notes**: CUDA 笔记 / 大模型手撕CUDA / C++笔记，更新随缘: flash_attn、sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、histogram、relu、sigmoid etc.
 
-> [!NOTE]
+![哥尔·D·罗杰](https://github.com/DefTruth/CUDA-Learn-Notes/assets/31974251/079330f7-a77b-4a2b-adf1-0e1d0bf4ffa6)
+
 > 想要我的财宝吗？想要的话可以全部给你，去找吧！我把所有财宝都放在那里！—— **哥尔·D·罗杰**
 
 ## 个人博客
