@@ -11,15 +11,17 @@
 
 📒**CUDA-Learn-Notes**: CUDA 笔记 / 大模型手撕CUDA / C++笔记，更新随缘: flash_attn、sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、histogram、relu、sigmoid etc.
 
+
+<!---
 ![哥尔·D·罗杰](https://github.com/DefTruth/CUDA-Learn-Notes/assets/31974251/079330f7-a77b-4a2b-adf1-0e1d0bf4ffa6)
+![trtllm](https://github.com/DefTruth/CUDA-Learn-Notes/assets/31974251/5a913fb4-19ba-4880-9602-422d4d6b2925)
+--->
 
 > 想要我的财宝吗？想要的话可以全部给你，去找吧！我把所有财宝都放在那里！—— **哥尔·D·罗杰**
 
 ## 个人博客
 
 ![prefill](https://github.com/DefTruth/CUDA-Learn-Notes/assets/31974251/8e1fe25a-0697-408a-849a-6f0ea47012b0)
-![trtllm](https://github.com/DefTruth/CUDA-Learn-Notes/assets/31974251/5a913fb4-19ba-4880-9602-422d4d6b2925)
-
 
 - [[TensorRT-LLM][5w字]🔥TensorRT-LLM部署调优-指北](https://zhuanlan.zhihu.com/p/699333691)
 - [[KV Cache优化]🔥MQA/GQA/YOCO/CLA笔记: 层内和层间KV Cache共享](https://zhuanlan.zhihu.com/p/697311739)
@@ -42,7 +44,7 @@
 
 
 ## 0x00 前言
-前段时间参加了一些**LLM AI Infra**面试，基本都要手撕**CUDA**⚡️，于是整体复习了一下**CUDA**优化的内容，也整理了一些高频题的写法。笔记分享在这里，不定期更新。关于**LLM AI Infra**，也推荐我整理的: 📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social)
+前段时间参加了一些**LLM AI Infra**面试，基本都要手撕**CUDA**⚡️，于是整体复习了一下**CUDA**优化的内容，也整理了一些高频题的写法。笔记分享在这里，不定期更新。关于**LLM AI Infra**，也推荐我整理的: 📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social)，关于**SD/ViT/DiT**分布式推理(**Multi-GPUs**)，推荐：📖[Awesome-SD-Distributed-Inference](https://github.com/DefTruth/Awesome-SD-Distributed-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-SD-Distributed-Inference.svg?style=social)
 
  
 ## 0x01 📖目录
