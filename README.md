@@ -21,7 +21,7 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 
 ![prefill](https://github.com/DefTruth/CUDA-Learn-Notes/assets/31974251/8e1fe25a-0697-408a-849a-6f0ea47012b0)
 
-- [[InternLM/VL系列][万字]📒InternLM2/InternViT/InternVL1.5/InternVL2笔记: 核心技术解析](https://zhuanlan.zhihu.com/p/702481058)
+- [[InternLM/VL系列][万字]📒InternLM2/InternViT/InternVL1.5/InternVL2笔记: 核心点解析](https://zhuanlan.zhihu.com/p/702481058)
 - [[TensorRT-LLM][5w字]🔥TensorRT-LLM部署调优-指北](https://zhuanlan.zhihu.com/p/699333691)
 - [[KV Cache优化]🔥MQA/GQA/YOCO/CLA/MLKV笔记: 层内和层间KV Cache共享](https://zhuanlan.zhihu.com/p/697311739)
 - [[Prefill优化]🔥图解vLLM Prefix Prefill Triton Kernel](https://zhuanlan.zhihu.com/p/695799736)
@@ -29,7 +29,7 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - [[Attention优化][2w字]🔥原理&图解: 从Online-Softmax到FlashAttention V1/V2/V3](https://zhuanlan.zhihu.com/p/668888063)
 - [[Decoding优化]🔥原理&图解FlashDecoding/FlashDecoding++](https://zhuanlan.zhihu.com/p/696075602)
 - [[LLM推理优化]🔥100+篇: 大模型推理各方向新发展整理](https://zhuanlan.zhihu.com/p/693680304)
-- [[LLaVA系列]📒CLIP/LLaVA/LLaVA1.5/VILA笔记](https://zhuanlan.zhihu.com/p/683137074)
+- [[LLaVA系列]📒CLIP/LLaVA/LLaVA1.5/VILA笔记: 核心点解析](https://zhuanlan.zhihu.com/p/683137074)
 - [[机器学习]📒200页PDF笔记: 《统计学习方法-李航: 笔记-从原理到实现-基于R》](https://zhuanlan.zhihu.com/p/684885595)
 - [[Attention优化][万字]🔥TensorRT 9.2 MHA/Myelin Optimize vs FlashAttention-2 profile](https://zhuanlan.zhihu.com/p/678873216)
 - [[LLM推理优化][3w字]🔥高频面试题汇总-大模型手撕CUDA](https://zhuanlan.zhihu.com/p/678903537)
