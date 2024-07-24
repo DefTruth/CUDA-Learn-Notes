@@ -21,7 +21,7 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 
 ![prefill](https://github.com/DefTruth/CUDA-Learn-Notes/assets/31974251/8e1fe25a-0697-408a-849a-6f0ea47012b0)
 
-### 📒 大模型/多模态 推理优化
+### 📒 大模型/多模态/SD 推理优化
 
 - [[InternLM/VL系列][万字]📒InternLM2/InternLM2.5/InternViT/InternVL1.5/InternVL2笔记: 核心点解析](https://zhuanlan.zhihu.com/p/702481058)
 - [[TensorRT-LLM][5w字]🔥TensorRT-LLM部署调优-指北](https://zhuanlan.zhihu.com/p/699333691)
