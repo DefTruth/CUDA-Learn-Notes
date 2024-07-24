@@ -31,7 +31,6 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - [[Decoding优化]🔥原理&图解FlashDecoding/FlashDecoding++](https://zhuanlan.zhihu.com/p/696075602)
 - [[LLM推理优化]🔥100+篇: 大模型推理各方向新发展整理](https://zhuanlan.zhihu.com/p/693680304)
 - [[LLaVA系列]📒CLIP/LLaVA/LLaVA1.5/VILA笔记: 核心点解析](https://zhuanlan.zhihu.com/p/683137074)
-- [[机器学习]📒200页PDF笔记: 《统计学习方法-李航: 笔记-从原理到实现-基于R》](https://zhuanlan.zhihu.com/p/684885595)
 - [[Attention优化][万字]🔥TensorRT 9.2 MHA/Myelin Optimize vs FlashAttention-2 profile](https://zhuanlan.zhihu.com/p/678873216)
 - [[LLM推理优化][3w字]🔥高频面试题汇总-大模型手撕CUDA](https://zhuanlan.zhihu.com/p/678903537)
 - [[CUDA 12 PTX汇编]📒PRMT指令详解-通用模式](https://zhuanlan.zhihu.com/p/660630414)
@@ -83,6 +82,7 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 ### 📒 C/C++/技术随笔  
 
 - [[C++][3W字]💡静态链接和静态库实践指北-原理篇](https://zhuanlan.zhihu.com/p/595527528)
+- [[机器学习]📒200页PDF笔记: 《统计学习方法-李航: 笔记-从原理到实现-基于R》](https://zhuanlan.zhihu.com/p/684885595)
 - [[技术随笔] 如何优雅地git clone和git submodule？](https://zhuanlan.zhihu.com/p/639136221)
 - [[C++]🤓Mac下C++内存检查指北(Valgrind VS Asan)](https://zhuanlan.zhihu.com/p/508470880)
 - [[torchlm]🔥 torchlm: 人脸关键点检测库](https://zhuanlan.zhihu.com/p/467211561)
