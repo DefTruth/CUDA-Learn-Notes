@@ -22,6 +22,7 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 ![prefill](https://github.com/DefTruth/CUDA-Learn-Notes/assets/31974251/8e1fe25a-0697-408a-849a-6f0ea47012b0)
 
 ### 📒 大模型/多模态 推理优化
+
 - [[InternLM/VL系列][万字]📒InternLM2/InternLM2.5/InternViT/InternVL1.5/InternVL2笔记: 核心点解析](https://zhuanlan.zhihu.com/p/702481058)
 - [[TensorRT-LLM][5w字]🔥TensorRT-LLM部署调优-指北](https://zhuanlan.zhihu.com/p/699333691)
 - [[KV Cache优化]🔥MQA/GQA/YOCO/CLA/MLKV笔记: 层内和层间KV Cache共享](https://zhuanlan.zhihu.com/p/697311739)
@@ -67,7 +68,9 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - [[推理部署]👋超有用TNN参考资料整理](https://zhuanlan.zhihu.com/p/449769615)
 - [[推理部署]👋超有用ONNX参考资料整理](https://zhuanlan.zhihu.com/p/449773663)
 - [[推理部署]👋超有用ONNX模型结构参考资料整理](https://zhuanlan.zhihu.com/p/449775926)
+- [[推理部署]👋超有用OpenCV-DNN参考资料整理](https://zhuanlan.zhihu.com/p/449778377)
 - [[推理部署]👋超有用Tensorflow C++工程化知识点](https://zhuanlan.zhihu.com/p/449788027)
+- [[推理部署]深度学习模型转换资料整理](https://zhuanlan.zhihu.com/p/449759361)
 - [[推理部署] 超轻量级NanoDet MNN/TNN/NCNN/ONNXRuntime C++工程记录](https://zhuanlan.zhihu.com/p/443419387)
 - [[推理部署] 详细记录MGMatting(CVPR2021) 🔥MNN、TNN和ONNXRuntime C++移植（长文警告!）](https://zhuanlan.zhihu.com/p/442949027)
 - [[推理部署] YOLOX NCNN/MNN/TNN/ONNXRuntime C++工程简记](https://zhuanlan.zhihu.com/p/447364122)
@@ -77,18 +80,21 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - [[推理部署] RobustVideoMatting 🔥 2021最新视频抠图来了! C++ 工程化记录-应用篇](https://zhuanlan.zhihu.com/p/412491918)
 - [[推理部署] ONNXRuntime C++ CMake 工程分析及编译](https://zhuanlan.zhihu.com/p/411887386)
 - [[推理部署]🤓如何使用ONNXRuntime C++ API处理NCHW和NHWC输入？](https://zhuanlan.zhihu.com/p/524230808)
+- [[推理部署] tnn-convert搭建简记-YOLOP转TNN](https://zhuanlan.zhihu.com/p/431418709)
 - [[推理部署] YOLOP ONNXRuntime C++工程化记录](https://zhuanlan.zhihu.com/p/411651933)
 
 ### 📒 C/C++/技术随笔  
 
-- [[C++][3W字]💡静态链接和静态库实践指北-原理篇](https://zhuanlan.zhihu.com/p/595527528)
-- [[机器学习]📒200页PDF笔记: 《统计学习方法-李航: 笔记-从原理到实现-基于R》](https://zhuanlan.zhihu.com/p/684885595)
-- [[技术随笔] 如何优雅地git clone和git submodule？](https://zhuanlan.zhihu.com/p/639136221)
-- [[C++]🤓Mac下C++内存检查指北(Valgrind VS Asan)](https://zhuanlan.zhihu.com/p/508470880)
-- [[torchlm]🔥 torchlm: 人脸关键点检测库](https://zhuanlan.zhihu.com/p/467211561)
 - [[C++][CMake]👋超有用CMake参考资料整理](https://zhuanlan.zhihu.com/p/449779892)
+- [[C++][3W字]💡静态链接和静态库实践指北-原理篇](https://zhuanlan.zhihu.com/p/595527528)
+- [[C++]🤓Mac下C++内存检查指北(Valgrind VS Asan)](https://zhuanlan.zhihu.com/p/508470880)
+- [[技术随笔]📒200页PDF笔记: 《统计学习方法-李航: 笔记-从原理到实现-基于R》](https://zhuanlan.zhihu.com/p/684885595)
+- [[技术随笔] 如何优雅地git clone和git submodule？](https://zhuanlan.zhihu.com/p/639136221)
+- [[torchlm]🔥 torchlm: 人脸关键点检测库](https://zhuanlan.zhihu.com/p/467211561)
 - [[技术随笔] 人脸重建3D参考资料整理](https://zhuanlan.zhihu.com/p/524034741)
 - [[技术随笔] BlendShapes参考资料整理](https://zhuanlan.zhihu.com/p/524036145)
+- [[技术随笔]🛠🛠从源码安装Pytorch3D详细记录及学习资料](https://zhuanlan.zhihu.com/p/512347464)
+- [[技术随笔]🍅🍅200页:《统计学习方法：李航》笔记 -从原理到实现](https://zhuanlan.zhihu.com/p/461520847)
 
 
 ## 0x01 📖目录
