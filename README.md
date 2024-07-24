@@ -17,7 +17,7 @@
 Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social), 📖[Awesome-SD-Distributed-Inference](https://github.com/DefTruth/Awesome-SD-Distributed-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-SD-Distributed-Inference.svg?style=social) and 📖[CUDA-Learn-Notes](https://github.com/DefTruth/CUDA-Learn-Notes)  ![](https://img.shields.io/github/stars/DefTruth/CUDA-Learn-Notes.svg?style=social) for more details.
 
 
-## 0x00 个人博客
+## 0x00 📖 博客目录
 
 ![prefill](https://github.com/DefTruth/CUDA-Learn-Notes/assets/31974251/8e1fe25a-0697-408a-849a-6f0ea47012b0)
 
@@ -97,7 +97,7 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - [[技术随笔]🍅🍅200页:《统计学习方法：李航》笔记 -从原理到实现](https://zhuanlan.zhihu.com/p/461520847)
 
 
-## 0x01 📖目录
+## 0x01 📖 Kernel目录
 <div id="kernellist"></div>  
 
 - [x] 📖 [sgemm_naive_f32_kernel](#sgemm)
