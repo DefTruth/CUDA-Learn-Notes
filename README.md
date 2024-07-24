@@ -21,6 +21,7 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 
 ![prefill](https://github.com/DefTruth/CUDA-Learn-Notes/assets/31974251/8e1fe25a-0697-408a-849a-6f0ea47012b0)
 
+### 📒 大模型/多模态 推理优化
 - [[InternLM/VL系列][万字]📒InternLM2/InternLM2.5/InternViT/InternVL1.5/InternVL2笔记: 核心点解析](https://zhuanlan.zhihu.com/p/702481058)
 - [[TensorRT-LLM][5w字]🔥TensorRT-LLM部署调优-指北](https://zhuanlan.zhihu.com/p/699333691)
 - [[KV Cache优化]🔥MQA/GQA/YOCO/CLA/MLKV笔记: 层内和层间KV Cache共享](https://zhuanlan.zhihu.com/p/697311739)
@@ -44,17 +45,16 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - [[LLM推理优化]🔥速递：TensorRT-LLM开源，TensorRT 9.1 也来了🤓](https://zhuanlan.zhihu.com/p/662361469)
 - [[LLM推理优化]🔥20+篇: LLM推理论文集-300页PDF💡](https://zhuanlan.zhihu.com/p/658091768)
 - [[LLM推理优化]🔥PagedAttention论文新鲜出炉](https://zhuanlan.zhihu.com/p/617015570)
-- [[C++][3W字]💡静态链接和静态库实践指北-原理篇](https://zhuanlan.zhihu.com/p/595527528)
+
+### 📒 CV移动端/服务端 推理部署
+
 - [[推理部署]⚡️🔥覆盖云边端全场景，FastDeploy三行代码搞定150+ CV、NLP、Speech模型部署](https://zhuanlan.zhihu.com/p/581326442)
-- [[技术随笔] 如何优雅地git clone和git submodule？](https://zhuanlan.zhihu.com/p/639136221)
 - [[推理部署]💡如何在lite.ai.toolkit(2.8k+ 🔥stars)中增加您的模型？](https://zhuanlan.zhihu.com/p/523876625)
 - [[推理部署]🤓凑个热闹之 美团 YOLOv6 ORT/MNN/TNN/NCNN C++推理部署](https://zhuanlan.zhihu.com/p/533643238)
 - [[推理部署]🌔ONNX推理加速技术文档-杂记](https://zhuanlan.zhihu.com/p/524023964)
 - [[推理部署]👉Mac源码编译TensorFlow C++指北](https://zhuanlan.zhihu.com/p/524013615)
 - [[推理部署]👿1Mb!头部姿态估计: 来讲讲FSANet，一个小而美的模型(含ONNXRuntime/MNN C++实现)](https://zhuanlan.zhihu.com/p/447364201)
-- [[C++]🤓Mac下C++内存检查指北(Valgrind VS Asan)](https://zhuanlan.zhihu.com/p/508470880)
 - [[推理部署]🤓opencv+ffmpeg编译打包全解指南](https://zhuanlan.zhihu.com/p/472115312)
-- [[torchlm]🔥 torchlm: 人脸关键点检测库](https://zhuanlan.zhihu.com/p/467211561)
 - [[推理部署]🔧填坑: RobustVideoMatting(5k+🔥 star)视频抠图静态ONNX模型转换](https://zhuanlan.zhihu.com/p/459088407)
 - [[推理部署]🔥190Kb!SSRNet年龄检测详细解读（含C++工程）](https://zhuanlan.zhihu.com/p/462762797)
 - [[推理部署] MGMatting(CVPR2021)人像抠图C++应用记录](https://zhuanlan.zhihu.com/p/464732042)
@@ -63,7 +63,6 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - [[推理部署]🍅记录SCRFD(CVPR2021)人脸检测C++工程化(含docker镜像)](https://zhuanlan.zhihu.com/p/455165568)
 - [[推理部署]👋野路子：记录一个解决onnx转ncnn时op不支持的trick](https://zhuanlan.zhihu.com/p/451446147)
 - [[推理部署]🔥升级版NanoDet-Plus MNN/TNN/NCNN/ONNXRuntime C++工程记录](https://zhuanlan.zhihu.com/p/450586647)
-- [[C++][CMake]👋超有用CMake参考资料整理](https://zhuanlan.zhihu.com/p/449779892)
 - [[推理部署]👋超有用NCNN参考资料整理](https://zhuanlan.zhihu.com/p/449765328)
 - [[推理部署]👋超有用MNN参考资料整理](https://zhuanlan.zhihu.com/p/449761992)
 - [[推理部署]👋超有用TNN参考资料整理](https://zhuanlan.zhihu.com/p/449769615)
@@ -80,6 +79,14 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - [[推理部署] ONNXRuntime C++ CMake 工程分析及编译](https://zhuanlan.zhihu.com/p/411887386)
 - [[推理部署]🤓如何使用ONNXRuntime C++ API处理NCHW和NHWC输入？](https://zhuanlan.zhihu.com/p/524230808)
 - [[推理部署] YOLOP ONNXRuntime C++工程化记录](https://zhuanlan.zhihu.com/p/411651933)
+
+### 📒 C/C++/技术随笔  
+
+- [[C++][3W字]💡静态链接和静态库实践指北-原理篇](https://zhuanlan.zhihu.com/p/595527528)
+- [[技术随笔] 如何优雅地git clone和git submodule？](https://zhuanlan.zhihu.com/p/639136221)
+- [[C++]🤓Mac下C++内存检查指北(Valgrind VS Asan)](https://zhuanlan.zhihu.com/p/508470880)
+- [[torchlm]🔥 torchlm: 人脸关键点检测库](https://zhuanlan.zhihu.com/p/467211561)
+- [[C++][CMake]👋超有用CMake参考资料整理](https://zhuanlan.zhihu.com/p/449779892)
 - [[技术随笔] 人脸重建3D参考资料整理](https://zhuanlan.zhihu.com/p/524034741)
 - [[技术随笔] BlendShapes参考资料整理](https://zhuanlan.zhihu.com/p/524036145)
 
