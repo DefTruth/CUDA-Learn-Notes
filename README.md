@@ -19,7 +19,18 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 
 ## 0x00 📖 博客目录
 
-![prefill](https://github.com/DefTruth/CUDA-Learn-Notes/assets/31974251/8e1fe25a-0697-408a-849a-6f0ea47012b0)
+- Automatic Prefix Caching Kernel Tiling
+
+![prefix prefill](https://github.com/DefTruth/CUDA-Learn-Notes/assets/31974251/8e1fe25a-0697-408a-849a-6f0ea47012b0)
+
+- FlashAttenion V2 Tiling
+
+<img width="1438" alt="image" src="https://github.com/user-attachments/assets/0c5e5125-586f-43fa-8e8b-e2c61c1afbbe">
+
+- TensorRT-LLM部署调优-指北
+  
+![image](https://github.com/user-attachments/assets/0c69d866-2a44-475f-8732-92e74d0133cc)
+
 
 ### 📒 大模型/多模态/SD 推理优化
 
