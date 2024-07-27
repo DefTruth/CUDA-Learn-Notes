@@ -9,7 +9,8 @@
   <img src=https://img.shields.io/badge/License-GPLv3.0-turquoise.svg >
  </div>   
 
-📒**CUDA-Learn-Notes**: 🎉CUDA&C++ 笔记 / 大模型手撕CUDA / 技术博客，更新随缘: flash_attn、sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、histogram、relu、sigmoid etc.
+📒**CUDA-Learn-Notes**: 🎉CUDA/C++ 笔记 / 大模型手撕CUDA / 技术博客，更新随缘: flash_attn、sgemm、sgemv、warp reduce、block reduce、dot、elementwise、softmax、layernorm、rmsnorm、histogram、relu、sigmoid etc. 更多资料，请关注本人知乎技术博客: [DefTruth on ZhiHu](https://www.zhihu.com/people/qyjdef/posts)
+
 
 > 想要我的财宝吗？想要的话可以全部给你，去找吧！我把所有财宝都放在那里！—— **哥尔·D·罗杰**
 
@@ -19,6 +20,7 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 
 ## 0x00 📖 博客目录
 
+<!---
 ### 📒 图解LLM推理优化
 
 - vLLM Automatic Prefix Caching: Prefix + Generated KV Caching
@@ -46,8 +48,9 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - TensorRT-LLM: TensorRT-LLM部署调优-指北
 
 ![image](https://github.com/user-attachments/assets/0c69d866-2a44-475f-8732-92e74d0133cc)
+--> 
 
-更多资料，请关注本人知乎技术博客: [DefTruth](https://www.zhihu.com/people/qyjdef/posts)
+<img width="1438" alt="image" src="https://github.com/user-attachments/assets/0c5e5125-586f-43fa-8e8b-e2c61c1afbbe">
 
 ### 📒 大模型/多模态/SD 推理优化
 
