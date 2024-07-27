@@ -21,14 +21,22 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 
 ### 📒 图解LLM推理优化
 
-- vLLM Automatic Prefix Cache(RadixAttention)
+- vLLM Automatic Prefix Caching: Prefix + Generated KV Caching
+<img width="1106" alt="image" src="https://github.com/user-attachments/assets/476c46c8-2427-4e6d-8808-ab168f2be101">
 
-![](./draw.io/vllm-automatic-prefix-caching.drawio.png)
+- vLLM Automatic Prefix Caching: Hash Prefix Tree
+  
+<img width="983" alt="image" src="https://github.com/user-attachments/assets/9483d982-4314-4d49-a9a3-1b1dc93dbe10">
+
+- vLLM Automatic Prefix Caching: CachedBlockAllocator
+<img width="1046" alt="image" src="https://github.com/user-attachments/assets/60b7e82d-2668-4103-82d2-3a0ac289c3a3">
 
 
 - vLLM Prefix Prefill Triton Kernel Tiling
 
 ![prefix prefill](https://github.com/DefTruth/CUDA-Learn-Notes/assets/31974251/8e1fe25a-0697-408a-849a-6f0ea47012b0)
+
+<img width="767" alt="image" src="https://github.com/user-attachments/assets/0c56e4c3-8a31-4582-ae29-a4d2ad1c3028">
 
 - FlashAttenion V2 Tiling
 
