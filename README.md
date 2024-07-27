@@ -19,7 +19,7 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 
 ## 0x00 📖 博客目录
 
-### 📒 图解LLM
+### 📒 图解LLM推理优化
 
 - vLLM Automatic Prefix Cache(RadixAttention)
 
