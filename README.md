@@ -19,7 +19,14 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 
 ## 0x00 📖 博客目录
 
-- Automatic Prefix Caching Kernel Tiling
+### 📒 图解LLM
+
+- vLLM Automatic Prefix Cache(RadixAttention)
+
+![](./vllm-automatic-prefix-caching.drawio.png)
+
+
+- vLLM Prefix Prefill Triton Kernel Tiling
 
 ![prefix prefill](https://github.com/DefTruth/CUDA-Learn-Notes/assets/31974251/8e1fe25a-0697-408a-849a-6f0ea47012b0)
 
@@ -30,6 +37,8 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - TensorRT-LLM部署调优-指北
   
 ![image](https://github.com/user-attachments/assets/0c69d866-2a44-475f-8732-92e74d0133cc)
+
+更多资料，请关注本人知乎技术博客: [DefTruth](https://www.zhihu.com/people/qyjdef/posts)
 
 
 ### 📒 大模型/多模态/SD 推理优化
