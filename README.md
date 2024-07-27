@@ -23,7 +23,7 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 
 - vLLM Automatic Prefix Cache(RadixAttention)
 
-![](./vllm-automatic-prefix-caching.drawio.png)
+![](./draw.io/vllm-automatic-prefix-caching.drawio.png)
 
 
 - vLLM Prefix Prefill Triton Kernel Tiling
