@@ -15,7 +15,7 @@
 > 想要我的财宝吗？想要的话可以全部给你，去找吧！我把所有财宝都放在那里！—— **哥尔·D·罗杰**
 
 ## News 👇👇
-Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social), 📖[Awesome-SD-Distributed-Inference](https://github.com/DefTruth/Awesome-SD-Distributed-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-SD-Distributed-Inference.svg?style=social) and 📖[CUDA-Learn-Notes](https://github.com/DefTruth/CUDA-Learn-Notes)  ![](https://img.shields.io/github/stars/DefTruth/CUDA-Learn-Notes.svg?style=social) for more details.
+Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social), 📖[Awesome-SD-Distributed/Caching-Inference](https://github.com/DefTruth/Awesome-SD-Distributed-Caching-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-SD-Distributed-Caching-Inference.svg?style=social) and 📖[CUDA-Learn-Notes](https://github.com/DefTruth/CUDA-Learn-Notes)  ![](https://img.shields.io/github/stars/DefTruth/CUDA-Learn-Notes.svg?style=social) for more details.
 
 
 ## 0x00 📖 博客目录
