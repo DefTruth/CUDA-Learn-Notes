@@ -99,6 +99,14 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 
 ### 📒 CUTLASS/CuTe/Tensor Cores等文章推荐 (其他作者)
 
+- [[GPU指令集架构]📖NVidia GPU指令集架构-前言(@reed)](https://zhuanlan.zhihu.com/p/686198447)
+- [[GPU指令集架构]📖NVidia GPU指令集架构-寄存器(@reed)](https://zhuanlan.zhihu.com/p/688616037)
+- [[GPU指令集架构]📖NVidia GPU指令集架构-Load和Cache(@reed)](https://zhuanlan.zhihu.com/p/692445145)
+- [[GPU指令集架构]📖NVidia GPU指令集架构-浮点运算(@reed)](https://zhuanlan.zhihu.com/p/695667044)
+- [[GPU指令集架构]📖NVidia GPU指令集架构-整数运算(@reed)](https://zhuanlan.zhihu.com/p/700921948)
+- [[GPU指令集架构]📖NVidia GPU指令集架构-比特和逻辑操作(@reed)](https://zhuanlan.zhihu.com/p/712356884)
+- [[cute系列详解][概念入门]📖cutlass cute 101(@朱小霖)](https://zhuanlan.zhihu.com/p/660379052)
+- [[cute系列详解][概念入门]📖CUTLASS 2.x & CUTLASS 3.x Intro 学习笔记(@BBuf)](https://zhuanlan.zhihu.com/p/710516489)
 - [[cute系列详解][Layout]📖cute 之 Layout(@reed)](https://zhuanlan.zhihu.com/p/661182311)
 - [[cute系列详解][Layout]📖cute Layout 的代数和几何解释(@reed)](https://zhuanlan.zhihu.com/p/662089556)
 - [[cute系列详解][Tensor]📖cute 之 Tensor(@reed)](https://zhuanlan.zhihu.com/p/663093816)
@@ -108,16 +116,16 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - [[cute系列详解][GEMM]📖cute 之 GEMM流水线(@reed)](https://zhuanlan.zhihu.com/p/665082713)
 - [[cute系列详解][Swizzle]📖cute 之 Swizzle(@reed)](https://zhuanlan.zhihu.com/p/671419093)
 - [[cute系列详解][GEMM]📖cute 之 高效GEMM实现(@reed)](https://zhuanlan.zhihu.com/p/675308830)
-- [[cute系列详解][应用实践]📖CUTLASS CuTe实战(一)-基础(@进击的Killua)](https://zhuanlan.zhihu.com/p/690703999)
-- [[cute系列详解][应用实践]📖CUTLASS CuTe实战(二)-应用(@进击的Killua)](https://zhuanlan.zhihu.com/p/692078624)
 - [[cute系列详解][Swizzle]📖cute Swizzle细谈(@进击的Killua)](https://zhuanlan.zhihu.com/p/684250988)
-- [[cute系列详解][概念入门]📖cutlass cute 101(@朱小霖)](https://zhuanlan.zhihu.com/p/660379052)
-- [[cute系列详解][FlashAttention]📖使用cutlass cute复现flash attention(@66RING)](https://zhuanlan.zhihu.com/p/696323042)
-- [[cute系列详解][概念入门]📖CUTLASS 2.x & CUTLASS 3.x Intro 学习笔记(@BBuf)](https://zhuanlan.zhihu.com/p/710516489)
 - [[cute系列详解][Swizzle]📖cutlass swizzle机制解析（一）(@Titus)](https://zhuanlan.zhihu.com/p/710337546)
 - [[cute系列详解][Swizzle]📖cutlass swizzle机制解析（二）(@Titus)](https://zhuanlan.zhihu.com/p/711398930)
-- [[cute系列详解][GEMM]📖cutlass GEMM流水线: single-stage、pipelined、multi-stage(@Titus)](https://zhuanlan.zhihu.com/p/712451053)
-- [[cute系列详解][GEMM]📖TRT-LLM中的Hopper Mixed GEMM的CUTLASS实现讲解学习笔记(@BBuf)](https://zhuanlan.zhihu.com/p/714378343)
+- [[cute系列详解][GEMM]📖GEMM流水线: single-stage、pipelined、multi-stage(@Titus)](https://zhuanlan.zhihu.com/p/712451053)
+- [[cute系列详解][应用实践]📖Hopper Mixed GEMM的CUTLASS实现笔记(@BBuf)](https://zhuanlan.zhihu.com/p/714378343)
+- [[cute系列详解][应用实践]📖CUTLASS CuTe实战(一)-基础(@进击的Killua)](https://zhuanlan.zhihu.com/p/690703999)
+- [[cute系列详解][应用实践]📖CUTLASS CuTe实战(二)-应用(@进击的Killua)](https://zhuanlan.zhihu.com/p/692078624)
+- [[cute系列详解][应用实践]📖FlashAttention fp8实现（ada架构)(@shengying.wei)](https://zhuanlan.zhihu.com/p/712314257)
+- [[cute系列详解][应用实践]📖FlashAttention 笔记: tiny-flash-attention解读(@shengying.wei)](https://zhuanlan.zhihu.com/p/708867810)
+- [[cute系列详解][应用实践]📖使用cutlass cute复现flash attention(@66RING)](https://zhuanlan.zhihu.com/p/696323042)
 - [[cutlass教程]📖cutlass 基本认知(@JoeNomad)](https://zhuanlan.zhihu.com/p/677616101)
 - [[cutlass教程]📖cutlass 软件架构(@JoeNomad)](https://zhuanlan.zhihu.com/p/678915618)
 - [[cutlass教程]📖cutlass block swizzle 和 tile iterator(@JoeNomad)](https://zhuanlan.zhihu.com/p/679929705)
@@ -125,6 +133,7 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - [[cutlass教程]📖cutlass 多级流水线(@JoeNomad)](https://zhuanlan.zhihu.com/p/687397095)
 - [[cutlass教程]📖CUTLASS 基础介绍(@进击的Killua)](https://zhuanlan.zhihu.com/p/671324125)
 - [[cutlass教程]📖乱谈CUTLASS GTC2020 SLIDES(@zzk again)](https://zhuanlan.zhihu.com/p/674693873)
+
 
 💡说明: 大佬们写的文章实在是太棒了，学到了很多东西。欢迎大家提PR推荐更多优秀的文章！
 
