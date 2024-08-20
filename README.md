@@ -126,7 +126,7 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - [[cutlass教程]📖CUTLASS 基础介绍(@进击的Killua)](https://zhuanlan.zhihu.com/p/671324125)
 - [[cutlass教程]📖乱谈CUTLASS GTC2020 SLIDES(@zzk again)](https://zhuanlan.zhihu.com/p/674693873)
 
-💡说明: 大佬们写的文章实在是太棒了，学到了很多东西。也欢迎大家提PR推荐更多优秀的文章！
+💡说明: 大佬们写的文章实在是太棒了，学到了很多东西。欢迎大家提PR推荐更多优秀的文章！
 
 ## 0x01 📖 Kernel目录
 <div id="kernellist"></div>  
