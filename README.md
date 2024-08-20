@@ -20,39 +20,9 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 
 ## 0x00 📖 博客目录
 
-<!---
-### 📒 图解LLM推理优化
-
-- vLLM Automatic Prefix Caching: Prefix + Generated KV Caching
-<img width="1106" alt="image" src="https://github.com/user-attachments/assets/476c46c8-2427-4e6d-8808-ab168f2be101">
-
-- vLLM Automatic Prefix Caching: Hash Prefix Tree (Part-1)
-
-<img width="1019" alt="image" src="https://github.com/user-attachments/assets/ee499627-529e-439e-9fb1-523d01c153b8">
-
-- vLLM Automatic Prefix Caching: Hash Prefix Tree (Part-2)
-  
-<img width="983" alt="image" src="https://github.com/user-attachments/assets/9483d982-4314-4d49-a9a3-1b1dc93dbe10">
-
-- vLLM Automatic Prefix Caching: CachedBlockAllocator   
-<img width="1046" alt="image" src="https://github.com/user-attachments/assets/60b7e82d-2668-4103-82d2-3a0ac289c3a3">
-
-- vLLM Automatic Prefix Caching: Prefix Prefill Triton Kernel Tiling
-
-![prefix prefill](https://github.com/DefTruth/CUDA-Learn-Notes/assets/31974251/8e1fe25a-0697-408a-849a-6f0ea47012b0)
-
-
-- FlashAttenion V1/V2/V3: FlashAttenion V2 Kernel Tiling  
 <img width="1438" alt="image" src="https://github.com/user-attachments/assets/0c5e5125-586f-43fa-8e8b-e2c61c1afbbe">
 
-- TensorRT-LLM: TensorRT-LLM部署调优-指北
-
-![image](https://github.com/user-attachments/assets/0c69d866-2a44-475f-8732-92e74d0133cc)
---> 
-
-<img width="1438" alt="image" src="https://github.com/user-attachments/assets/0c5e5125-586f-43fa-8e8b-e2c61c1afbbe">
-
-### 📒 大模型/多模态/SD 推理优化
+### 📒 大模型/多模态/SD 推理优化 (本人)
 
 - [[InternLM/VL系列][万字]📒InternLM2/InternLM2.5/InternViT/InternVL1.5/InternVL2笔记: 核心点解析](https://zhuanlan.zhihu.com/p/702481058)
 - [[TensorRT-LLM][5w字]🔥TensorRT-LLM部署调优-指北](https://zhuanlan.zhihu.com/p/699333691)
@@ -77,7 +47,7 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - [[LLM推理优化]🔥20+篇: LLM推理论文集-300页PDF💡](https://zhuanlan.zhihu.com/p/658091768)
 - [[LLM推理优化]🔥PagedAttention论文新鲜出炉](https://zhuanlan.zhihu.com/p/617015570)
 
-### 📒 CV移动端/服务端 推理部署
+### 📒 CV移动端/服务端 推理部署 (本人)
 
 - [[推理部署]⚡️🔥覆盖云边端全场景，FastDeploy三行代码搞定150+ CV、NLP、Speech模型部署](https://zhuanlan.zhihu.com/p/581326442)
 - [[推理部署]💡如何在lite.ai.toolkit(3.5k+🔥stars)中增加您的模型？](https://zhuanlan.zhihu.com/p/523876625)
@@ -114,7 +84,7 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - [[推理部署]💡tnn-convert搭建简记-YOLOP转TNN](https://zhuanlan.zhihu.com/p/431418709)
 - [[推理部署]💡YOLOP ONNXRuntime C++工程化记录](https://zhuanlan.zhihu.com/p/411651933)
 
-### 📒 C/C++/算法/技术随笔  
+### 📒 C/C++/算法/技术随笔 (本人)
 
 - [[C++][CMake]👋超有用CMake参考资料整理](https://zhuanlan.zhihu.com/p/449779892)
 - [[C++][3W字]💡静态链接和静态库实践指北-原理篇](https://zhuanlan.zhihu.com/p/595527528)
@@ -127,6 +97,29 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - [[技术随笔]🛠🛠从源码安装Pytorch3D详细记录及学习资料](https://zhuanlan.zhihu.com/p/512347464)
 - [[技术随笔]🍅🍅200页:《统计学习方法：李航》笔记 -从原理到实现](https://zhuanlan.zhihu.com/p/461520847)
 
+### 📒 CUTLASS/CuTe/Tensor Cores等文章推荐 (其他作者)
+
+说明：本部分整理收藏一些本人认为写得很棒的CUTLASS/CuTe/Tensor Cores方向的文章:
+
+- [[cute系列详解][Layout]📖cute 之 Layout(@reed)](https://zhuanlan.zhihu.com/p/661182311)
+- [[cute系列详解][Layout]📖cute Layout 的代数和几何解释(@reed)](https://zhuanlan.zhihu.com/p/662089556)
+- [[cute系列详解][Tensor]📖cute 之 Tensor(@reed)](https://zhuanlan.zhihu.com/p/663093816)
+- [[cute系列详解][MMA]📖cute 之 MMA抽象(@reed)](https://zhuanlan.zhihu.com/p/663092747)
+- [[cute系列详解][Copy]📖cute 之 Copy抽象(@reed)](https://zhuanlan.zhihu.com/p/666232173)
+- [[cute系列详解][GEMM]📖cute 之 简单GEMM实现(@reed)](https://zhuanlan.zhihu.com/p/667521327)
+- [[cute系列详解][GEMM]📖cute 之 GEMM流水线(@reed)](https://zhuanlan.zhihu.com/p/665082713)
+- [[cute系列详解][Swizzle]📖cute 之 Swizzle(@reed)](https://zhuanlan.zhihu.com/p/671419093)
+- [[cute系列详解][GEMM]📖cute 之 高效GEMM实现(@reed)](https://zhuanlan.zhihu.com/p/675308830)
+- [[cute系列详解][Swizzle]📖cute Swizzle细谈(@进击的Killua)](https://zhuanlan.zhihu.com/p/684250988)
+- [[cute系列详解][概念入门]📖cutlass cute 101(@朱小霖)](https://zhuanlan.zhihu.com/p/660379052)
+- [[cute系列详解][FlashAttention]📖使用cutlass cute复现flash attention(@66RING)](https://zhuanlan.zhihu.com/p/696323042)
+- [[cute系列详解][概念入门]📖CUTLASS 2.x & CUTLASS 3.x Intro 学习笔记(@BBuf)](https://zhuanlan.zhihu.com/p/710516489)
+- [[cute系列详解][Swizzle]📖cutlass swizzle机制解析（一）(@Titus)](https://zhuanlan.zhihu.com/p/710337546)
+- [[cutlass教程][深入分析CUTLASS系列]📖0x00 cutlass基本认知-为什么要用cutlass(@JoeNomad)](https://zhuanlan.zhihu.com/p/677616101)
+- [[cutlass教程][深入分析CUTLASS系列]📖0x01 cutlass 源码分析(零) - 软件架构(附ncu性能分析方法)(@JoeNomad)](https://zhuanlan.zhihu.com/p/678915618)
+- [[cutlass教程][深入分析CUTLASS系列]📖0x02 cutlass 源码分析(一) - block swizzle 和 tile iterator (附tvm等价code)(@JoeNomad)](https://zhuanlan.zhihu.com/p/679929705)
+- [[cutlass教程][深入分析CUTLASS系列]📖0x03 cutlass 源码分析(二) - bank conflict free 的shared memory layout (附tvm等价pass)(@JoeNomad)](https://zhuanlan.zhihu.com/p/681966685)
+- [[cutlass教程][深入分析CUTLASS系列]📖0x04 cutlass 源码分析(三) - 多级流水线(software pipeline)(@JoeNomad)](https://zhuanlan.zhihu.com/p/687397095)
 
 ## 0x01 📖 Kernel目录
 <div id="kernellist"></div>  
