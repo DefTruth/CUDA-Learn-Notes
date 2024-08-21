@@ -22,7 +22,7 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 
 <img width="1438" alt="image" src="https://github.com/user-attachments/assets/0c5e5125-586f-43fa-8e8b-e2c61c1afbbe">
 
-### 📒 大模型/多模态/SD 推理优化 (本人)
+### 📒 大模型/多模态/Diffusion 推理优化 (本人作者)
 
 - [[InternLM/VL系列][万字]📒InternLM2/InternLM2.5/InternViT/InternVL1.5/InternVL2笔记: 核心点解析](https://zhuanlan.zhihu.com/p/702481058)
 - [[TensorRT-LLM][5w字]🔥TensorRT-LLM部署调优-指北](https://zhuanlan.zhihu.com/p/699333691)
@@ -47,7 +47,7 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - [[LLM推理优化]🔥20+篇: LLM推理论文集-300页PDF💡](https://zhuanlan.zhihu.com/p/658091768)
 - [[LLM推理优化]🔥PagedAttention论文新鲜出炉](https://zhuanlan.zhihu.com/p/617015570)
 
-### 📒 CV移动端/服务端 推理部署 (本人)
+### 📒 CV移动端/服务端推理部署/C++/算法/技术随笔 (本人作者)
 
 - [[推理部署]⚡️🔥覆盖云边端全场景，FastDeploy三行代码搞定150+ CV、NLP、Speech模型部署](https://zhuanlan.zhihu.com/p/581326442)
 - [[推理部署]💡如何在lite.ai.toolkit(3.5k+🔥stars)中增加您的模型？](https://zhuanlan.zhihu.com/p/523876625)
@@ -83,9 +83,6 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 - [[推理部署]🤓如何使用ONNXRuntime C++ API处理NCHW和NHWC输入？](https://zhuanlan.zhihu.com/p/524230808)
 - [[推理部署]💡tnn-convert搭建简记-YOLOP转TNN](https://zhuanlan.zhihu.com/p/431418709)
 - [[推理部署]💡YOLOP ONNXRuntime C++工程化记录](https://zhuanlan.zhihu.com/p/411651933)
-
-### 📒 C/C++/算法/技术随笔 (本人)
-
 - [[C++][CMake]👋超有用CMake参考资料整理](https://zhuanlan.zhihu.com/p/449779892)
 - [[C++][3W字]💡静态链接和静态库实践指北-原理篇](https://zhuanlan.zhihu.com/p/595527528)
 - [[C++]🤓Mac下C++内存检查指北(Valgrind VS Asan)](https://zhuanlan.zhihu.com/p/508470880)
