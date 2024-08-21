@@ -24,15 +24,15 @@ Most of my time now is focused on **LLM/VLM** Inference. Please check 📖[Aweso
 
 ### 📒 大模型/多模态/Diffusion 推理优化 (本人作者)
 
-- [[VLM推理优化][InternLM/VL系列][万字]📒InternLM2/.../InternVL1.5/InternVL2笔记: 核心点解析](https://zhuanlan.zhihu.com/p/702481058)
+- [[VLM推理优化][InternLM/VL系列][万字]📒InternLM2/.../InternVL1.5系列笔记: 核心点解析](https://zhuanlan.zhihu.com/p/702481058)
 - [[LLM推理优化][TensorRT-LLM][5w字]🔥TensorRT-LLM部署调优-指北](https://zhuanlan.zhihu.com/p/699333691)
 - [[LLM推理优化][KV Cache优化]🔥MQA/GQA/YOCO/CLA/MLKV笔记: 层内和层间KV Cache共享](https://zhuanlan.zhihu.com/p/697311739)
 - [[LLM推理优化][Prefill优化]🔥图解vLLM Prefix Prefill Triton Kernel](https://zhuanlan.zhihu.com/p/695799736)
-- [[LLM推理优化][Prefill优化][万字]🔥原理&图解vLLM Automatic Prefix Cache(RadixAttention): 首Token时延优化](https://zhuanlan.zhihu.com/p/693556044)
+- [[LLM推理优化][Prefill优化][万字]🔥原理&图解vLLM Automatic Prefix Cache: 首Token时延优化](https://zhuanlan.zhihu.com/p/693556044)
 - [[LLM推理优化][Attention优化][2w字]🔥原理&图解: 从Online-Softmax到FlashAttention V1/V2/V3](https://zhuanlan.zhihu.com/p/668888063)
 - [[LLM推理优化][Decoding优化]🔥原理&图解FlashDecoding/FlashDecoding++](https://zhuanlan.zhihu.com/p/696075602)
 - [[VLM推理优化][LLaVA系列]📒CLIP/LLaVA/LLaVA1.5/VILA笔记: 核心点解析](https://zhuanlan.zhihu.com/p/683137074)
-- [[LLM推理优化][Attention优化][万字]🔥TensorRT 9.2 MHA/Myelin Optimize vs FlashAttention-2 profile](https://zhuanlan.zhihu.com/p/678873216)
+- [[LLM推理优化][Attention优化][万字]🔥TensorRT MHA/Myelin Optimize vs FlashAttention-2](https://zhuanlan.zhihu.com/p/678873216)
 - [[LLM推理优化][CUDA 12 PTX汇编]📒PRMT指令详解-通用模式](https://zhuanlan.zhihu.com/p/660630414)
 - [[LLM推理优化][CUDA 12 PTX汇编]📒LOP3指令详解](https://zhuanlan.zhihu.com/p/659741469)
 - [[LLM推理优化][3w字]🔥高频面试题汇总-大模型手撕CUDA](https://zhuanlan.zhihu.com/p/678903537)
