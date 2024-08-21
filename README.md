@@ -131,7 +131,7 @@
 
 💡说明: 大佬们写的文章实在是太棒了，学到了很多东西。欢迎大家提PR推荐更多优秀的文章！
 
-## 0x01 📖 Kernel目录
+## 0x01 📖 CUDA Kernel目录 (面试常考题目)
 <div id="kernellist"></div>  
 
 - [x] 📖 [sgemm_naive_f32_kernel](#sgemm)
