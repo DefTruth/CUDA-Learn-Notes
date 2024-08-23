@@ -47,7 +47,7 @@
 |:---|:---| 
 |[[VLM推理优化][InternVL系列]📒InternLM2/.../InternVL1.5系列笔记: 核心点解析](https://zhuanlan.zhihu.com/p/702481058)|@DefTruth|
 |[[LLM推理优化][TensorRT-LLM][5w字]🔥TensorRT-LLM部署调优-指北](https://zhuanlan.zhihu.com/p/699333691)|@DefTruth|
-|[[LLM推理优化][KV Cache优化]🔥MQA/GQA/YOCO/CLA/...: 层内和层间KV Cache共享](https://zhuanlan.zhihu.com/p/697311739)|@DefTruth|
+|[[LLM推理优化][KV Cache优化]🔥GQA/YOCO/CLA/MLKV: 层内和层间KV Cache共享](https://zhuanlan.zhihu.com/p/697311739)|@DefTruth|
 |[[LLM推理优化][Prefill优化]🔥图解vLLM Prefix Prefill Triton Kernel](https://zhuanlan.zhihu.com/p/695799736)|@DefTruth|
 |[[LLM推理优化][Prefill优化][万字]🔥图解vLLM Automatic Prefix Caching: TTFT优化](https://zhuanlan.zhihu.com/p/693556044)|@DefTruth|
 |[[LLM推理优化][Attention优化]🔥图解: 从Online-Softmax到FlashAttention V1/V2/V3](https://zhuanlan.zhihu.com/p/668888063)|@DefTruth|
