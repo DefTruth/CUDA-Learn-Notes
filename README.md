@@ -43,7 +43,7 @@
 - [[LLM推理优化][LLM Infra整理]🔥PagedAttention论文新鲜出炉](https://zhuanlan.zhihu.com/p/617015570)
 -->
 
-|类型-标题|作者|
+|📒 类型-标题|📒 作者|
 |:---|:---| 
 |[[VLM推理优化][InternVL系列]📒InternLM2/.../InternVL1.5系列笔记: 核心点解析](https://zhuanlan.zhihu.com/p/702481058)|@DefTruth|
 |[[LLM推理优化][TensorRT-LLM][5w字]🔥TensorRT-LLM部署调优-指北](https://zhuanlan.zhihu.com/p/699333691)|@DefTruth|
@@ -71,7 +71,7 @@
 
 ### 📒 CV移动端/服务端推理部署/C++/算法/技术随笔 (本人作者)
 
-|类型-标题|作者|
+|📒 类型-标题|📒 作者|
 |:---|:---| 
 | [[推理部署][CV/NLP]⚡️FastDeploy三行代码搞定150+ CV、NLP模型部署](https://zhuanlan.zhihu.com/p/581326442)|@DefTruth|  
 | [[推理部署][CV]💡如何在lite.ai.toolkit(3.6k+🔥stars)中增加您的模型？](https://zhuanlan.zhihu.com/p/523876625)|@DefTruth|  
@@ -167,7 +167,7 @@
 
 ### 📒 CUTLASS/CuTe/Tensor Cores等文章推荐 (其他作者)
 
-|类型-标题|作者|
+|📒 类型-标题|📒 作者|
 |:---|:---| 
 | [[cute系列详解][入门]📖cutlass cute 101](https://zhuanlan.zhihu.com/p/660379052)|@朱小霖|
 | [[cute系列详解][入门]📖CUTLASS 2.x & CUTLASS 3.x Intro 学习笔记](https://zhuanlan.zhihu.com/p/710516489)|@BBuf|
