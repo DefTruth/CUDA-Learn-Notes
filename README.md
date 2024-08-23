@@ -62,7 +62,7 @@
 |[[LLM推理优化][Weight Only]🔥WINT8/4-(02): 快速反量化之INT8转BF16](https://zhuanlan.zhihu.com/p/657073159)|@DefTruth|
 |[[LLM推理优化][Weight Only]🔥WINT8/4-(03): LOP3指令详解及INT4转FP16/BF16](https://zhuanlan.zhihu.com/p/657073857)|@DefTruth|
 |[[LLM推理优化][LLM Infra整理]🔥100+篇: 大模型推理各方向新发展整理](https://zhuanlan.zhihu.com/p/693680304)|@DefTruth|
-|[[LLM推理优化][LLM Infra整理]🔥FlashDecoding++: 比FlashDecoding还要快！](https://zhuanlan.zhihu.com/p/665022589)|@DefTruth|
+|[[LLM推理优化][LLM Infra整理]🔥30+篇: LLM推理论文集-500页PDF💡](https://zhuanlan.zhihu.com/p/669777159)|@DefTruth|
 |[[LLM推理优化][LLM Infra整理]🔥FlashDecoding++: 比FlashDecoding还要快！](https://zhuanlan.zhihu.com/p/665022589)|@DefTruth|
 |[[LLM推理优化][LLM Infra整理]🔥TensorRT-LLM开源，TensorRT 9.1也来了🤓](https://zhuanlan.zhihu.com/p/662361469)|@DefTruth|
 |[[LLM推理优化][LLM Infra整理]🔥20+篇: LLM推理论文集-300页PDF💡](https://zhuanlan.zhihu.com/p/658091768)|@DefTruth|
