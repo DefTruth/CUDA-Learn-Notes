@@ -165,7 +165,7 @@
 - [[技术随笔][ML]🍅200页:《统计学习方法：李航》笔记 -从原理到实现](https://zhuanlan.zhihu.com/p/461520847)
 -->
 
-### 📒 CUTLASS/CuTe/Tensor Cores等文章推荐 (其他作者)
+### 📒 CUTLASS/CuTe/Tensor Cores/NCCL/CUDA优化等文章推荐 (其他作者)
 
 |📒 类型-标题|📒 作者|
 |:---|:---| 
@@ -218,6 +218,7 @@
 | [[CUDA优化][实践]📖ops(7)：self-attention 的 CUDA 实现及优化 (上)](https://zhuanlan.zhihu.com/p/695898274)|@紫气东来|
 | [[CUDA优化][实践]📖ops(8)：self-attention 的 CUDA 实现及优化 (下)](https://zhuanlan.zhihu.com/p/696197013)|@紫气东来|
 | [[CUDA优化][实践]📖CUDA（四）：使用 CUDA 实现 Transformer 结构](https://zhuanlan.zhihu.com/p/694416583)|@紫气东来|
+| [[GPU通信架构][精解]📖NVIDIA GPGPU（四）- 通信架构](https://zhuanlan.zhihu.com/p/680262016)|@Bruce|
 
 <!--
 - [[cute系列详解][入门]📖cutlass cute 101(@朱小霖)](https://zhuanlan.zhihu.com/p/660379052)
