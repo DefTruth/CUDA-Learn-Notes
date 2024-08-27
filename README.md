@@ -1079,11 +1079,11 @@ GNU General Public License v3.0
 🌟如果觉得有用，不妨给个🌟👆🏻Star支持一下吧~
 
 <div align='center'>
-<a href="https://star-history.com/#DefTruth/Awesome-LLM-Inference&Date">
+<a href="https://star-history.com/#DefTruth/CUDA-Learn-Notes&Date">
   <picture align='center'>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=DefTruth/cuda-learn-note&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=DefTruth/cuda-learn-note&type=Date" />
-    <img width=450 height=300 alt="Star History Chart" src="https://api.star-history.com/svg?repos=DefTruth/cuda-learn-note&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=DefTruth/CUDA-Learn-Notes&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=DefTruth/CUDA-Learn-Notese&type=Date" />
+    <img width=450 height=300 alt="Star History Chart" src="https://api.star-history.com/svg?repos=DefTruth/CUDA-Learn-Notes&type=Date" />
   </picture>
 </a>  
 </div>
