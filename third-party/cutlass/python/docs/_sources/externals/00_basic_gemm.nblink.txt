@@ -1,3 +1,0 @@
-{
-  "path": "./../../../../examples/python/00_basic_gemm.ipynb"
-}
