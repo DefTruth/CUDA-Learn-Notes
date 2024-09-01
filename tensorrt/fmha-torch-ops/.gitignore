@@ -1,0 +1,13 @@
+*.so
+*.a
+*.dylib
+*.dll
+*.lib
+.DS_Store
+build
+*.whl
+tmp
+*.engine
+*.onnx
+*.nsys-rep
+*.sqlite
