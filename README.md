@@ -198,6 +198,7 @@
 - [ ] 📖 flash_attn_2_fwd_f16_kernel
 - [ ] 📖 flash_attn_2_fwd_b16_kernel
 - [x] 📖 [hard_nms cpp](./nms/nms.cc)
+- [x] 📖 [notes v1(deprecated)](./notes-v1.cu)
 
 ## ©️License
 GNU General Public License v3.0
