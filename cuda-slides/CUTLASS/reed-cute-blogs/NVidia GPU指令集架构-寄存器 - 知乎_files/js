@@ -1,0 +1,72 @@
+(function(global){
+
+var zhihu = global.zhihu = global.zhihu || {}
+zhihu.pay = zhihu.pay || {}
+
+var scriptUrl = "https://zhstatic.zhihu.com/assets/pay-jssdk/"
+
+var createScriptTag = function(scr, url) {
+scr.setAttribute('type', 'text/javascript')
+scr.setAttribute('src', url)
+document.getElementsByTagName('head')[0].appendChild(scr)
+}
+
+var removeScriptTag = function(scr) {
+if (scr.clearAttributes) {
+scr.clearAttributes()
+} else {
+for (var attr in scr) {
+if (scr.hasOwnProperty(attr)) {
+delete scr[attr]
+}
+}
+}
+if(scr && scr.parentNode){
+scr.parentNode.removeChild(scr)
+}
+scr = null
+}
+
+var getScript = function(url, callback){
+var scr = document.createElement("script"),
+scriptLoaded = 0;
+
+scr.onload = scr.onreadystatechange = function() {
+if (scriptLoaded) {
+return
+}
+var readyState = scr.readyState;
+if ('undefined' == typeof readyState
+|| readyState == "loaded"
+|| readyState == "complete") {
+scriptLoaded = 1;
+try {
+callback();
+} finally {
+scr.onload = scr.onreadystatechange = null;
+removeScriptTag(scr);
+}
+}
+}
+createScriptTag(scr, url)
+}
+
+var inited = false,
+waitingCallbacks = [];
+var ready = zhihu.pay.ready = function(callback) {
+if (inited) {
+callback();
+} else {
+waitingCallbacks.push(callback);
+}
+}
+
+getScript(scriptUrl + "trade.d6289b75bf5066959331.js", function() {
+
+
+inited = true;
+while(waitingCallbacks.length) {
+(waitingCallbacks.pop())();
+}
+});
+})(this);
