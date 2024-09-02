@@ -203,7 +203,7 @@
 -->
 
 - ✅ = known work and already supported now.
-- ❔ = in my plan, but not coming soon, maybe a few weeks later.
+- ⚠️ = in my plan, but not coming soon, maybe a few weeks later.
 
 |📖 cuda kernel| 📖 element dtype| 📖 accumulate dtype|  
 |:---|:---|:---| 
@@ -233,7 +233,7 @@
 | ✅ [histogram_i32x4_kernel](./histogram/histogram.cu)|i32|-|
 | ✅ [softmax_f32_kernel (grid level memory fence)](./softmax/softmax.cu)|f32|f32|
 | ✅ [softmax_f32x4_kernel (grid level memory fence)](./softmax/softmax.cu)|f32|f32|
-| ❔ [safe_softmax_f32_kernel (per token)](./softmax/softmax.cu)|f32|f32|
+| ⚠️ [safe_softmax_f32_kernel (per token)](./softmax/softmax.cu)|f32|f32|
 | ✅ [sigmoid_f32_kernel](./sigmoid/sigmoid.cu)|f32|-|
 | ✅ [sigmoid_f32x4_kernel](./sigmoid/sigmoid.cu)|f32|-|
 | ✅ [safe_sigmoid_f32_kernel](./sigmoid/sigmoid.cu)|f32|-|
@@ -241,16 +241,16 @@
 | ✅ [relu_f32x4_kernel](./relu/relu.cu)|f32|-|
 | ✅ [layer_norm_f32_kernel (per token)](./layer-norm/layer_norm.cu)|f32|f32|
 | ✅ [layer_norm_f32x4_kernel (per token)](./layer-norm/layer_norm.cu)|f32|f32|
-| ❔ [layer_norm_f16_kernel (per token)](./layer-norm/layer_norm.cu)|f16|f16|
-| ❔ [layer_norm_f16x2_kernel (per token)](./layer-norm/layer_norm.cu)|f16|f16|
+| ⚠️ [layer_norm_f16_kernel (per token)](./layer-norm/layer_norm.cu)|f16|f16|
+| ⚠️ [layer_norm_f16x2_kernel (per token)](./layer-norm/layer_norm.cu)|f16|f16|
 | ✅ [rms_norm_f32_kernel (per token)](./rms-norm/rms_norm.cu)|f32|f32|
 | ✅ [rms_norm_f32x4_kernel (per token)](./rms-norm/rms_norm.cu)|f32|f32|
-| ❔ [rms_norm_f16_kernel (per token)](./rms-norm/rms_norm.cu)|f16|f16|
-| ❔ [rms_norm_f16x2_kernel (per token)](./rms-norm/rms_norm.cu)|f16|f16|
+| ⚠️ [rms_norm_f16_kernel (per token)](./rms-norm/rms_norm.cu)|f16|f16|
+| ⚠️ [rms_norm_f16x2_kernel (per token)](./rms-norm/rms_norm.cu)|f16|f16|
 | ✅ [flash_attn_1_fwd_f32_kernel](./flash-attn/flash_attn_1_fwd_f32.cu)|f32|f32|
-| ❔ [flash_attn_2_fwd_f32_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|f32|f32|
-| ❔ [flash_attn_2_fwd_f16_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|f16|f32|
-| ❔ [flash_attn_2_fwd_b16_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|bf16|f32|
+| ⚠️ [flash_attn_2_fwd_f32_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|f32|f32|
+| ⚠️ [flash_attn_2_fwd_f16_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|f16|f32|
+| ⚠️ [flash_attn_2_fwd_b16_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|bf16|f32|
 | ✅ [hard_nms cpp](./nms/nms.cc)|f32|-|
 | ✅ [notes v1(deprecated)](./notes-v1.cu)|f32|f32|
 
