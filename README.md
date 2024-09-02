@@ -160,9 +160,14 @@
 |:---|:---|:---| 
 | ✅ [sgemm_sliced_k_f32_kernel](./sgemm/sgemm.cu)|f32|f32|
 | ✅ [sgemm_t_tile_sliced_k_f32x4_kernel](./sgemm/sgemm.cu)|f32|f32|
+| ⚠️ [hgemm_sliced_k_f16_f32_kernel](./sgemm/sgemm.cu)|f16|f32|
+| ⚠️ [hgemm_t_tile_sliced_k_f16x2_f32_kernel](./sgemm/sgemm.cu)|f16|f32|
 | ✅ [sgemv_k32_f32_kernel](./sgemv/sgemv.cu)|f32|f32|
 | ✅ [sgemv_k128_f32x4_kernel](./sgemv/sgemv.cu)|f32|f32|
 | ✅ [sgemv_k16_f32_kernel](./sgemv/sgemv.cu)|f32|f32|
+| ⚠️ [hgemv_k32_f16_kernel](./sgemv/sgemv.cu)|f16|f16|
+| ⚠️ [hgemv_k128_f16x2_kernel](./sgemv/sgemv.cu)|f16|f16|
+| ⚠️ [hgemv_k16_f16_kernel](./sgemv/sgemv.cu)|f16|f16|
 | ✅ [warp_reduce_f32/f16/bf16_kernel](./reduce/block_all_reduce.cu)|f16/bf16/f32|f16/bf16/f32|
 | ✅ [block_reduce_f32_kernel](./reduce/block_all_reduce.cu)|f32|f32|
 | ✅ [block_all_reduce_sum_f32_f32_kernel](./reduce/block_all_reduce.cu)|f32|f32|
@@ -185,7 +190,8 @@
 | ⚠️ [dot_product_f16x2_f32_kernel](./dot-product/dot_product.cu)|f16|f32|
 | ✅ [elementwise_f32_kernel](./elementwise/elementwise.cu)|f32|-|
 | ✅ [elementwise_f32x4_kernel](./elementwise/elementwise.cu)|f32|-|
-| ⚠️ [elementwise_f16_f32_kernel](./elementwise/elementwise.cu)|f16|f32|
+| ⚠️ [elementwise_f16_kernel](./elementwise/elementwise.cu)|f16|-|
+| ⚠️ [elementwise_f16x2_kernel](./elementwise/elementwise.cu)|f16|-|
 | ✅ [histogram_i32_kernel](./histogram/histogram.cu)|i32|-|
 | ✅ [histogram_i32x4_kernel](./histogram/histogram.cu)|i32|-|
 | ✅ [softmax_f32_kernel (grid level memory fence)](./softmax/softmax.cu)|f32|f32|
