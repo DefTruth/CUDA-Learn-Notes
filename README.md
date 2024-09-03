@@ -36,10 +36,10 @@
 |[[LLM推理优化][Weight Only]📖WINT8/4-(02): 快速反量化之INT8转BF16](https://zhuanlan.zhihu.com/p/657073159)|@DefTruth|
 |[[LLM推理优化][Weight Only]📖WINT8/4-(03): LOP3指令详解及INT4转FP16/BF16](https://zhuanlan.zhihu.com/p/657073857)|@DefTruth|
 |[[LLM推理优化][LLM Infra整理]📖100+篇: 大模型推理各方向新发展整理](https://zhuanlan.zhihu.com/p/693680304)|@DefTruth|
-|[[LLM推理优化][LLM Infra整理]📖30+篇: LLM推理论文集-500页PDF💡](https://zhuanlan.zhihu.com/p/669777159)|@DefTruth|
+|[[LLM推理优化][LLM Infra整理]📖30+篇: LLM推理论文集-500页PDF](https://zhuanlan.zhihu.com/p/669777159)|@DefTruth|
 |[[LLM推理优化][LLM Infra整理]📖FlashDecoding++: 比FlashDecoding还要快！](https://zhuanlan.zhihu.com/p/665022589)|@DefTruth|
 |[[LLM推理优化][LLM Infra整理]📖TensorRT-LLM开源，TensorRT 9.1也来了](https://zhuanlan.zhihu.com/p/662361469)|@DefTruth|
-|[[LLM推理优化][LLM Infra整理]📖20+篇: LLM推理论文集-300页PDF💡](https://zhuanlan.zhihu.com/p/658091768)|@DefTruth|
+|[[LLM推理优化][LLM Infra整理]📖20+篇: LLM推理论文集-300页PDF](https://zhuanlan.zhihu.com/p/658091768)|@DefTruth|
 |[[LLM推理优化][LLM Infra整理]📖PagedAttention论文新鲜出炉](https://zhuanlan.zhihu.com/p/617015570)|@DefTruth|
 
 
@@ -48,7 +48,7 @@
 |📖 类型-标题|📖 作者|
 |:---|:---| 
 | [[推理部署][CV/NLP]📖FastDeploy三行代码搞定150+ CV、NLP模型部署](https://zhuanlan.zhihu.com/p/581326442)|@DefTruth|  
-| [[推理部署][CV]📖如何在lite.ai.toolkit(3.6k+🔥stars)中增加您的模型？](https://zhuanlan.zhihu.com/p/523876625)|@DefTruth|  
+| [[推理部署][CV]📖如何在lite.ai.toolkit(3.6k+ stars)中增加您的模型？](https://zhuanlan.zhihu.com/p/523876625)|@DefTruth|  
 | [[推理部署][CV]📖美团 YOLOv6 ORT/MNN/TNN/NCNN C++推理部署](https://zhuanlan.zhihu.com/p/533643238)|@DefTruth|  
 | [[推理部署][ONNX]📖ONNX推理加速技术文档-杂记](https://zhuanlan.zhihu.com/p/524023964)|@DefTruth|  
 | [[推理部署][TensorFlow]📖Mac源码编译TensorFlow C++指北](https://zhuanlan.zhihu.com/p/524013615)|@DefTruth|  
@@ -222,8 +222,8 @@
 ## ©️License
 GNU General Public License v3.0
 
-## 🎉Contribute
-🌟如果觉得有用，不妨给个🌟👆🏻Star支持一下吧~
+## Contribute
+如果觉得有用，不妨给个🌟👆🏻Star支持一下吧~
 
 <div align='center'>
 <a href="https://star-history.com/#DefTruth/CUDA-Learn-Notes&Date">
@@ -243,5 +243,6 @@ GNU General Public License v3.0
 - [tiny-flash-attention](https://github.com/66RING/tiny-flash-attention)
 - [cute-gemm](https://github.com/reed-lau/cute-gemm)
 - [cutlass_flash_atten_fp8](https://github.com/weishengying/cutlass_flash_atten_fp8)
+- [cuda_learning](https://github.com/ifromeast/cuda_learning)
   
 </details>
