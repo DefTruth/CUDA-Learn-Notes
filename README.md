@@ -153,71 +153,73 @@
 ## 0x01 📖 CUDA Kernel目录 (面试常考题目)
 <div id="kernellist"></div>  
 
+- / = not supported now.  
 - ✔️ = known work and already supported now.
 - ❔ = in my plan, but not coming soon, maybe a few weeks later.
+- **workflow**: custom **CUDA** kernel impl -> **Torch** python binding -> Run tests.
 
-|📖 cuda kernel| 📖 element dtype| 📖 accumulate dtype|  
-|:---|:---|:---| 
-| ✔️ [sgemm_sliced_k_f32_kernel](./sgemm/sgemm.cu)|f32|f32|
-| ✔️ [sgemm_t_tile_sliced_k_f32x4_kernel](./sgemm/sgemm.cu)|f32|f32|
-| ❔ [hgemm_sliced_k_f16_f32_kernel](./sgemm/sgemm.cu)|f16|f32|
-| ❔ [hgemm_t_tile_sliced_k_f16x2_f32_kernel](./sgemm/sgemm.cu)|f16|f32|
-| ✔️ [sgemv_k32_f32_kernel](./sgemv/sgemv.cu)|f32|f32|
-| ✔️ [sgemv_k128_f32x4_kernel](./sgemv/sgemv.cu)|f32|f32|
-| ✔️ [sgemv_k16_f32_kernel](./sgemv/sgemv.cu)|f32|f32|
-| ❔ [hgemv_k32_f16_kernel](./sgemv/sgemv.cu)|f16|f16|
-| ❔ [hgemv_k128_f16x2_kernel](./sgemv/sgemv.cu)|f16|f16|
-| ❔ [hgemv_k16_f16_kernel](./sgemv/sgemv.cu)|f16|f16|
-| ✔️ [warp_reduce_f32/f16/bf16_kernel](./reduce/block_all_reduce.cu)|f16/bf16/f32|f16/bf16/f32|
-| ✔️ [block_reduce_f32_kernel](./reduce/block_all_reduce.cu)|f32|f32|
-| ✔️ [block_all_reduce_sum_f32_f32_kernel](./reduce/block_all_reduce.cu)|f32|f32|
-| ✔️ [block_all_reduce_sum_f32x4_f32_kernel](./reduce/block_all_reduce.cu)|f32|f32|
-| ✔️ [block_all_reduce_sum_f16_f16_kernel](./reduce/block_all_reduce.cu)|f16|f16|
-| ✔️ [block_all_reduce_sum_f16_f32_kernel](./reduce/block_all_reduce.cu)|f16|f32|
-| ✔️ [block_all_reduce_sum_f16x2_f16_kernel](./reduce/block_all_reduce.cu)|f16|f16|
-| ✔️ [block_all_reduce_sum_f16x2_f32_kernel](./reduce/block_all_reduce.cu)|f16|f32|
-| ✔️ [block_all_reduce_sum_bf16_bf16_kernel](./reduce/block_all_reduce.cu)|bf16|bf16|
-| ✔️ [block_all_reduce_sum_bf16_f32_kernel](./reduce/block_all_reduce.cu)|bf16|f32|
-| ✔️ [block_all_reduce_sum_bf16x2_bf16_kernel](./reduce/block_all_reduce.cu)|bf16|bf16|
-| ✔️ [block_all_reduce_sum_bf16x2_f32_kernel](./reduce/block_all_reduce.cu)|bf16|f32|
-| ✔️ [block_all_reduce_sum_fp8_e4m3_f16_kernel](./reduce/block_all_reduce.cu)|fp8_e4m3|f16|
-| ❔ [block_all_reduce_sum_i8_i32_kernel](./reduce/block_all_reduce.cu)|i8|i32|
-| ✔️ [dot_product_f32_kernel](./dot-product/dot_product.cu)|f32|f32|
-| ✔️ [dot_product_f32x4_kernel](./dot-product/dot_product.cu)|f32|f32|
-| ❔ [dot_product_f16_f16_kernel](./dot-product/dot_product.cu)|f16|f16|
-| ❔ [dot_product_f16x2_f16_kernel](./dot-product/dot_product.cu)|f16|f16|
-| ❔ [dot_product_f16_f32_kernel](./dot-product/dot_product.cu)|f16|f32|
-| ❔ [dot_product_f16x2_f32_kernel](./dot-product/dot_product.cu)|f16|f32|
-| ✔️ [elementwise_f32_kernel](./elementwise/elementwise.cu)|f32|-|
-| ✔️ [elementwise_f32x4_kernel](./elementwise/elementwise.cu)|f32|-|
-| ❔ [elementwise_f16_kernel](./elementwise/elementwise.cu)|f16|-|
-| ❔ [elementwise_f16x2_kernel](./elementwise/elementwise.cu)|f16|-|
-| ✔️ [histogram_i32_kernel](./histogram/histogram.cu)|i32|-|
-| ✔️ [histogram_i32x4_kernel](./histogram/histogram.cu)|i32|-|
-| ✔️ [softmax_f32_kernel (grid level memory fence)](./softmax/softmax.cu)|f32|f32|
-| ✔️ [softmax_f32x4_kernel (grid level memory fence)](./softmax/softmax.cu)|f32|f32|
-| ❔ [softmax_f32x4_kernel (per token)](./softmax/softmax.cu)|f32|f32|
-| ❔ [safe_softmax_f32x4_kernel (per token)](./softmax/softmax.cu)|f32|f32|
-| ✔️ [sigmoid_f32_kernel](./sigmoid/sigmoid.cu)|f32|-|
-| ✔️ [sigmoid_f32x4_kernel](./sigmoid/sigmoid.cu)|f32|-|
-| ✔️ [relu_f32_kernel](./relu/relu.cu)|f32|-|
-| ✔️ [relu_f32x4_kernel](./relu/relu.cu)|f32|-|
-| ❔ [relu_f16_kernel](./relu/relu.cu)|f16|-|
-| ❔ [relu_f16x2_kernel](./relu/relu.cu)|f16|-|
-| ✔️ [layer_norm_f32_kernel (per token)](./layer-norm/layer_norm.cu)|f32|f32|
-| ✔️ [layer_norm_f32x4_kernel (per token)](./layer-norm/layer_norm.cu)|f32|f32|
-| ❔ [layer_norm_f16_kernel (per token)](./layer-norm/layer_norm.cu)|f16|f16|
-| ❔ [layer_norm_f16x2_kernel (per token)](./layer-norm/layer_norm.cu)|f16|f16|
-| ✔️ [rms_norm_f32_kernel (per token)](./rms-norm/rms_norm.cu)|f32|f32|
-| ✔️ [rms_norm_f32x4_kernel (per token)](./rms-norm/rms_norm.cu)|f32|f32|
-| ❔ [rms_norm_f16_kernel (per token)](./rms-norm/rms_norm.cu)|f16|f16|
-| ❔ [rms_norm_f16x2_kernel (per token)](./rms-norm/rms_norm.cu)|f16|f16|
-| ✔️ [flash_attn_1_fwd_f32_kernel](./flash-attn/flash_attn_1_fwd_f32.cu)|f32|f32|
-| ❔ [flash_attn_2_fwd_f32_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|f32|f32|
-| ❔ [flash_attn_2_fwd_f16_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|f16|f32|
-| ❔ [flash_attn_2_fwd_bf16_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|bf16|f32|
-| ✔️ [hard_nms cpp only](./nms/nms.cc)|f32|-|
-| ✔️ [notes v1(deprecated)](./notes-v1.cu)|f32|f32|
+|📖 cuda kernel| 📖 elem dtype| 📖 acc dtype| 📖 docs |
+|:---|:---|:---|:---| 
+| ✔️ [sgemm_sliced_k_f32_kernel](./sgemm/sgemm.cu)|f32|f32|❔|
+| ✔️ [sgemm_t_tile_sliced_k_f32x4_kernel](./sgemm/sgemm.cu)|f32|f32|❔|
+| ❔ [hgemm_sliced_k_f16_f32_kernel](./sgemm/sgemm.cu)|f16|f32|❔|
+| ❔ [hgemm_t_tile_sliced_k_f16x2_f32_kernel](./sgemm/sgemm.cu)|f16|f32|❔|
+| ✔️ [sgemv_k32_f32_kernel](./sgemv/sgemv.cu)|f32|f32|❔|
+| ✔️ [sgemv_k128_f32x4_kernel](./sgemv/sgemv.cu)|f32|f32|❔|
+| ✔️ [sgemv_k16_f32_kernel](./sgemv/sgemv.cu)|f32|f32|❔|
+| ❔ [hgemv_k32_f16_kernel](./sgemv/sgemv.cu)|f16|f16|❔|
+| ❔ [hgemv_k128_f16x2_kernel](./sgemv/sgemv.cu)|f16|f16|❔|
+| ❔ [hgemv_k16_f16_kernel](./sgemv/sgemv.cu)|f16|f16|❔|
+| ✔️ [warp_reduce_f32/f16/bf16_kernel](./reduce/block_all_reduce.cu)|f16/bf16/f32|f16/bf16/f32|[link](./reduce/)|
+| ✔️ [block_reduce_f32_kernel](./reduce/block_all_reduce.cu)|f32|f32|[link](./reduce/)|
+| ✔️ [block_all_reduce_sum_f32_f32_kernel](./reduce/block_all_reduce.cu)|f32|f32|[link](./reduce/)|
+| ✔️ [block_all_reduce_sum_f32x4_f32_kernel](./reduce/block_all_reduce.cu)|f32|f32|[link](./reduce/)|
+| ✔️ [block_all_reduce_sum_f16_f16_kernel](./reduce/block_all_reduce.cu)|f16|f16|[link](./reduce/)|
+| ✔️ [block_all_reduce_sum_f16_f32_kernel](./reduce/block_all_reduce.cu)|f16|f32|[link](./reduce/)|
+| ✔️ [block_all_reduce_sum_f16x2_f16_kernel](./reduce/block_all_reduce.cu)|f16|f16|[link](./reduce/)|
+| ✔️ [block_all_reduce_sum_f16x2_f32_kernel](./reduce/block_all_reduce.cu)|f16|f32|[link](./reduce/)|
+| ✔️ [block_all_reduce_sum_bf16_bf16_kernel](./reduce/block_all_reduce.cu)|bf16|bf16|[link](./reduce/)|
+| ✔️ [block_all_reduce_sum_bf16_f32_kernel](./reduce/block_all_reduce.cu)|bf16|f32|[link](./reduce/)|
+| ✔️ [block_all_reduce_sum_bf16x2_bf16_kernel](./reduce/block_all_reduce.cu)|bf16|bf16|[link](./reduce/)|
+| ✔️ [block_all_reduce_sum_bf16x2_f32_kernel](./reduce/block_all_reduce.cu)|bf16|f32|[link](./reduce/)|
+| ✔️ [block_all_reduce_sum_fp8_e4m3_f16_kernel](./reduce/block_all_reduce.cu)|fp8_e4m3|f16|[link](./reduce/)|
+| ❔ [block_all_reduce_sum_i8_i32_kernel](./reduce/block_all_reduce.cu)|i8|i32|[link](./reduce/)|
+| ✔️ [dot_product_f32_kernel](./dot-product/dot_product.cu)|f32|f32|❔|
+| ✔️ [dot_product_f32x4_kernel](./dot-product/dot_product.cu)|f32|f32|❔|
+| ❔ [dot_product_f16_f16_kernel](./dot-product/dot_product.cu)|f16|f16|❔|
+| ❔ [dot_product_f16x2_f16_kernel](./dot-product/dot_product.cu)|f16|f16|❔|
+| ❔ [dot_product_f16_f32_kernel](./dot-product/dot_product.cu)|f16|f32|/|❔|
+| ❔ [dot_product_f16x2_f32_kernel](./dot-product/dot_product.cu)|f16|f32|/|❔|
+| ✔️ [elementwise_f32_kernel](./elementwise/elementwise.cu)|f32|/|/|❔|
+| ✔️ [elementwise_f32x4_kernel](./elementwise/elementwise.cu)|f32|/|/|❔|
+| ❔ [elementwise_f16_kernel](./elementwise/elementwise.cu)|f16|/|/|❔|
+| ❔ [elementwise_f16x2_kernel](./elementwise/elementwise.cu)|f16|/|/|❔|
+| ✔️ [histogram_i32_kernel](./histogram/histogram.cu)|i32|/|/|❔|
+| ✔️ [histogram_i32x4_kernel](./histogram/histogram.cu)|i32|/|/|❔|
+| ✔️ [softmax_f32_kernel (grid level memory fence)](./softmax/softmax.cu)|f32|f32|❔|
+| ✔️ [softmax_f32x4_kernel (grid level memory fence)](./softmax/softmax.cu)|f32|f32|❔|
+| ❔ [softmax_f32x4_kernel (per token)](./softmax/softmax.cu)|f32|f32|❔|
+| ❔ [safe_softmax_f32x4_kernel (per token)](./softmax/softmax.cu)|f32|f32|❔|
+| ✔️ [sigmoid_f32_kernel](./sigmoid/sigmoid.cu)|f32|/|❔|
+| ✔️ [sigmoid_f32x4_kernel](./sigmoid/sigmoid.cu)|f32|/|❔|
+| ✔️ [relu_f32_kernel](./relu/relu.cu)|f32|/|❔|
+| ✔️ [relu_f32x4_kernel](./relu/relu.cu)|f32|/|❔|
+| ❔ [relu_f16_kernel](./relu/relu.cu)|f16|/|❔|
+| ❔ [relu_f16x2_kernel](./relu/relu.cu)|f16|/|❔|
+| ✔️ [layer_norm_f32_kernel (per token)](./layer-norm/layer_norm.cu)|f32|f32|❔|
+| ✔️ [layer_norm_f32x4_kernel (per token)](./layer-norm/layer_norm.cu)|f32|f32|❔|
+| ❔ [layer_norm_f16_kernel (per token)](./layer-norm/layer_norm.cu)|f16|f16|❔|
+| ❔ [layer_norm_f16x2_kernel (per token)](./layer-norm/layer_norm.cu)|f16|f16|❔|
+| ✔️ [rms_norm_f32_kernel (per token)](./rms-norm/rms_norm.cu)|f32|f32|❔|
+| ✔️ [rms_norm_f32x4_kernel (per token)](./rms-norm/rms_norm.cu)|f32|f32|❔|
+| ❔ [rms_norm_f16_kernel (per token)](./rms-norm/rms_norm.cu)|f16|f16|❔|
+| ❔ [rms_norm_f16x2_kernel (per token)](./rms-norm/rms_norm.cu)|f16|f16|❔|
+| ✔️ [flash_attn_1_fwd_f32_kernel](./flash-attn/flash_attn_1_fwd_f32.cu)|f32|f32|[link](./flash-attn)|
+| ❔ [flash_attn_2_fwd_f32_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|f32|f32|[link](./flash-attn)|
+| ❔ [flash_attn_2_fwd_f16_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|f16|f32|[link](./flash-attn)|
+| ❔ [flash_attn_2_fwd_bf16_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|bf16|f32|[link](./flash-attn)|
+| ✔️ [hard_nms cpp only](./nms/nms.cc)|f32|/|❔|
+| ✔️ [notes v1(deprecated)](./notes-v1.cu)|f32|f32|/|
 
 ## ©️License
 GNU General Public License v3.0
