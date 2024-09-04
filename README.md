@@ -224,8 +224,8 @@
 ## ©️License
 GNU General Public License v3.0
 
-## Contribute
-如果觉得有用，不妨给个🌟👆🏻Star支持一下吧~
+## 🎉Contribute
+Welcome to 🌟👆🏻star & submit a PR to this repo!
 
 <div align='center'>
 <a href="https://star-history.com/#DefTruth/CUDA-Learn-Notes&Date">
