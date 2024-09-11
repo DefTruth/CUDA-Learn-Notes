@@ -50,7 +50,7 @@ class QKVAttentionMatchTensorRTfusedMHA(nn.Module):
         # [0] MatMul: Q*K [B, N, S, S] = [B, N, S, h] * [B, N, h, S] 
         weight = torch.matmul(Q, K) * scale 
         # [1] Softmax: [B, N, S, S] 
-        weight = torch.softmax(weight.float(), dim=-1).type(weight.dtype) 
+        weight = torch.softmax(weight, dim=-1).type(weight.dtype) 
         # [2] MatMul: w*v [B, N, S, S]*[B, N, S, h]->[B, N, S, h] 
         out = torch.matmul(weight, V) 
         # ---------------------  Attention End  --------------------------------

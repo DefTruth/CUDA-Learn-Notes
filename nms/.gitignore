@@ -7,4 +7,14 @@
 build
 *.whl
 tmp
-
+*.onnx
+*.pb
+*.pbtxt
+*.pt
+*.pth
+*.engine
+*.bin
+*.nsys
+*.nvvp
+*.nsys*
+*.sqlite

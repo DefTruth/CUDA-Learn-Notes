@@ -1,16 +1,3 @@
-// sgemm
-// sgemv 
-// warp/block reduce
-// dot product 
-// elementwise
-// hist 
-// softmax 
-// sigmoid 
-// relu 
-// layer_norm 
-// rms_norm  
-// iou 
-// nms
 #include <stdio.h>
 #include <stdlib.h>
 #include <float.h>

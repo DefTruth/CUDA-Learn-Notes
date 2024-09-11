@@ -28,7 +28,7 @@ __device__ __forceinline__ float warp_reduce_sum_f32(float val) {
 // Block reduce sum/max/min device helper for Layer/RMS Norm/Softmax etc.
 // grid 1D block 1D, grid(N/256), block(256)
 template<const int NUM_THREADS=256>
-__device__ __forceinline__ float block_reduce_sum_f32(float val) {
+__device__ float block_reduce_sum_f32(float val) {
   // always <= 32 warps per block (limited by 1024 threads per block)
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   int warp = threadIdx.x / WARP_SIZE;
@@ -48,7 +48,7 @@ __device__ __forceinline__ float block_reduce_sum_f32(float val) {
 // grid(N*K/K), block(K<1024) N=batch_size*seq_len, K=hidden_size
 // y=y'*g + b (g: scale, b: bias)
 template<const int NUM_THREADS=256>
-__global__ void layer_norm_f32(float* x, float* y, float g, float b, int N, int K) {
+__global__ void layer_norm_f32_kernel(float* x, float* y, float g, float b, int N, int K) {
   int tid = threadIdx.x; // 0..K-1
   int bid = blockIdx.x; // 0..N-1
   int idx = bid * blockDim.x + threadIdx.x;
@@ -74,7 +74,7 @@ __global__ void layer_norm_f32(float* x, float* y, float g, float b, int N, int 
 // grid(N*K/K), block(K/4<1024) N=batch_size*seq_len, K=hidden_size
 // y=y'*g + b (g: scale, b: bias)
 template<const int NUM_THREADS=256/4>
-__global__ void layer_norm_f32x4(float* x, float* y, float g, float b, int N, int K) {
+__global__ void layer_norm_f32x4_kernel(float* x, float* y, float g, float b, int N, int K) {
   int tid = threadIdx.x; // 0..K-1
   int bid = blockIdx.x; // 0..N-1
   int idx = (bid * blockDim.x + threadIdx.x) * 4;
@@ -82,7 +82,7 @@ __global__ void layer_norm_f32x4(float* x, float* y, float g, float b, int N, in
 
   __shared__ float s_mean; // shared within block
   __shared__ float s_variance; // shared within block
-  float4 reg_x = FLOAT4(x[idx])
+  float4 reg_x = FLOAT4(x[idx]);
   float value = (idx < N * K) ? (reg_x.x + reg_x.y 
                                + reg_x.z + reg_x.w) : 0.0f;
   float sum = block_reduce_sum_f32<NUM_THREADS>(value);
@@ -106,4 +106,107 @@ __global__ void layer_norm_f32x4(float* x, float* y, float g, float b, int N, in
   reg_y.z = reg_x_hat.z * s_variance * g + b;
   reg_y.w = reg_x_hat.w * s_variance * g + b;
   if (idx < N * K) FLOAT4(y[idx]) = reg_y;
+}
+
+// --------------------- PyTorch bindings for custom kernel -----------------------
+#define STRINGFY(str) #str
+#define TORCH_BINDING_COMMON_EXTENSION(func) \
+  m.def(STRINGFY(func), &func, STRINGFY(func));
+
+#define CHECK_TORCH_TENSOR_DTYPE(T, th_type)                 \
+if(((T).options().dtype() != (th_type))) {                   \
+  std::cout << "Tensor Info:" << (T).options() << std::endl; \
+  throw std::runtime_error("values must be "#th_type);       \
+}
+
+#define CHECK_TORCH_TENSOR_SHAPE(T1, T2)                                \
+if (((T2).size(0) != (T1).size(0)) || ((T2).size(1) != (T1).size(1))) { \
+  throw std::runtime_error("Tensor size mismatch!");                    \
+}
+
+#define LANUCH_LAYER_NORM_F32_KERNEL(K)      \
+layer_norm_f32_kernel<(K)><<<grid, block>>>( \
+  reinterpret_cast<float*>(x.data_ptr()),    \
+  reinterpret_cast<float*>(y.data_ptr()),    \
+  g, b, N, (K));  
+
+#define DISPATCH_LAYER_NORM_F32_KERNEL(N, K) \
+  dim3 block((K));                           \
+  dim3 grid((N));                            \     
+  switch ((K))                               \
+  {                                          \
+  case 64:                                   \
+    LANUCH_LAYER_NORM_F32_KERNEL(64)         \
+    break;                                   \
+  case 128:                                  \
+    LANUCH_LAYER_NORM_F32_KERNEL(128)        \
+    break;                                   \
+  case 256:                                  \
+    LANUCH_LAYER_NORM_F32_KERNEL(256)        \
+    break;                                   \
+  case 512:                                  \
+    LANUCH_LAYER_NORM_F32_KERNEL(512)        \
+    break;                                   \
+  case 1024:                                 \
+    LANUCH_LAYER_NORM_F32_KERNEL(1024)       \
+    break;                                   \
+  default:                                   \
+    throw std::runtime_error(                \
+      "only support K: 64/128/256/512/1024");\
+    break;                                   \
+  } 
+
+#define LANUCH_LAYER_NORM_F32x4_KERNEL(K)        \
+layer_norm_f32x4_kernel<(K)/4><<<grid, block>>>( \
+  reinterpret_cast<float*>(x.data_ptr()),        \
+  reinterpret_cast<float*>(y.data_ptr()),        \
+  g, b, N, (K));  
+
+#define DISPATCH_LAYER_NORM_F32x4_KERNEL(N, K) \
+  dim3 block((K)/4);                           \
+  dim3 grid((N));                              \     
+  switch ((K))                                 \
+  {                                            \
+  case 64:                                     \
+    LANUCH_LAYER_NORM_F32x4_KERNEL(64)         \
+    break;                                     \
+  case 128:                                    \
+    LANUCH_LAYER_NORM_F32x4_KERNEL(128)        \
+    break;                                     \
+  case 256:                                    \
+    LANUCH_LAYER_NORM_F32x4_KERNEL(256)        \
+    break;                                     \
+  case 512:                                    \
+    LANUCH_LAYER_NORM_F32x4_KERNEL(512)        \
+    break;                                     \
+  case 1024:                                   \
+    LANUCH_LAYER_NORM_F32x4_KERNEL(1024)       \
+    break;                                     \
+  default:                                     \
+    throw std::runtime_error(                  \
+      "only support K: 64/128/256/512/1024");  \
+    break;                                     \
+  } 
+
+void layer_norm_f32(torch::Tensor x, torch::Tensor y, float g, float b) {
+  CHECK_TORCH_TENSOR_DTYPE(x, torch::kFloat32)       
+  CHECK_TORCH_TENSOR_DTYPE(y, torch::kFloat32)
+  CHECK_TORCH_TENSOR_SHAPE(x, y)
+  const int N = x.size(0);
+  const int K = x.size(1);
+  DISPATCH_LAYER_NORM_F32_KERNEL(N, K)
+}
+
+void layer_norm_f32x4(torch::Tensor x, torch::Tensor y, float g, float b) {
+  CHECK_TORCH_TENSOR_DTYPE(x, torch::kFloat32)       
+  CHECK_TORCH_TENSOR_DTYPE(y, torch::kFloat32)
+  CHECK_TORCH_TENSOR_SHAPE(x, y)
+  const int N = x.size(0);
+  const int K = x.size(1);
+  DISPATCH_LAYER_NORM_F32x4_KERNEL(N, K)
+}
+
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+  TORCH_BINDING_COMMON_EXTENSION(layer_norm_f32)
+  TORCH_BINDING_COMMON_EXTENSION(layer_norm_f32x4)
 }

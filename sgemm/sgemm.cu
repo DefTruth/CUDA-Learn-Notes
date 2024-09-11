@@ -15,17 +15,14 @@
 #define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
 
 // -------------------------------------- FP32 -------------------------------------- 
-
 // SGEMM: Block Tile + K Tile, with smem
 // Block Tile (BM, BN) + K Tile (BK=32)
 // grid((N + BN - 1) / BN, (M + BM - 1) / BM), block(BN, BM)
 // a: MxK, b: KxN, c: MxN, compute: c = a * b, all row major  
-__global__ void sgemm_sliced_k(float* a, float* b, float* c, int M, int N, int K) {
+template<const int BM=32, const int BN=32, const int BK=32>
+__global__ void sgemm_sliced_k_f32_kernel(float* a, float* b, float* c, int M, int N, int K) {
   // [1] Block Tile: 32x32的block处理c上一块32x32的元素计算
   // [2]     K Tile: 使用共享内存，并将K分块为BK大小的块
-  constexpr int BM = 32;
-  constexpr int BN = 32;
-  constexpr int BK = 32;
   __shared__ float s_a[BM][BK], s_b[BK][BN]; 
 
   int bx = blockIdx.x;
@@ -74,19 +71,14 @@ __global__ void sgemm_sliced_k(float* a, float* b, float* c, int M, int N, int K
 // TM=TN=8 增加计算密度 BM/TM=16 BN/TN=16
 // dim3 blockDim(BN/TN, BM/TM);
 // dim3 gridDim((N + BN - 1) / BN, (M + BM - 1) / BM)
-__global__ void sgemm_t_tile_sliced_k_f32x4(
-  float* a, float* b, float* c, int M, int N, int K) {
+template<const int BM=128, const int BN=128, const int BK=8, const int TM=8, const int TN=8>
+__global__ void sgemm_t_8x8_sliced_k_f32x4_kernel(float* a, float* b, float* c, int M, int N, int K) {
   // [1]  Block Tile: 一个16x16的block处理C上大小为128X128的一个目标块
   // [2] Thread Tile: 每个thread负责计算TM*TN(8*8)个元素，增加计算密度
   // [3]      K Tile: 将K分块，每块BK大小，迭代(K+BK-1/BK)次，
   //                  每次计算TM*TN个元素各自的部分乘累加
   // [4]   Vectorize: 减少load和store指令，使用float4
-  constexpr int BM = 128;
-  constexpr int BN = 128;
-  constexpr int BK = 8; 
-  constexpr int TM = 8;
-  constexpr int TN = 8;
-
+  
   int bx = blockIdx.x;
   int by = blockIdx.y;
   int tx = threadIdx.x;
@@ -147,4 +139,86 @@ __global__ void sgemm_t_tile_sliced_k_f32x4(
       FLOAT4(c[store_gmem_c_addr]) = FLOAT4(r_c[m][n]);
     }
   }
+}
+
+// --------------------- PyTorch bindings for custom kernel -----------------------
+#define STRINGFY(str) #str
+#define TORCH_BINDING_COMMON_EXTENSION(func) \
+  m.def(STRINGFY(func), &func, STRINGFY(func));
+
+#define CHECK_TORCH_TENSOR_DTYPE(T, th_type)                 \
+if(((T).options().dtype() != (th_type))) {                   \
+  std::cout << "Tensor Info:" << (T).options() << std::endl; \
+  throw std::runtime_error("values must be "#th_type);       \
+}
+
+#define CHECK_TORCH_TENSOR_SHAPE(T, S0, S1)           \
+if (((T).size(0) != (S0)) || ((T).size(1) != (S1))) { \
+  throw std::runtime_error("Tensor size mismatch!");  \
+}
+
+// SGEMM: Block Tile + K Tile, with smem
+// Block Tile (BM, BN) + K Tile (BK=32)
+// grid((N + BN - 1) / BN, (M + BM - 1) / BM), block(BN, BM)
+// a: MxK, b: KxN, c: MxN, compute: c = a * b, all row major  
+void sgemm_sliced_k_f32(torch::Tensor a, torch::Tensor b, torch::Tensor c) {
+  CHECK_TORCH_TENSOR_DTYPE(a, torch::kFloat32)
+  CHECK_TORCH_TENSOR_DTYPE(b, torch::kFloat32)
+  CHECK_TORCH_TENSOR_DTYPE(c, torch::kFloat32)
+  const int M = a.size(0);
+  const int K = a.size(1);
+  const int N = b.size(1); 
+  CHECK_TORCH_TENSOR_SHAPE(a, M, K)
+  CHECK_TORCH_TENSOR_SHAPE(b, K, N)
+  CHECK_TORCH_TENSOR_SHAPE(c, M, N)
+  constexpr int BM = 32;
+  constexpr int BN = 32;
+  constexpr int BK = 32;
+
+  dim3 block(BN, BM);
+  dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
+
+  sgemm_sliced_k_f32_kernel<BM, BN, BK><<<grid, block>>>(
+    reinterpret_cast<float*>(a.data_ptr()),
+    reinterpret_cast<float*>(b.data_ptr()),
+    reinterpret_cast<float*>(c.data_ptr()),
+    M, N, K
+  );
+}
+
+// SGEMM: Block Tile + Thread Tile + K Tile + Vec4, with smem
+// BK:TILE_K=8 BM=BN=128
+// TM=TN=8 增加计算密度 BM/TM=16 BN/TN=16
+// dim3 blockDim(BN/TN, BM/TM);
+// dim3 gridDim((N + BN - 1) / BN, (M + BM - 1) / BM)
+void sgemm_t_8x8_sliced_k_f32x4(torch::Tensor a, torch::Tensor b, torch::Tensor c) {
+  CHECK_TORCH_TENSOR_DTYPE(a, torch::kFloat32)
+  CHECK_TORCH_TENSOR_DTYPE(b, torch::kFloat32)
+  CHECK_TORCH_TENSOR_DTYPE(c, torch::kFloat32)
+  const int M = a.size(0);
+  const int K = a.size(1);
+  const int N = b.size(1); 
+  CHECK_TORCH_TENSOR_SHAPE(a, M, K)
+  CHECK_TORCH_TENSOR_SHAPE(b, K, N)
+  CHECK_TORCH_TENSOR_SHAPE(c, M, N)
+  constexpr int BM = 128;
+  constexpr int BN = 128;
+  constexpr int BK = 8; 
+  constexpr int TM = 8;
+  constexpr int TN = 8;
+
+  dim3 block(BN/TN, BM/TM);
+  dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
+
+  sgemm_t_8x8_sliced_k_f32x4_kernel<BM, BN, BK, TM, TN><<<grid, block>>>(
+    reinterpret_cast<float*>(a.data_ptr()),
+    reinterpret_cast<float*>(b.data_ptr()),
+    reinterpret_cast<float*>(c.data_ptr()),
+    M, N, K
+  );
+}
+
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+  TORCH_BINDING_COMMON_EXTENSION(sgemm_sliced_k_f32)
+  TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_f32x4)
 }

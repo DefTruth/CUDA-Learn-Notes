@@ -345,6 +345,19 @@ __device__ __forceinline__ half warp_reduce_sum_fp8_e4m3_acc_with_f16(
   return val_f16;
 }
 
+template<const int kWarpSize = WARP_SIZE>
+__device__ __forceinline__ half warp_reduce_sum_fp8_e5m2_acc_with_f16(
+  __nv_fp8_storage_t val) {
+  // typedef unsigned char __nv_fp8_storage_t;
+  // __half &operator=(const __half_raw &hr);
+  half val_f16 = __nv_cvt_fp8_to_halfraw(val, __NV_E5M2);
+  #pragma unroll
+  for (int mask = kWarpSize >> 1; mask >= 1; mask >>= 1) {
+    val_f16 = __hadd(val_f16, __shfl_xor_sync(0xffffffff, val_f16, mask));
+  }
+  return val_f16;
+}
+
 template<const int NUM_THREADS = 256>
 __global__ void block_all_reduce_sum_fp8_e4m3_acc_with_f16_kernel(
   __nv_fp8_storage_t* a, float* y, int N) {
@@ -371,6 +384,74 @@ __global__ void block_all_reduce_sum_fp8_e4m3_acc_with_f16_kernel(
   if (tid == 0) atomicAdd(y, __half2float(sum));
 }
 
+template<const int NUM_THREADS = 256>
+__global__ void block_all_reduce_sum_fp8_e5m2_acc_with_f16_kernel(
+  __nv_fp8_storage_t* a, float* y, int N) {
+  int tid = threadIdx.x;
+  int idx = blockIdx.x * NUM_THREADS + tid;
+  constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
+  __shared__ half reduce_smem[NUM_WARPS];
+
+  // keep the data in register is enougth for warp operaion.
+  __nv_fp8_storage_t sum_f8 = (idx < N) ? a[idx] : __nv_cvt_float_to_fp8(
+    0.0f, __NV_SATFINITE, __NV_E5M2);
+  int warp = tid / WARP_SIZE;
+  int lane = tid % WARP_SIZE;
+  // perform warp sync reduce.
+  half sum_f16 = warp_reduce_sum_fp8_e5m2_acc_with_f16<WARP_SIZE>(sum_f8);
+  // warp leaders store the data to shared memory.
+  // use float to keep sum from each block and reduce 
+  // with fp16 inter warps.
+  if (lane == 0) reduce_smem[warp] = sum_f16;
+  __syncthreads(); // make sure the data is in shared memory.
+  // the first warp compute the final sum.
+  half sum = (lane < NUM_WARPS) ? reduce_smem[lane] : __float2half(0.0f);
+  if (warp == 0) sum = warp_reduce_sum_f16_acc_with_f16<NUM_WARPS>(sum);
+  if (tid == 0) atomicAdd(y, __half2float(sum));
+}
+
+// -------------------------------------- INT8 -------------------------------------- 
+template<const int kWarpSize = WARP_SIZE>
+__device__ __forceinline__ int32_t warp_reduce_sum_i8_acc_with_i32(int8_t val) {
+  int32_t val_i32 = static_cast<int32_t>(val);
+  #pragma unroll
+  for (int mask = kWarpSize >> 1; mask >= 1; mask >>= 1) {
+    val_i32 += __shfl_xor_sync(0xffffffff, val_i32, mask);
+  }
+  return val_i32;
+}
+
+template<const int kWarpSize = WARP_SIZE>
+__device__ __forceinline__ int32_t warp_reduce_sum_i32_acc_with_i32(int32_t val) {
+  #pragma unroll
+  for (int mask = kWarpSize >> 1; mask >= 1; mask >>= 1) {
+    val += __shfl_xor_sync(0xffffffff, val, mask);
+  }
+  return val;
+}
+
+template<const int NUM_THREADS = 256>
+__global__ void block_all_reduce_sum_i8_acc_with_i32_kernel(
+  int8_t* a, int32_t* y, int N) {
+  int tid = threadIdx.x;
+  int idx = blockIdx.x * NUM_THREADS + tid;
+  constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
+  __shared__ int32_t reduce_smem[NUM_WARPS];
+
+  // keep the data in register is enougth for warp operaion.
+  int8_t sum_i8 = (idx < N) ? a[idx] : 0;
+  int warp = tid / WARP_SIZE;
+  int lane = tid % WARP_SIZE;
+  // perform warp sync reduce.
+  int32_t sum_i32 = warp_reduce_sum_i8_acc_with_i32<WARP_SIZE>(sum_i8);
+  if (lane == 0) reduce_smem[warp] = sum_i32;
+  __syncthreads(); // make sure the data is in shared memory.
+  // the first warp compute the final sum.
+  int32_t sum = (lane < NUM_WARPS) ? reduce_smem[lane] : 0;
+  if (warp == 0) sum = warp_reduce_sum_i32_acc_with_i32<NUM_WARPS>(sum);
+  if (tid == 0) atomicAdd(y, sum);
+}
+
 // --------------------- PyTorch bindings for custom kernel -----------------------
 #define STRINGFY(str) #str
 #define TORCH_BINDING_BLOCK_ALL_REDUCE(packed_type, acc_type, th_type, element_type, n_elements) \
@@ -393,6 +474,26 @@ torch::Tensor block_all_reduce_sum_##packed_type##_acc_with_##acc_type(torch::Te
   return sum;                                                                                    \
 }
 
+#define TORCH_BINDING_BLOCK_ALL_REDUCE_I(packed_type, acc_type, th_type, element_type, n_elements) \
+torch::Tensor block_all_reduce_sum_##packed_type##_acc_with_##acc_type(torch::Tensor values) {     \
+  if(values.options().dtype() != (th_type)) {                                                      \
+    std::cout << "Tensor Info:" << values.options() << std::endl;                                  \
+    throw std::runtime_error("values must be "#th_type);                                           \
+  }                                                                                                \
+  auto options = torch::TensorOptions().dtype(torch::kInt32).device(                               \
+    torch::kCUDA, 0);                                                                              \
+  auto sum = torch::zeros({1}, options);                                                           \
+  const int N = values.size(0);                                                                    \
+  static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                                     \
+  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;                  \
+  dim3 block(NUM_THREADS_PER_BLOCK);                                                               \
+  dim3 grid(NUM_BLOCKS);                                                                           \
+  block_all_reduce_sum_##packed_type##_acc_with_##acc_type##_kernel<                               \
+    NUM_THREADS_PER_BLOCK><<<grid, block>>>(                                                       \
+      reinterpret_cast<element_type*>(values.data_ptr()), sum.data_ptr<int32_t>(), N);             \
+  return sum;                                                                                      \
+}
+
 #define TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(packed_type, acc_type)          \
   m.def(STRINGFY(block_all_reduce_sum_##packed_type##_acc_with_##acc_type),      \
   &block_all_reduce_sum_##packed_type##_acc_with_##acc_type,                     \
@@ -410,6 +511,8 @@ TORCH_BINDING_BLOCK_ALL_REDUCE(bf16,     f32,  torch::kBFloat16,      __nv_bfloa
 TORCH_BINDING_BLOCK_ALL_REDUCE(bf16x2,   bf16, torch::kBFloat16,      __nv_bfloat16,      2)
 TORCH_BINDING_BLOCK_ALL_REDUCE(bf16x2,   f32,  torch::kBFloat16,      __nv_bfloat16,      2)
 TORCH_BINDING_BLOCK_ALL_REDUCE(fp8_e4m3, f16,  torch::kFloat8_e4m3fn, __nv_fp8_storage_t, 1)
+TORCH_BINDING_BLOCK_ALL_REDUCE(fp8_e5m2, f16,  torch::kFloat8_e5m2,   __nv_fp8_storage_t, 1)
+TORCH_BINDING_BLOCK_ALL_REDUCE_I(i8,     i32,  torch::kInt8,          int8_t,             1)
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(f32,      f32)
@@ -423,4 +526,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(bf16x2,   bf16)
   TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(bf16x2,   f32)
   TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(fp8_e4m3, f16)
+  TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(fp8_e5m2, f16)
+  TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(i8,       i32)
 }

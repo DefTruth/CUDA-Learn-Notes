@@ -12,3 +12,6 @@ __pycache__
 *.engine
 *.pt
 *.pth
+*.nsys*
+*.sqlite
+*.engine

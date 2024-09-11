@@ -14,10 +14,11 @@
 #define INT4(value) (reinterpret_cast<int4*>(&(value))[0])
 #define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
 
+// -------------------------------------- FP32 -------------------------------------- 
 // ElementWise Add  
 // grid(N/256), block(256)
 // a: Nx1, b: Nx1, c: Nx1, c = elementwise_add(a, b)
-__global__ void elementwise_add_f32(float* a, float* b, float* c, int N) {
+__global__ void elementwise_add_f32_kernel(float* a, float* b, float* c, int N) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < N) c[idx] = a[idx] + b[idx];
 }
@@ -25,7 +26,7 @@ __global__ void elementwise_add_f32(float* a, float* b, float* c, int N) {
 // ElementWise Add + Vec4
 // grid(N/256), block(256/4)
 // a: Nx1, b: Nx1, c: Nx1, c = elementwise_add(a, b)
-__global__ void elementwise_add_f32x4(float* a, float* b, float* c, int N) {
+__global__ void elementwise_add_f32x4_kernel(float* a, float* b, float* c, int N) {
   int idx = 4 * (blockIdx.x * blockDim.x + threadIdx.x);
   if (idx < N) {
     float4 reg_a = FLOAT4(a[idx]);
@@ -37,4 +38,103 @@ __global__ void elementwise_add_f32x4(float* a, float* b, float* c, int N) {
     reg_c.w = reg_a.w + reg_b.w;
     FLOAT4(c[idx]) = reg_c;
   }
+}
+
+
+// -------------------------------------- FP16 -------------------------------------- 
+// ElementWise Add  
+// grid(N/256), block(256)
+// a: Nx1, b: Nx1, c: Nx1, c = elementwise_add(a, b)
+__global__ void elementwise_add_f16_kernel(half* a, half* b, half* c, int N) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < N) c[idx] = __hadd(a[idx], b[idx]);
+}
+
+// a: Nx1, b: Nx1, c: Nx1, c = elementwise_add(a, b)
+__global__ void elementwise_add_f16x2_kernel(half* a, half* b, half* c, int N) {
+  int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
+  if (idx < N) {
+    half2 reg_a = (reinterpret_cast<half2*>(&(a[idx]))[0]);
+    half2 reg_b = (reinterpret_cast<half2*>(&(b[idx]))[0]);
+    half2 reg_c;
+    reg_c.x = __hadd(reg_a.x, reg_b.x);
+    reg_c.y = __hadd(reg_a.y, reg_b.y);
+    (reinterpret_cast<half2*>(&(c[idx]))[0]) = reg_c;
+  }
+}
+
+
+// --------------------- PyTorch bindings for custom kernel -----------------------
+#define STRINGFY(str) #str
+#define TORCH_BINDING_COMMON_EXTENSION(func) \
+  m.def(STRINGFY(func), &func, STRINGFY(func));
+
+#define CHECK_TORCH_TENSOR_DTYPE(T, th_type)                 \
+if(((T).options().dtype() != (th_type))) {                   \
+  std::cout << "Tensor Info:" << (T).options() << std::endl; \
+  throw std::runtime_error("values must be "#th_type);       \
+}
+
+#define CHECK_TORCH_TENSOR_SHAPE(T, S0) \
+if (((T).size(0) != (S0))) { throw std::runtime_error("Tensor size mismatch!"); }
+
+#define TORCH_BINDING_ELEM_ADD(packed_type, th_type, element_type, n_elements)   \
+torch::Tensor elementwise_add_##packed_type(torch::Tensor a, torch::Tensor b) {  \
+  CHECK_TORCH_TENSOR_DTYPE(a, (th_type))                                         \
+  CHECK_TORCH_TENSOR_DTYPE(b, (th_type))                                         \
+  auto options = torch::TensorOptions().dtype((th_type)).device(                 \
+    torch::kCUDA, 0);                                                            \
+  const int N = a.size(0);                                                       \
+  CHECK_TORCH_TENSOR_SHAPE(b, N)                                                 \
+  auto c = torch::zeros({N}, options);                                           \
+  static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                   \
+  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;\
+  dim3 block(NUM_THREADS_PER_BLOCK);                                             \
+  dim3 grid(NUM_BLOCKS);                                                         \
+  elementwise_add_##packed_type##_kernel<<<grid, block>>>(                       \
+      reinterpret_cast<element_type*>(a.data_ptr()),                             \
+      reinterpret_cast<element_type*>(b.data_ptr()),                             \
+      reinterpret_cast<element_type*>(c.data_ptr()), N);                         \
+  return c;                                                                      \
+}
+
+#define TORCH_BINDING_ELEM_ADD_V2(packed_type, th_type, element_type, n_elements)\
+void elementwise_add_##packed_type##_v2(                                         \
+  torch::Tensor a, torch::Tensor b, torch::Tensor c) {                           \
+  CHECK_TORCH_TENSOR_DTYPE(a, (th_type))                                         \
+  CHECK_TORCH_TENSOR_DTYPE(b, (th_type))                                         \
+  CHECK_TORCH_TENSOR_DTYPE(c, (th_type))                                         \
+  const int N = a.size(0);                                                       \
+  CHECK_TORCH_TENSOR_SHAPE(b, N)                                                 \
+  CHECK_TORCH_TENSOR_SHAPE(c, N)                                                 \
+  static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                   \
+  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;\
+  dim3 block(NUM_THREADS_PER_BLOCK);                                             \
+  dim3 grid(NUM_BLOCKS);                                                         \
+  elementwise_add_##packed_type##_kernel<<<grid, block>>>(                       \
+      reinterpret_cast<element_type*>(a.data_ptr()),                             \
+      reinterpret_cast<element_type*>(b.data_ptr()),                             \
+      reinterpret_cast<element_type*>(c.data_ptr()), N);                         \
+}
+
+
+TORCH_BINDING_ELEM_ADD(f32,    torch::kFloat32,    float,    1)
+TORCH_BINDING_ELEM_ADD(f32x4,  torch::kFloat32,    float,    4)
+TORCH_BINDING_ELEM_ADD(f16,    torch::kHalf,       half,     1)
+TORCH_BINDING_ELEM_ADD(f16x2,  torch::kHalf,       half,     2)
+// v2: no copy of c Tensor
+TORCH_BINDING_ELEM_ADD_V2(f32,    torch::kFloat32,    float,    1)
+TORCH_BINDING_ELEM_ADD_V2(f32x4,  torch::kFloat32,    float,    4)
+TORCH_BINDING_ELEM_ADD_V2(f16,    torch::kHalf,       half,     1)
+TORCH_BINDING_ELEM_ADD_V2(f16x2,  torch::kHalf,       half,     2)
+
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+  TORCH_BINDING_COMMON_EXTENSION(elementwise_add_f32)
+  TORCH_BINDING_COMMON_EXTENSION(elementwise_add_f32x4)
+  TORCH_BINDING_COMMON_EXTENSION(elementwise_add_f16)
+  TORCH_BINDING_COMMON_EXTENSION(elementwise_add_f16x2)
+  TORCH_BINDING_COMMON_EXTENSION(elementwise_add_f32_v2)
+  TORCH_BINDING_COMMON_EXTENSION(elementwise_add_f32x4_v2)
+  TORCH_BINDING_COMMON_EXTENSION(elementwise_add_f16_v2)
+  TORCH_BINDING_COMMON_EXTENSION(elementwise_add_f16x2_v2)
 }
