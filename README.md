@@ -33,43 +33,43 @@
 | ✔️ [relu_f32x4_kernel](./relu/relu.cu)|f32|/|[link](./relu/)|⭐️|  
 | ✔️ [relu_f16_kernel](./relu/relu.cu)|f16|/|[link](./relu/)|⭐️|  
 | ✔️ [relu_f16x2_kernel](./relu/relu.cu)|f16|/|[link](./relu/)|⭐️|  
-| ✔️ [warp_reduce_f32/f16/bf16_kernel](./reduce/block_all_reduce.cu)|f16/bf16/f32|f16/bf16/f32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [warp_reduce_f16/bf16/f32/f8/i8_kernel](./reduce/block_all_reduce.cu)|all|all|[link](./reduce/)|⭐️⭐️|  
 | ✔️ [block_reduce_f32_kernel](./reduce/block_all_reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_sum_f32_f32_kernel](./reduce/block_all_reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_sum_f32x4_f32_kernel](./reduce/block_all_reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_sum_f16_f16_kernel](./reduce/block_all_reduce.cu)|f16|f16|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_sum_f16_f32_kernel](./reduce/block_all_reduce.cu)|f16|f32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_sum_f16x2_f16_kernel](./reduce/block_all_reduce.cu)|f16|f16|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_sum_f16x2_f32_kernel](./reduce/block_all_reduce.cu)|f16|f32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_sum_bf16_bf16_kernel](./reduce/block_all_reduce.cu)|bf16|bf16|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_sum_bf16_f32_kernel](./reduce/block_all_reduce.cu)|bf16|f32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_sum_bf16x2_bf16_kernel](./reduce/block_all_reduce.cu)|bf16|bf16|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_sum_bf16x2_f32_kernel](./reduce/block_all_reduce.cu)|bf16|f32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_sum_fp8_e4m3_f16_kernel](./reduce/block_all_reduce.cu)|fp8_e4m3|f16|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_sum_fp8_e5m2_f16_kernel](./reduce/block_all_reduce.cu)|fp8_e5m2|f16|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_sum_i8_i32_kernel](./reduce/block_all_reduce.cu)|i8|i32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [block_all_reduce_f32_f32_kernel](./reduce/block_all_reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [block_all_reduce_f32x4_f32_kernel](./reduce/block_all_reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [block_all_reduce_f16_f16_kernel](./reduce/block_all_reduce.cu)|f16|f16|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [block_all_reduce_f16_f32_kernel](./reduce/block_all_reduce.cu)|f16|f32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [block_all_reduce_f16x2_f16_kernel](./reduce/block_all_reduce.cu)|f16|f16|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [block_all_reduce_f16x2_f32_kernel](./reduce/block_all_reduce.cu)|f16|f32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [block_all_reduce_bf16_bf16_kernel](./reduce/block_all_reduce.cu)|bf16|bf16|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [block_all_reduce_bf16_f32_kernel](./reduce/block_all_reduce.cu)|bf16|f32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [block_all_reduce_bf16x2_bf16_kernel](./reduce/block_all_reduce.cu)|bf16|bf16|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [block_all_reduce_bf16x2_f32_kernel](./reduce/block_all_reduce.cu)|bf16|f32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [block_all_reduce_fp8_e4m3_f16_kernel](./reduce/block_all_reduce.cu)|fp8_e4m3|f16|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [block_all_reduce_fp8_e5m2_f16_kernel](./reduce/block_all_reduce.cu)|fp8_e5m2|f16|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [block_all_reduce_i8_i32_kernel](./reduce/block_all_reduce.cu)|i8|i32|[link](./reduce/)|⭐️⭐️|  
 | ✔️ [dot_product_f32_kernel](./dot-product/dot_product.cu)|f32|f32|[link](./dot-product/)|⭐️⭐️|  
 | ✔️ [dot_product_f32x4_kernel](./dot-product/dot_product.cu)|f32|f32|[link](./dot-product/)|⭐️⭐️|  
 | ✔️ [dot_product_f16_f32_kernel](./dot-product/dot_product.cu)|f16|f32|[link](./dot-product/)|⭐️⭐️|  
 | ✔️ [dot_product_f16x2_f32_kernel](./dot-product/dot_product.cu)|f16|f32|[link](./dot-product/)|⭐️⭐️|  
-| ✔️ [softmax_f32_kernel (grid level memory fence)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
-| ✔️ [softmax_f32x4_kernel (grid level memory fence)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
-| ✔️ [softmax_f32_kernel (per token)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
-| ✔️ [softmax_f32x4_kernel (per token)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
-| ✔️ [safe_softmax_f32_kernel (per token)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
-| ✔️ [safe_softmax_f32x4_kernel (per token)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
-| ✔️ [layer_norm_f32_kernel (per token)](./layer-norm/layer_norm.cu)|f32|f32|[link](./layer-norm/)|⭐️⭐️|  
-| ✔️ [layer_norm_f32x4_kernel (per token)](./layer-norm/layer_norm.cu)|f32|f32|[link](./layer-norm/)|⭐️⭐️|  
-| ❔ [layer_norm_f16_kernel (per token)](./layer-norm/layer_norm.cu)|f16|f16|❔|⭐️⭐️|  
-| ❔ [layer_norm_f16x2_kernel (per token)](./layer-norm/layer_norm.cu)|f16|f16|❔|⭐️⭐️|  
-| ✔️ [rms_norm_f32_kernel (per token)](./rms-norm/rms_norm.cu)|f32|f32|[link](./rms-norm/)|⭐️⭐️|  
-| ✔️ [rms_norm_f32x4_kernel (per token)](./rms-norm/rms_norm.cu)|f32|f32|[link](./rms-norm/)|⭐️⭐️|  
-| ❔ [rms_norm_f16_kernel (per token)](./rms-norm/rms_norm.cu)|f16|f16|❔|⭐️⭐️|  
-| ❔ [rms_norm_f16x2_kernel (per token)](./rms-norm/rms_norm.cu)|f16|f16|❔|⭐️⭐️|  
+| ✔️ [softmax_f32_kernel(memory fence)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
+| ✔️ [softmax_f32x4_kernel(memory fence)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
+| ✔️ [softmax_f32_kernel(per token)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
+| ✔️ [softmax_f32x4_kernel(per token)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
+| ✔️ [safe_softmax_f32_kernel(per token)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
+| ✔️ [safe_softmax_f32x4_kernel(per token)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
+| ✔️ [layer_norm_f32_kernel(per token)](./layer-norm/layer_norm.cu)|f32|f32|[link](./layer-norm/)|⭐️⭐️|  
+| ✔️ [layer_norm_f32x4_kernel(per token)](./layer-norm/layer_norm.cu)|f32|f32|[link](./layer-norm/)|⭐️⭐️|  
+| ❔ [layer_norm_f16_kernel(per token)](./layer-norm/layer_norm.cu)|f16|f16|❔|⭐️⭐️|  
+| ❔ [layer_norm_f16x2_kernel(per token)](./layer-norm/layer_norm.cu)|f16|f16|❔|⭐️⭐️|  
+| ✔️ [rms_norm_f32_kernel(per token)](./rms-norm/rms_norm.cu)|f32|f32|[link](./rms-norm/)|⭐️⭐️|  
+| ✔️ [rms_norm_f32x4_kernel(per token)](./rms-norm/rms_norm.cu)|f32|f32|[link](./rms-norm/)|⭐️⭐️|  
+| ❔ [rms_norm_f16_kernel(per token)](./rms-norm/rms_norm.cu)|f16|f16|❔|⭐️⭐️|  
+| ❔ [rms_norm_f16x2_kernel(per token)](./rms-norm/rms_norm.cu)|f16|f16|❔|⭐️⭐️|  
 | ✔️ [sgemm_sliced_k_f32_kernel](./sgemm/sgemm.cu)|f32|f32|[link](./sgemm/)|⭐️⭐️⭐️|  
 | ✔️ [sgemm_t_8x8_sliced_k_f32x4_kernel](./sgemm/sgemm.cu)|f32|f32|[link](./sgemm/)|⭐️⭐️⭐️|  
 | ❔ [hgemm_sliced_k_f16_f32_kernel](./hgemm)|f16|f32|❔|⭐️⭐️⭐️|  
-| ❔ [hgemm_t_tile_sliced_k_f16x2_f32_kernel](./hgemm)|f16|f32|❔|⭐️⭐️⭐️|  
+| ❔ [hgemm_t_8x8_sliced_k_f16x2_f32_kernel](./hgemm)|f16|f32|❔|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k32_f32_kernel](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k128_f32x4_kernel](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k16_f32_kernel](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
