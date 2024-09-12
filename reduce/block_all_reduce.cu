@@ -454,50 +454,51 @@ __global__ void block_all_reduce_sum_i8_acc_with_i32_kernel(
 
 // --------------------- PyTorch bindings for custom kernel -----------------------
 #define STRINGFY(str) #str
+#define TORCH_BINDING_COMMON_EXTENSION(func) \
+  m.def(STRINGFY(func), &func, STRINGFY(func));
+
+#define CHECK_TORCH_TENSOR_DTYPE(T, th_type)                 \
+if(((T).options().dtype() != (th_type))) {                   \
+  std::cout << "Tensor Info:" << (T).options() << std::endl; \
+  throw std::runtime_error("values must be "#th_type);       \
+}
+
+#define CHECK_TORCH_TENSOR_SHAPE(T, S0) \
+if (((T).size(0) != (S0))) { throw std::runtime_error("Tensor size mismatch!"); }
+
 #define TORCH_BINDING_BLOCK_ALL_REDUCE(packed_type, acc_type, th_type, element_type, n_elements) \
-torch::Tensor block_all_reduce_sum_##packed_type##_acc_with_##acc_type(torch::Tensor values) {   \
-  if(values.options().dtype() != (th_type)) {                                                    \
-    std::cout << "Tensor Info:" << values.options() << std::endl;                                \
-    throw std::runtime_error("values must be "#th_type);                                         \
-  }                                                                                              \
+torch::Tensor block_all_reduce_sum_##packed_type##_acc_with_##acc_type(torch::Tensor a) {        \
+  CHECK_TORCH_TENSOR_DTYPE(a, (th_type))                                                         \
   auto options = torch::TensorOptions().dtype(torch::kFloat32).device(                           \
     torch::kCUDA, 0);                                                                            \
   auto sum = torch::zeros({1}, options);                                                         \
-  const int N = values.size(0);                                                                  \
+  const int N = a.size(0);                                                                       \
   static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                                   \
   const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;                \
   dim3 block(NUM_THREADS_PER_BLOCK);                                                             \
   dim3 grid(NUM_BLOCKS);                                                                         \
   block_all_reduce_sum_##packed_type##_acc_with_##acc_type##_kernel<                             \
     NUM_THREADS_PER_BLOCK><<<grid, block>>>(                                                     \
-      reinterpret_cast<element_type*>(values.data_ptr()), sum.data_ptr<float>(), N);             \
+      reinterpret_cast<element_type*>(a.data_ptr()), sum.data_ptr<float>(), N);                  \
   return sum;                                                                                    \
 }
 
 #define TORCH_BINDING_BLOCK_ALL_REDUCE_I(packed_type, acc_type, th_type, element_type, n_elements) \
-torch::Tensor block_all_reduce_sum_##packed_type##_acc_with_##acc_type(torch::Tensor values) {     \
-  if(values.options().dtype() != (th_type)) {                                                      \
-    std::cout << "Tensor Info:" << values.options() << std::endl;                                  \
-    throw std::runtime_error("values must be "#th_type);                                           \
-  }                                                                                                \
+torch::Tensor block_all_reduce_sum_##packed_type##_acc_with_##acc_type(torch::Tensor a) {          \
+  CHECK_TORCH_TENSOR_DTYPE(a, (th_type))                                                           \
   auto options = torch::TensorOptions().dtype(torch::kInt32).device(                               \
     torch::kCUDA, 0);                                                                              \
   auto sum = torch::zeros({1}, options);                                                           \
-  const int N = values.size(0);                                                                    \
+  const int N = a.size(0);                                                                         \
   static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                                     \
   const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;                  \
   dim3 block(NUM_THREADS_PER_BLOCK);                                                               \
   dim3 grid(NUM_BLOCKS);                                                                           \
   block_all_reduce_sum_##packed_type##_acc_with_##acc_type##_kernel<                               \
     NUM_THREADS_PER_BLOCK><<<grid, block>>>(                                                       \
-      reinterpret_cast<element_type*>(values.data_ptr()), sum.data_ptr<int32_t>(), N);             \
+      reinterpret_cast<element_type*>(a.data_ptr()), sum.data_ptr<int32_t>(), N);                  \
   return sum;                                                                                      \
 }
-
-#define TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(packed_type, acc_type)          \
-  m.def(STRINGFY(block_all_reduce_sum_##packed_type##_acc_with_##acc_type),      \
-  &block_all_reduce_sum_##packed_type##_acc_with_##acc_type,                     \
-  STRINGFY(block_all_reduce_sum_##packed_type##_acc_with_##acc_type));
 
 // packed_type, acc_type, th_type, element_type, n_elements_per_pack
 TORCH_BINDING_BLOCK_ALL_REDUCE(f32,      f32,  torch::kFloat32,       float,              1)
@@ -515,17 +516,17 @@ TORCH_BINDING_BLOCK_ALL_REDUCE(fp8_e5m2, f16,  torch::kFloat8_e5m2,   __nv_fp8_s
 TORCH_BINDING_BLOCK_ALL_REDUCE_I(i8,     i32,  torch::kInt8,          int8_t,             1)
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(f32,      f32)
-  TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(f32x4,    f32)
-  TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(f16,      f16)
-  TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(f16,      f32)
-  TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(f16x2,    f16)
-  TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(f16x2,    f32)
-  TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(bf16,     bf16)
-  TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(bf16,     f32)
-  TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(bf16x2,   bf16)
-  TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(bf16x2,   f32)
-  TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(fp8_e4m3, f16)
-  TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(fp8_e5m2, f16)
-  TORCH_BINDING_BLOCK_ALL_REDUCE_EXTENSION(i8,       i32)
+  TORCH_BINDING_COMMON_EXTENSION(block_all_reduce_sum_f32_acc_with_f32)
+  TORCH_BINDING_COMMON_EXTENSION(block_all_reduce_sum_f32x4_acc_with_f32)
+  TORCH_BINDING_COMMON_EXTENSION(block_all_reduce_sum_f16_acc_with_f16)
+  TORCH_BINDING_COMMON_EXTENSION(block_all_reduce_sum_f16_acc_with_f32)
+  TORCH_BINDING_COMMON_EXTENSION(block_all_reduce_sum_f16x2_acc_with_f16)
+  TORCH_BINDING_COMMON_EXTENSION(block_all_reduce_sum_f16x2_acc_with_f32)
+  TORCH_BINDING_COMMON_EXTENSION(block_all_reduce_sum_bf16_acc_with_bf16)
+  TORCH_BINDING_COMMON_EXTENSION(block_all_reduce_sum_bf16_acc_with_f32)
+  TORCH_BINDING_COMMON_EXTENSION(block_all_reduce_sum_bf16x2_acc_with_bf16)
+  TORCH_BINDING_COMMON_EXTENSION(block_all_reduce_sum_bf16x2_acc_with_f32)
+  TORCH_BINDING_COMMON_EXTENSION(block_all_reduce_sum_fp8_e4m3_acc_with_f16)
+  TORCH_BINDING_COMMON_EXTENSION(block_all_reduce_sum_fp8_e5m2_acc_with_f16)
+  TORCH_BINDING_COMMON_EXTENSION(block_all_reduce_sum_i8_acc_with_i32)
 }

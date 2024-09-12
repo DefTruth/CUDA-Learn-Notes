@@ -148,17 +148,27 @@ __global__ void dot_prod_f16x2_acc_with_f32_kernel(half* a, half* b, float* y, i
 
 // --------------------- PyTorch bindings for custom kernel -----------------------
 #define STRINGFY(str) #str
+#define TORCH_BINDING_COMMON_EXTENSION(func) \
+  m.def(STRINGFY(func), &func, STRINGFY(func));
+
+#define CHECK_TORCH_TENSOR_DTYPE(T, th_type)                 \
+if(((T).options().dtype() != (th_type))) {                   \
+  std::cout << "Tensor Info:" << (T).options() << std::endl; \
+  throw std::runtime_error("values must be "#th_type);       \
+}
+
+#define CHECK_TORCH_TENSOR_SHAPE(T, S0) \
+if (((T).size(0) != (S0))) { throw std::runtime_error("Tensor size mismatch!"); }
+
 #define TORCH_BINDING_DOT_PROD(packed_type, acc_type, th_type, element_type, n_elements)       \
 torch::Tensor dot_prod_##packed_type##_acc_with_##acc_type(torch::Tensor a, torch::Tensor b) { \
-  if((a.options().dtype() != (th_type)) && (b.options().dtype() != (th_type))) {               \
-    std::cout << "a Tensor Info:" << a.options() << std::endl;                                 \
-    std::cout << "b Tensor Info:" << b.options() << std::endl;                                 \
-    throw std::runtime_error("values must be "#th_type);                                       \
-  }                                                                                            \
+  CHECK_TORCH_TENSOR_DTYPE(a, (th_type))                                                       \
+  CHECK_TORCH_TENSOR_DTYPE(b, (th_type))                                                       \
   auto options = torch::TensorOptions().dtype(torch::kFloat32).device(                         \
     torch::kCUDA, 0);                                                                          \
   auto prod = torch::zeros({1}, options);                                                      \
   const int N = a.size(0);                                                                     \
+  CHECK_TORCH_TENSOR_SHAPE(b, N)                                                               \
   static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                                 \
   const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;              \
   dim3 block(NUM_THREADS_PER_BLOCK);                                                           \
@@ -171,12 +181,6 @@ torch::Tensor dot_prod_##packed_type##_acc_with_##acc_type(torch::Tensor a, torc
   return prod;                                                                                 \
 }
 
-#define TORCH_BINDING_DOT_PROD_EXTENSION(packed_type, acc_type) \
-  m.def(STRINGFY(dot_prod_##packed_type##_acc_with_##acc_type), \
-  &dot_prod_##packed_type##_acc_with_##acc_type,                \
-  STRINGFY(dot_prod_##packed_type##_acc_with_##acc_type));
-
-
 // packed_type, acc_type, th_type, element_type, n_elements_per_pack
 TORCH_BINDING_DOT_PROD(f32,      f32,  torch::kFloat32,       float,              1)
 TORCH_BINDING_DOT_PROD(f32x4,    f32,  torch::kFloat32,       float,              4)
@@ -185,8 +189,8 @@ TORCH_BINDING_DOT_PROD(f16x2,    f32,  torch::kHalf,          half,             
 
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  TORCH_BINDING_DOT_PROD_EXTENSION(f32,      f32)
-  TORCH_BINDING_DOT_PROD_EXTENSION(f32x4,    f32)
-  TORCH_BINDING_DOT_PROD_EXTENSION(f16,      f32)
-  TORCH_BINDING_DOT_PROD_EXTENSION(f16x2,    f32)
+  TORCH_BINDING_COMMON_EXTENSION(dot_prod_f32_acc_with_f32)
+  TORCH_BINDING_COMMON_EXTENSION(dot_prod_f32x4_acc_with_f32)
+  TORCH_BINDING_COMMON_EXTENSION(dot_prod_f16_acc_with_f32)
+  TORCH_BINDING_COMMON_EXTENSION(dot_prod_f16x2_acc_with_f32)
 }
