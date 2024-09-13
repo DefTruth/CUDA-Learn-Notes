@@ -4,10 +4,10 @@
 
 包含以下内容：
 
-- [X] dot_prod_f32_acc_with_f32_kernel
-- [X] dot_prod_f32x4_acc_with_f32_kernel(float4向量化版本)
-- [X] dot_prod_f16_acc_with_f32_kernel(fp16版本，使用fp32 acc)
-- [X] dot_prod_f16x2_acc_with_f32_kernel(fp16向量化版本，使用fp32 acc)
+- [X] dot_prod_f32_f32_kernel
+- [X] dot_prod_f32x4_f32_kernel(float4向量化版本)
+- [X] dot_prod_f16_f32_kernel(fp16版本，使用fp32 acc)
+- [X] dot_prod_f16x2_f32_kernel(fp16向量化版本，使用fp32 acc)
 - [X] PyTorch bindings
 
 ## 测试

@@ -6,19 +6,19 @@
 
 - [X] warp_reduce_fp32/fp16/bf16_kernel
 - [X] block_reduce_fp32_kernel
-- [X] block_all_reduce_sum_f32_acc_with_f32_kernel
-- [X] block_all_reduce_sum_f32x4_acc_with_f32_kernel(float4向量化版本)
-- [X] block_all_reduce_sum_f16_acc_with_f16_kernel(fp16版本，使用fp16 acc)
-- [X] block_all_reduce_sum_f16_acc_with_f32_kernel(fp16版本，使用fp32 acc)
-- [X] block_all_reduce_sum_f16x2_acc_with_f16_kernel(fp16向量化版本，使用fp16 acc)
-- [X] block_all_reduce_sum_f16x2_acc_with_f32_kernel(fp16向量化版本，使用fp32 acc)
-- [X] block_all_reduce_sum_bf16_acc_with_bf16_kernel(bf16版本，使用bf16 acc)
-- [X] block_all_reduce_sum_bf16_acc_with_f32_kernel(bf16版本，使用fp32 acc)
-- [X] block_all_reduce_sum_bf16x2_acc_with_bf16_kernel(bf16向量化版本，使用bf16 acc)
-- [X] block_all_reduce_sum_bf16x2_acc_with_f32_kernel(bf16向量化版本，使用fp32 acc)
-- [X] block_all_reduce_sum_fp8_e4m3_acc_with_f16_kernel(fp8_e4m3版本，使用fp16 acc)
-- [X] block_all_reduce_sum_fp8_e5m2_acc_with_f16_kernel(fp8_e5m2版本，使用fp16 acc)
-- [X] block_all_reduce_sum_i8_acc_with_i32_kernel(i8版本，使用i32 acc)
+- [X] block_all_reduce_sum_f32_f32_kernel
+- [X] block_all_reduce_sum_f32x4_f32_kernel(float4向量化版本)
+- [X] block_all_reduce_sum_f16_f16_kernel(fp16版本，使用fp16 acc)
+- [X] block_all_reduce_sum_f16_f32_kernel(fp16版本，使用fp32 acc)
+- [X] block_all_reduce_sum_f16x2_f16_kernel(fp16向量化版本，使用fp16 acc)
+- [X] block_all_reduce_sum_f16x2_f32_kernel(fp16向量化版本，使用fp32 acc)
+- [X] block_all_reduce_sum_bf16_bf16_kernel(bf16版本，使用bf16 acc)
+- [X] block_all_reduce_sum_bf16_f32_kernel(bf16版本，使用fp32 acc)
+- [X] block_all_reduce_sum_bf16x2_bf16_kernel(bf16向量化版本，使用bf16 acc)
+- [X] block_all_reduce_sum_bf16x2_f32_kernel(bf16向量化版本，使用fp32 acc)
+- [X] block_all_reduce_sum_fp8_e4m3_f16_kernel(fp8_e4m3版本，使用fp16 acc)
+- [X] block_all_reduce_sum_fp8_e5m2_f16_kernel(fp8_e5m2版本，使用fp16 acc)
+- [X] block_all_reduce_sum_i8_i32_kernel(i8版本，使用i32 acc)
 - [X] PyTorch bindings for block reduce **fp32/fp16/bf16/fp8/i8** kernels
 
 所有支持的block all reduce kernel:

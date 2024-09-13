@@ -29,7 +29,7 @@ __device__ __forceinline__ float warp_reduce_sum_f32(float val) {
 // grid(N/256), block(256)
 // a: Nx1, b: Nx1, y=sum(elementwise_mul(a,b))
 template<const int NUM_THREADS = 256>
-__global__ void dot_prod_f32_acc_with_f32_kernel(float* a, float* b, float* y, int N) {
+__global__ void dot_prod_f32_f32_kernel(float* a, float* b, float* y, int N) {
   int tid = threadIdx.x;
   int idx = blockIdx.x * NUM_THREADS + tid;
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
@@ -54,7 +54,7 @@ __global__ void dot_prod_f32_acc_with_f32_kernel(float* a, float* b, float* y, i
 // grid(N/256), block(256/4)
 // a: Nx1, b: Nx1, y=sum(elementwise_mul(a,b))
 template<const int NUM_THREADS = 256/4>
-__global__ void dot_prod_f32x4_acc_with_f32_kernel(float* a, float* b, float* y, int N) {
+__global__ void dot_prod_f32x4_f32_kernel(float* a, float* b, float* y, int N) {
   int tid = threadIdx.x;
   int idx = (blockIdx.x * NUM_THREADS + tid) * 4;
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
@@ -80,7 +80,7 @@ __global__ void dot_prod_f32x4_acc_with_f32_kernel(float* a, float* b, float* y,
 // -------------------------------------- FP16 -------------------------------------- 
 // Warp Reduce Sum: Half
 template<const int kWarpSize = WARP_SIZE>
-__device__ __forceinline__ half warp_reduce_sum_f16_acc_with_f16(half val) {
+__device__ __forceinline__ half warp_reduce_sum_f16_f16(half val) {
   #pragma unroll
   for (int mask = kWarpSize >> 1; mask >= 1; mask >>= 1) {
     val = __hadd(val, __shfl_xor_sync(0xffffffff, val, mask));
@@ -90,7 +90,7 @@ __device__ __forceinline__ half warp_reduce_sum_f16_acc_with_f16(half val) {
 }
 
 template<const int kWarpSize = WARP_SIZE>
-__device__ __forceinline__ float warp_reduce_sum_f16_acc_with_f32(half val) {
+__device__ __forceinline__ float warp_reduce_sum_f16_f32(half val) {
   float val_f32 = __half2float(val);
   #pragma unroll
   for (int mask = kWarpSize >> 1; mask >= 1; mask >>= 1) {
@@ -100,7 +100,7 @@ __device__ __forceinline__ float warp_reduce_sum_f16_acc_with_f32(half val) {
 }
 
 template<const int NUM_THREADS = 256>
-__global__ void dot_prod_f16_acc_with_f32_kernel(half* a, half* b, float* y, int N) {
+__global__ void dot_prod_f16_f32_kernel(half* a, half* b, float* y, int N) {
   int tid = threadIdx.x;
   int idx = blockIdx.x * NUM_THREADS + tid;
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
@@ -111,7 +111,7 @@ __global__ void dot_prod_f16_acc_with_f32_kernel(half* a, half* b, float* y, int
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
   // perform warp sync reduce.
-  float prod = warp_reduce_sum_f16_acc_with_f32<WARP_SIZE>(prod_f16);
+  float prod = warp_reduce_sum_f16_f32<WARP_SIZE>(prod_f16);
   // warp leaders store the data to shared memory.
   if (lane == 0) reduce_smem[warp] = prod;
   __syncthreads(); // make sure the data is in shared memory.
@@ -122,7 +122,7 @@ __global__ void dot_prod_f16_acc_with_f32_kernel(half* a, half* b, float* y, int
 }
 
 template<const int NUM_THREADS = 256>
-__global__ void dot_prod_f16x2_acc_with_f32_kernel(half* a, half* b, float* y, int N) {
+__global__ void dot_prod_f16x2_f32_kernel(half* a, half* b, float* y, int N) {
   int tid = threadIdx.x;
   int idx = (blockIdx.x * NUM_THREADS + tid) * 2; // 2 half elements per thread
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
@@ -136,7 +136,7 @@ __global__ void dot_prod_f16x2_acc_with_f32_kernel(half* a, half* b, float* y, i
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
   // perform warp sync reduce.
-  float prod = warp_reduce_sum_f16_acc_with_f32<WARP_SIZE>(prod_f16);
+  float prod = warp_reduce_sum_f16_f32<WARP_SIZE>(prod_f16);
   // warp leaders store the data to shared memory.
   if (lane == 0) reduce_smem[warp] = prod;
   __syncthreads(); // make sure the data is in shared memory.
@@ -160,25 +160,25 @@ if(((T).options().dtype() != (th_type))) {                   \
 #define CHECK_TORCH_TENSOR_SHAPE(T, S0) \
 if (((T).size(0) != (S0))) { throw std::runtime_error("Tensor size mismatch!"); }
 
-#define TORCH_BINDING_DOT_PROD(packed_type, acc_type, th_type, element_type, n_elements)       \
-torch::Tensor dot_prod_##packed_type##_acc_with_##acc_type(torch::Tensor a, torch::Tensor b) { \
-  CHECK_TORCH_TENSOR_DTYPE(a, (th_type))                                                       \
-  CHECK_TORCH_TENSOR_DTYPE(b, (th_type))                                                       \
-  auto options = torch::TensorOptions().dtype(torch::kFloat32).device(                         \
-    torch::kCUDA, 0);                                                                          \
-  auto prod = torch::zeros({1}, options);                                                      \
-  const int N = a.size(0);                                                                     \
-  CHECK_TORCH_TENSOR_SHAPE(b, N)                                                               \
-  static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                                 \
-  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;              \
-  dim3 block(NUM_THREADS_PER_BLOCK);                                                           \
-  dim3 grid(NUM_BLOCKS);                                                                       \
-  dot_prod_##packed_type##_acc_with_##acc_type##_kernel<                                       \
-    NUM_THREADS_PER_BLOCK><<<grid, block>>>(                                                   \
-      reinterpret_cast<element_type*>(a.data_ptr()),                                           \
-      reinterpret_cast<element_type*>(b.data_ptr()),                                           \
-      prod.data_ptr<float>(), N);                                                              \
-  return prod;                                                                                 \
+#define TORCH_BINDING_DOT_PROD(packed_type, acc_type, th_type, element_type, n_elements)  \
+torch::Tensor dot_prod_##packed_type##_##acc_type(torch::Tensor a, torch::Tensor b) {     \
+  CHECK_TORCH_TENSOR_DTYPE(a, (th_type))                                                  \
+  CHECK_TORCH_TENSOR_DTYPE(b, (th_type))                                                  \
+  auto options = torch::TensorOptions().dtype(torch::kFloat32).device(                    \
+    torch::kCUDA, 0);                                                                     \
+  auto prod = torch::zeros({1}, options);                                                 \
+  const int N = a.size(0);                                                                \
+  CHECK_TORCH_TENSOR_SHAPE(b, N)                                                          \
+  static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                            \
+  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;         \
+  dim3 block(NUM_THREADS_PER_BLOCK);                                                      \
+  dim3 grid(NUM_BLOCKS);                                                                  \
+  dot_prod_##packed_type##_##acc_type##_kernel<                                           \
+    NUM_THREADS_PER_BLOCK><<<grid, block>>>(                                              \
+      reinterpret_cast<element_type*>(a.data_ptr()),                                      \
+      reinterpret_cast<element_type*>(b.data_ptr()),                                      \
+      prod.data_ptr<float>(), N);                                                         \
+  return prod;                                                                            \
 }
 
 // packed_type, acc_type, th_type, element_type, n_elements_per_pack
@@ -189,8 +189,8 @@ TORCH_BINDING_DOT_PROD(f16x2,    f32,  torch::kHalf,          half,             
 
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  TORCH_BINDING_COMMON_EXTENSION(dot_prod_f32_acc_with_f32)
-  TORCH_BINDING_COMMON_EXTENSION(dot_prod_f32x4_acc_with_f32)
-  TORCH_BINDING_COMMON_EXTENSION(dot_prod_f16_acc_with_f32)
-  TORCH_BINDING_COMMON_EXTENSION(dot_prod_f16x2_acc_with_f32)
+  TORCH_BINDING_COMMON_EXTENSION(dot_prod_f32_f32)
+  TORCH_BINDING_COMMON_EXTENSION(dot_prod_f32x4_f32)
+  TORCH_BINDING_COMMON_EXTENSION(dot_prod_f16_f32)
+  TORCH_BINDING_COMMON_EXTENSION(dot_prod_f16x2_f32)
 }
