@@ -11,6 +11,8 @@
 #define WARP_SIZE 32
 #define INT4(value) (reinterpret_cast<int4*>(&(value))[0])
 #define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
+#define HALF2(value) (reinterpret_cast<half2*>(&(value))[0])
+#define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162*>(&(value))[0])
 
 // -------------------------------------- FP32 -------------------------------------- 
 // Relu x: N, y: N y=max(0,x)
@@ -44,11 +46,11 @@ __global__ void relu_f16_kernel(half* x, half* y, int N) {
 __global__ void relu_f16x2_kernel(half* x, half* y, int N) {
   int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
   if (idx < N) {
-    half2 reg_x = (reinterpret_cast<half2*>(&(x[idx]))[0]);
-    half2 reg_y = (reinterpret_cast<half2*>(&(y[idx]))[0]);
+    half2 reg_x = HALF2(x[idx]);
+    half2 reg_y = HALF2(y[idx]);
     reg_y.x = __hmax(__float2half(0.0f), reg_x.x);
     reg_y.y = __hmax(__float2half(0.0f), reg_x.y);
-    (reinterpret_cast<half2*>(&(y[idx]))[0]) = reg_y;
+    HALF2(y[idx]) = reg_y;
   }
 }
 

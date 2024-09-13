@@ -13,6 +13,8 @@
 #define WARP_SIZE 32
 #define INT4(value) (reinterpret_cast<int4*>(&(value))[0])
 #define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
+#define HALF2(value) (reinterpret_cast<half2*>(&(value))[0])
+#define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162*>(&(value))[0])
 
 // -------------------------------------- FP32 -------------------------------------- 
 // ElementWise Add  
@@ -40,7 +42,6 @@ __global__ void elementwise_add_f32x4_kernel(float* a, float* b, float* c, int N
   }
 }
 
-
 // -------------------------------------- FP16 -------------------------------------- 
 // ElementWise Add  
 // grid(N/256), block(256)
@@ -54,12 +55,12 @@ __global__ void elementwise_add_f16_kernel(half* a, half* b, half* c, int N) {
 __global__ void elementwise_add_f16x2_kernel(half* a, half* b, half* c, int N) {
   int idx = 2 * (blockIdx.x * blockDim.x + threadIdx.x);
   if (idx < N) {
-    half2 reg_a = (reinterpret_cast<half2*>(&(a[idx]))[0]);
-    half2 reg_b = (reinterpret_cast<half2*>(&(b[idx]))[0]);
+    half2 reg_a = HALF2(a[idx]);
+    half2 reg_b = HALF2(b[idx]);
     half2 reg_c;
     reg_c.x = __hadd(reg_a.x, reg_b.x);
     reg_c.y = __hadd(reg_a.y, reg_b.y);
-    (reinterpret_cast<half2*>(&(c[idx]))[0]) = reg_c;
+    HALF2(c[idx]) = reg_c;
   }
 }
 
