@@ -56,7 +56,7 @@ torch::Tensor sigmoid_##packed_type(torch::Tensor x) {                          
   const int N = x.size(0);                                                       \
   auto y = torch::zeros({N}, options);                                           \
   static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                   \
-  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;\
+  const int NUM_BLOCKS = (N + 256 - 1) / 256;                                    \
   dim3 block(NUM_THREADS_PER_BLOCK);                                             \
   dim3 grid(NUM_BLOCKS);                                                         \
   sigmoid_##packed_type##_kernel<<<grid, block>>>(                               \
@@ -72,7 +72,7 @@ void sigmoid_##packed_type##_v2(torch::Tensor x, torch::Tensor y) {             
   const int N = x.size(0);                                                       \
   CHECK_TORCH_TENSOR_SHAPE(y, N)                                                 \
   static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                   \
-  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;\
+  const int NUM_BLOCKS = (N + 256 - 1) / 256;                                    \
   dim3 block(NUM_THREADS_PER_BLOCK);                                             \
   dim3 grid(NUM_BLOCKS);                                                         \
   sigmoid_##packed_type##_kernel<<<grid, block>>>(                               \
@@ -80,8 +80,8 @@ void sigmoid_##packed_type##_v2(torch::Tensor x, torch::Tensor y) {             
       reinterpret_cast<element_type*>(y.data_ptr()), N);                         \
 }
 
-TORCH_BINDING_SIGMOID(f32,    torch::kFloat32,    float,    1)
-TORCH_BINDING_SIGMOID(f32x4,  torch::kFloat32,    float,    4)
+TORCH_BINDING_SIGMOID(f32,       torch::kFloat32,    float,    1)
+TORCH_BINDING_SIGMOID(f32x4,     torch::kFloat32,    float,    4)
 TORCH_BINDING_SIGMOID_V2(f32,    torch::kFloat32,    float,    1)
 TORCH_BINDING_SIGMOID_V2(f32x4,  torch::kFloat32,    float,    4)
 

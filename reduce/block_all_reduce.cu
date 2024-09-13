@@ -477,7 +477,7 @@ torch::Tensor block_all_reduce_sum_##packed_type##_##acc_type(torch::Tensor a) {
   auto sum = torch::zeros({1}, options);                                                         \
   const int N = a.size(0);                                                                       \
   static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                                   \
-  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;                \
+  const int NUM_BLOCKS = (N + 256 - 1) / 256;                                                    \
   dim3 block(NUM_THREADS_PER_BLOCK);                                                             \
   dim3 grid(NUM_BLOCKS);                                                                         \
   block_all_reduce_sum_##packed_type##_##acc_type##_kernel<                                      \
@@ -494,7 +494,7 @@ torch::Tensor block_all_reduce_sum_##packed_type##_##acc_type(torch::Tensor a) {
   auto sum = torch::zeros({1}, options);                                                           \
   const int N = a.size(0);                                                                         \
   static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                                     \
-  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;                  \
+  const int NUM_BLOCKS = (N + 256 - 1) / 256;                                                      \
   dim3 block(NUM_THREADS_PER_BLOCK);                                                               \
   dim3 grid(NUM_BLOCKS);                                                                           \
   block_all_reduce_sum_##packed_type##_##acc_type##_kernel<                                        \

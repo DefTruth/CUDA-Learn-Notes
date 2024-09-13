@@ -76,7 +76,7 @@ torch::Tensor relu_##packed_type(torch::Tensor x) {                             
   const int N = x.size(0);                                                       \
   auto y = torch::zeros({N}, options);                                           \
   static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                   \
-  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;\
+  const int NUM_BLOCKS = (N + 256 - 1) / 256;                                    \
   dim3 block(NUM_THREADS_PER_BLOCK);                                             \
   dim3 grid(NUM_BLOCKS);                                                         \
   relu_##packed_type##_kernel<<<grid, block>>>(                                  \
@@ -92,7 +92,7 @@ void relu_##packed_type##_v2(torch::Tensor x, torch::Tensor y) {                
   const int N = x.size(0);                                                       \
   CHECK_TORCH_TENSOR_SHAPE(y, N)                                                 \
   static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                   \
-  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;\
+  const int NUM_BLOCKS = (N + 256 - 1) / 256;                                    \
   dim3 block(NUM_THREADS_PER_BLOCK);                                             \
   dim3 grid(NUM_BLOCKS);                                                         \
   relu_##packed_type##_kernel<<<grid, block>>>(                                  \
@@ -100,10 +100,10 @@ void relu_##packed_type##_v2(torch::Tensor x, torch::Tensor y) {                
       reinterpret_cast<element_type*>(y.data_ptr()), N);                         \
 }
 
-TORCH_BINDING_RELU(f32,    torch::kFloat32,    float,    1)
-TORCH_BINDING_RELU(f32x4,  torch::kFloat32,    float,    4)
-TORCH_BINDING_RELU(f16,    torch::kHalf,       half,     1)
-TORCH_BINDING_RELU(f16x2,  torch::kHalf,       half,     2)
+TORCH_BINDING_RELU(f32,       torch::kFloat32,    float,    1)
+TORCH_BINDING_RELU(f32x4,     torch::kFloat32,    float,    4)
+TORCH_BINDING_RELU(f16,       torch::kHalf,       half,     1)
+TORCH_BINDING_RELU(f16x2,     torch::kHalf,       half,     2)
 TORCH_BINDING_RELU_V2(f32,    torch::kFloat32,    float,    1)
 TORCH_BINDING_RELU_V2(f32x4,  torch::kFloat32,    float,    4)
 TORCH_BINDING_RELU_V2(f16,    torch::kHalf,       half,     1)

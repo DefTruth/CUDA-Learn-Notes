@@ -89,7 +89,7 @@ torch::Tensor elementwise_add_##packed_type(torch::Tensor a, torch::Tensor b) { 
   CHECK_TORCH_TENSOR_SHAPE(b, N)                                                 \
   auto c = torch::zeros({N}, options);                                           \
   static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                   \
-  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;\
+  const int NUM_BLOCKS = (N + 256 - 1) / 256;                                    \
   dim3 block(NUM_THREADS_PER_BLOCK);                                             \
   dim3 grid(NUM_BLOCKS);                                                         \
   elementwise_add_##packed_type##_kernel<<<grid, block>>>(                       \
@@ -109,7 +109,7 @@ void elementwise_add_##packed_type##_v2(                                        
   CHECK_TORCH_TENSOR_SHAPE(b, N)                                                 \
   CHECK_TORCH_TENSOR_SHAPE(c, N)                                                 \
   static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                   \
-  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;\
+  const int NUM_BLOCKS = (N + 256 - 1) / 256;                                    \
   dim3 block(NUM_THREADS_PER_BLOCK);                                             \
   dim3 grid(NUM_BLOCKS);                                                         \
   elementwise_add_##packed_type##_kernel<<<grid, block>>>(                       \

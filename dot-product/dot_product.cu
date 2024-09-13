@@ -13,6 +13,8 @@
 #define WARP_SIZE 32
 #define INT4(value) (reinterpret_cast<int4*>(&(value))[0])
 #define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
+#define HALF2(value) (reinterpret_cast<half2*>(&(value))[0])
+#define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162*>(&(value))[0])
 
 // -------------------------------------- FP32 -------------------------------------- 
 // Warp Reduce Sum
@@ -129,8 +131,8 @@ __global__ void dot_prod_f16x2_f32_kernel(half* a, half* b, float* y, int N) {
   __shared__ float reduce_smem[NUM_WARPS];
 
   // keep the data in register is enougth for warp operaion.
-  half2 reg_a = (reinterpret_cast<half2*>(&(a[idx]))[0]);
-  half2 reg_b = (reinterpret_cast<half2*>(&(b[idx]))[0]);
+  half2 reg_a = HALF2(a[idx]);
+  half2 reg_b = HALF2(b[idx]);
   half prod_f16 = (idx < N) ? __hadd(__hmul(reg_a.x, reg_b.x), 
                                      __hmul(reg_a.y, reg_b.y)) : __float2half(0.0f);
   int warp = tid / WARP_SIZE;
@@ -170,7 +172,7 @@ torch::Tensor dot_prod_##packed_type##_##acc_type(torch::Tensor a, torch::Tensor
   const int N = a.size(0);                                                                \
   CHECK_TORCH_TENSOR_SHAPE(b, N)                                                          \
   static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                            \
-  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;         \
+  const int NUM_BLOCKS = (N + 256 - 1) / 256;                                             \
   dim3 block(NUM_THREADS_PER_BLOCK);                                                      \
   dim3 grid(NUM_BLOCKS);                                                                  \
   dot_prod_##packed_type##_##acc_type##_kernel<                                           \

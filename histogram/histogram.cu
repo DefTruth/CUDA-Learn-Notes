@@ -59,7 +59,7 @@ torch::Tensor histogram_##packed_type(torch::Tensor a) {                        
   const int M = max_val.item().to<int>();                                        \
   auto y = torch::zeros({M+1}, options);                                         \
   static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                   \
-  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;\
+  const int NUM_BLOCKS = (N + 256 - 1) / 256;                                    \
   dim3 block(NUM_THREADS_PER_BLOCK);                                             \
   dim3 grid(NUM_BLOCKS);                                                         \
   histogram_##packed_type##_kernel<<<grid, block>>>(                             \

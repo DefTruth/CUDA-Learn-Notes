@@ -24,7 +24,8 @@ lib = load(name='softmax_lib',
 
 def run_benchmark(perf_func: callable, x: torch.Tensor, 
                   tag: str, out: Optional[torch.Tensor] = None, 
-                  warmup: int = 10, iters: int = 1000):
+                  warmup: int = 10, iters: int = 1000,
+                  show_all: bool = False):
     if out is not None: 
         out.fill_(0)      
     if out is not None:
@@ -50,6 +51,7 @@ def run_benchmark(perf_func: callable, x: torch.Tensor,
     out_val = out.flatten().detach().cpu().numpy().tolist()[:3]
     out_val = [round(v, 8) for v in out_val]
     print(f"{out_info:>20}: {out_val}, time:{mean_time:.8f}ms")
+    if show_all: print(out)
     return out, mean_time
 
 

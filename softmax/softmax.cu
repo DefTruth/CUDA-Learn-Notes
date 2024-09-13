@@ -230,7 +230,7 @@ torch::Tensor softmax_##packed_type(torch::Tensor x) {                          
   auto y = torch::zeros({N}, options);                                           \
   auto total = torch::zeros({1}, options);                                       \
   static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                   \
-  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;\
+  const int NUM_BLOCKS = (N + 256 - 1) / 256;                                    \
   dim3 block(NUM_THREADS_PER_BLOCK);                                             \
   dim3 grid(NUM_BLOCKS);                                                         \
   softmax_##packed_type##_kernel<NUM_THREADS_PER_BLOCK><<<grid, block>>>(        \
@@ -252,7 +252,7 @@ void softmax_##packed_type##_v2(torch::Tensor x, torch::Tensor y) {             
   if (y.size(0) != N) {throw std::runtime_error("y size mismatch!"); }           \
   auto total = torch::zeros({1}, options);                                       \
   static const int NUM_THREADS_PER_BLOCK = 256 / (n_elements);                   \
-  const int NUM_BLOCKS = (N + NUM_THREADS_PER_BLOCK - 1) / NUM_THREADS_PER_BLOCK;\
+  const int NUM_BLOCKS = (N + 256 - 1) / 256;                                    \
   dim3 block(NUM_THREADS_PER_BLOCK);                                             \
   dim3 grid(NUM_BLOCKS);                                                         \
   softmax_##packed_type##_kernel<NUM_THREADS_PER_BLOCK><<<grid, block>>>(        \
