@@ -193,17 +193,17 @@ template<const int NUM_THREADS=256>
 __global__ void rms_norm_f16x8_f16_kernel(half* x, half* y, float g, int N, int K) {
   int tid = threadIdx.x; // 0..K-1
   int bid = blockIdx.x; // 0..N-1
-  int idx = (bid * blockDim.x + threadIdx.x) * 2;
+  int idx = (bid * blockDim.x + threadIdx.x) * 8;
   const half epsilon = __float2half(1e-5f);
   const half g_      = __float2half(g);
   const half K_      = __int2half_rn(K);
 
   __shared__ half s_variance; // shared within block
   // manual unroll and improve L2 cache hit rate.
-  // Only   L2 cache: load 32  bytes(128 bits) in 1 memory issue (default)
-  // Enable L1 cache: load 128 bytes(512 bits) in 1 memory issue (-Xptxas -dlcm=ca)
+  // Only   L2 cache: load 32  bytes in 1 memory issue (default)
+  // Enable L1 cache: load 128 bytes in 1 memory issue (-Xptxas -dlcm=ca)
   // why try fp16x8 within 1 threads? ref: https://zhuanlan.zhihu.com/p/641639133
-  // 0. first, tid_0 load 128 bits(32 byte) in 1 memory issue and cache data into L2 cache.
+  // 0. first, tid_0 load 32 bytes in 1 memory issue and cache data into L2 cache.
   // 1. then, tid_1,...,tid_3 hit L2 cache and load data from L2 cache directly.
   half2 reg_x_0 = HALF2(x[idx + 0]);
   half2 reg_x_1 = HALF2(x[idx + 2]);
@@ -239,6 +239,216 @@ __global__ void rms_norm_f16x8_f16_kernel(half* x, half* y, float g, int N, int 
   if ((idx + 2) < N * K) { HALF2(y[idx + 2]) = reg_y_1; }
   if ((idx + 4) < N * K) { HALF2(y[idx + 4]) = reg_y_2; }
   if ((idx + 6) < N * K) { HALF2(y[idx + 6]) = reg_y_3; }
+}
+
+template<const int NUM_THREADS=256>
+__global__ void rms_norm_f16x8_f32_kernel(half* x, half* y, float g, int N, int K) {
+  int tid = threadIdx.x; // 0..K-1
+  int bid = blockIdx.x; // 0..N-1
+  int idx = (bid * blockDim.x + threadIdx.x) * 8;
+  const float epsilon = 1e-5f;
+
+  __shared__ float s_variance; // shared within block
+  // manual unroll and improve L2 cache hit rate.
+  // Only   L2 cache: load 32  bytes in 1 memory issue (default)
+  // Enable L1 cache: load 128 bytes in 1 memory issue (-Xptxas -dlcm=ca)
+  // why try fp16x8 within 1 threads? ref: https://zhuanlan.zhihu.com/p/641639133
+  // 0. first, tid_0 load 32 bytes in 1 memory issue and cache data into L2 cache.
+  // 1. then, tid_1,...,tid_3 hit L2 cache and load data from L2 cache directly.
+  float2 reg_x_0 = __half22float2(HALF2(x[idx + 0]));
+  float2 reg_x_1 = __half22float2(HALF2(x[idx + 2]));
+  float2 reg_x_2 = __half22float2(HALF2(x[idx + 4]));
+  float2 reg_x_3 = __half22float2(HALF2(x[idx + 6]));
+  float variance = (((idx + 0)  < N * K) ? (reg_x_0.x * reg_x_0.x 
+                                          + reg_x_0.y * reg_x_0.y) 
+                                          : 0.0f);
+  variance      += (((idx + 2)  < N * K) ? (reg_x_1.x * reg_x_1.x 
+                                          + reg_x_1.y * reg_x_1.y) 
+                                          : 0.0f);
+  variance      += (((idx + 4)  < N * K) ? (reg_x_2.x * reg_x_2.x 
+                                          + reg_x_2.y * reg_x_2.y) 
+                                          : 0.0f);
+  variance      += (((idx + 6)  < N * K) ? (reg_x_3.x * reg_x_3.x 
+                                          + reg_x_3.y * reg_x_3.y) 
+                                          : 0.0f);
+  variance = block_reduce_sum_f32<NUM_THREADS>(variance);
+  if (tid == 0) s_variance = rsqrtf(variance / ((float) K + epsilon));
+  // wait for s_variance in shared memory to be ready for all threads
+  __syncthreads(); 
+  // manual unroll
+  float2 reg_y_0, reg_y_1, reg_y_2, reg_y_3;
+  reg_y_0.x = reg_x_0.x * s_variance * g;
+  reg_y_0.y = reg_x_0.y * s_variance * g;
+  reg_y_1.x = reg_x_1.x * s_variance * g;
+  reg_y_1.y = reg_x_1.y * s_variance * g;
+  reg_y_2.x = reg_x_2.x * s_variance * g;
+  reg_y_2.y = reg_x_2.y * s_variance * g;
+  reg_y_3.x = reg_x_3.x * s_variance * g;
+  reg_y_3.y = reg_x_3.y * s_variance * g;
+  if ((idx + 0)  < N * K) { HALF2(y[idx + 0])  = __float22half2_rn(reg_y_0); }
+  if ((idx + 2)  < N * K) { HALF2(y[idx + 2])  = __float22half2_rn(reg_y_1); }
+  if ((idx + 4)  < N * K) { HALF2(y[idx + 4])  = __float22half2_rn(reg_y_2); }
+  if ((idx + 6)  < N * K) { HALF2(y[idx + 6])  = __float22half2_rn(reg_y_3); }
+}
+
+template<const int NUM_THREADS=256>
+__global__ void rms_norm_f16x16_f16_kernel(half* x, half* y, float g, int N, int K) {
+  int tid = threadIdx.x; // 0..K-1
+  int bid = blockIdx.x; // 0..N-1
+  int idx = (bid * blockDim.x + threadIdx.x) * 16;
+  const half epsilon = __float2half(1e-5f);
+  const half g_      = __float2half(g);
+  const half K_      = __int2half_rn(K);
+
+  __shared__ half s_variance; // shared within block
+  // manual unroll and improve L2 cache hit rate.
+  // Only   L2 cache: load 32  bytes in 1 memory issue (default)
+  // Enable L1 cache: load 128 bytes in 1 memory issue (-Xptxas -dlcm=ca)
+  // why try fp16x8 within 1 threads? ref: https://zhuanlan.zhihu.com/p/641639133
+  // 0. first, tid_0 load 32 bytes in 1 memory issue and cache data into L2 cache.
+  // 1. then, tid_1,...,tid_3 hit L2 cache and load data from L2 cache directly.
+  half2 reg_x_0 = HALF2(x[idx + 0]);
+  half2 reg_x_1 = HALF2(x[idx + 2]);
+  half2 reg_x_2 = HALF2(x[idx + 4]);
+  half2 reg_x_3 = HALF2(x[idx + 6]);
+  half2 reg_x_4 = HALF2(x[idx + 8]);
+  half2 reg_x_5 = HALF2(x[idx + 10]);
+  half2 reg_x_6 = HALF2(x[idx + 12]);
+  half2 reg_x_7 = HALF2(x[idx + 14]);
+  half variance = (((idx + 0) < N * K) ? (reg_x_0.x * reg_x_0.x 
+                                        + reg_x_0.y * reg_x_0.y) 
+                                        : __float2half(0.0f));
+  variance     += (((idx + 2) < N * K) ? (reg_x_1.x * reg_x_1.x 
+                                        + reg_x_1.y * reg_x_1.y) 
+                                        : __float2half(0.0f));
+  variance     += (((idx + 4) < N * K) ? (reg_x_2.x * reg_x_2.x 
+                                        + reg_x_2.y * reg_x_2.y) 
+                                        : __float2half(0.0f));
+  variance     += (((idx + 6) < N * K) ? (reg_x_3.x * reg_x_3.x 
+                                        + reg_x_3.y * reg_x_3.y) 
+                                        : __float2half(0.0f));
+  variance     += (((idx + 8) < N * K) ? (reg_x_4.x * reg_x_4.x 
+                                        + reg_x_4.y * reg_x_4.y) 
+                                        : __float2half(0.0f));
+  variance     += (((idx + 10) < N * K) ? (reg_x_5.x * reg_x_5.x 
+                                         + reg_x_5.y * reg_x_5.y) 
+                                         : __float2half(0.0f));
+  variance     += (((idx + 12) < N * K) ? (reg_x_6.x * reg_x_6.x 
+                                         + reg_x_6.y * reg_x_6.y) 
+                                         : __float2half(0.0f));
+  variance     += (((idx + 14) < N * K) ? (reg_x_7.x * reg_x_7.x 
+                                         + reg_x_7.y * reg_x_7.y) 
+                                         : __float2half(0.0f));
+  variance = block_reduce_sum_f16_f16<NUM_THREADS>(variance);
+  if (tid == 0) s_variance = hrsqrt(variance / (K_ + epsilon));
+  // wait for s_variance in shared memory to be ready for all threads
+  __syncthreads(); 
+  // manual unroll
+  half2 reg_y_0, reg_y_1, reg_y_2, reg_y_3;
+  half2 reg_y_4, reg_y_5, reg_y_6, reg_y_7;
+  reg_y_0.x = reg_x_0.x * s_variance * g_;
+  reg_y_0.y = reg_x_0.y * s_variance * g_;
+  reg_y_1.x = reg_x_1.x * s_variance * g_;
+  reg_y_1.y = reg_x_1.y * s_variance * g_;
+  reg_y_2.x = reg_x_2.x * s_variance * g_;
+  reg_y_2.y = reg_x_2.y * s_variance * g_;
+  reg_y_3.x = reg_x_3.x * s_variance * g_;
+  reg_y_3.y = reg_x_3.y * s_variance * g_;
+  reg_y_4.x = reg_x_4.x * s_variance * g_;
+  reg_y_4.y = reg_x_4.y * s_variance * g_;
+  reg_y_5.x = reg_x_5.x * s_variance * g_;
+  reg_y_5.y = reg_x_5.y * s_variance * g_;
+  reg_y_6.x = reg_x_6.x * s_variance * g_;
+  reg_y_6.y = reg_x_6.y * s_variance * g_;
+  reg_y_7.x = reg_x_7.x * s_variance * g_;
+  reg_y_7.y = reg_x_7.y * s_variance * g_;
+  if ((idx + 0)  < N * K) { HALF2(y[idx + 0])  = reg_y_0; }
+  if ((idx + 2)  < N * K) { HALF2(y[idx + 2])  = reg_y_1; }
+  if ((idx + 4)  < N * K) { HALF2(y[idx + 4])  = reg_y_2; }
+  if ((idx + 6)  < N * K) { HALF2(y[idx + 6])  = reg_y_3; }
+  if ((idx + 8)  < N * K) { HALF2(y[idx + 8])  = reg_y_4; }
+  if ((idx + 10) < N * K) { HALF2(y[idx + 10]) = reg_y_5; }
+  if ((idx + 12) < N * K) { HALF2(y[idx + 12]) = reg_y_6; }
+  if ((idx + 14) < N * K) { HALF2(y[idx + 14]) = reg_y_7; }
+}
+
+template<const int NUM_THREADS=256>
+__global__ void rms_norm_f16x16_f32_kernel(half* x, half* y, float g, int N, int K) {
+  int tid = threadIdx.x; // 0..K-1
+  int bid = blockIdx.x; // 0..N-1
+  int idx = (bid * blockDim.x + threadIdx.x) * 16;
+  const float epsilon = 1e-5f;
+
+  __shared__ float s_variance; // shared within block
+  // manual unroll and improve L2 cache hit rate.
+  // Only   L2 cache: load 32  bytes in 1 memory issue (default)
+  // Enable L1 cache: load 128 bytes in 1 memory issue (-Xptxas -dlcm=ca)
+  // why try fp16x8 within 1 threads? ref: https://zhuanlan.zhihu.com/p/641639133
+  // 0. first, tid_0 load 32 bytes in 1 memory issue and cache data into L2 cache.
+  // 1. then, tid_1,...,tid_3 hit L2 cache and load data from L2 cache directly.
+  float2 reg_x_0 = __half22float2(HALF2(x[idx + 0]));
+  float2 reg_x_1 = __half22float2(HALF2(x[idx + 2]));
+  float2 reg_x_2 = __half22float2(HALF2(x[idx + 4]));
+  float2 reg_x_3 = __half22float2(HALF2(x[idx + 6]));
+  float2 reg_x_4 = __half22float2(HALF2(x[idx + 8]));
+  float2 reg_x_5 = __half22float2(HALF2(x[idx + 10]));
+  float2 reg_x_6 = __half22float2(HALF2(x[idx + 12]));
+  float2 reg_x_7 = __half22float2(HALF2(x[idx + 14]));
+  float variance = (((idx + 0)  < N * K) ? (reg_x_0.x * reg_x_0.x 
+                                          + reg_x_0.y * reg_x_0.y) 
+                                          : 0.0f);
+  variance      += (((idx + 2)  < N * K) ? (reg_x_1.x * reg_x_1.x 
+                                          + reg_x_1.y * reg_x_1.y) 
+                                          : 0.0f);
+  variance      += (((idx + 4)  < N * K) ? (reg_x_2.x * reg_x_2.x 
+                                          + reg_x_2.y * reg_x_2.y) 
+                                          : 0.0f);
+  variance      += (((idx + 6)  < N * K) ? (reg_x_3.x * reg_x_3.x 
+                                          + reg_x_3.y * reg_x_3.y) 
+                                          : 0.0f);
+  variance      += (((idx + 8)  < N * K) ? (reg_x_4.x * reg_x_4.x 
+                                          + reg_x_4.y * reg_x_4.y) 
+                                          : 0.0f);
+  variance      += (((idx + 10) < N * K) ? (reg_x_5.x * reg_x_5.x 
+                                          + reg_x_5.y * reg_x_5.y) 
+                                          : 0.0f);
+  variance      += (((idx + 12) < N * K) ? (reg_x_6.x * reg_x_6.x 
+                                          + reg_x_6.y * reg_x_6.y) 
+                                          : 0.0f);
+  variance      += (((idx + 14) < N * K) ? (reg_x_7.x * reg_x_7.x 
+                                          + reg_x_7.y * reg_x_7.y) 
+                                          : 0.0f);
+  variance = block_reduce_sum_f32<NUM_THREADS>(variance);
+  if (tid == 0) s_variance = rsqrtf(variance / ((float) K + epsilon));
+  // wait for s_variance in shared memory to be ready for all threads
+  __syncthreads(); 
+  // manual unroll
+  float2 reg_y_0, reg_y_1, reg_y_2, reg_y_3;
+  float2 reg_y_4, reg_y_5, reg_y_6, reg_y_7;
+  reg_y_0.x = reg_x_0.x * s_variance * g;
+  reg_y_0.y = reg_x_0.y * s_variance * g;
+  reg_y_1.x = reg_x_1.x * s_variance * g;
+  reg_y_1.y = reg_x_1.y * s_variance * g;
+  reg_y_2.x = reg_x_2.x * s_variance * g;
+  reg_y_2.y = reg_x_2.y * s_variance * g;
+  reg_y_3.x = reg_x_3.x * s_variance * g;
+  reg_y_3.y = reg_x_3.y * s_variance * g;
+  reg_y_4.x = reg_x_4.x * s_variance * g;
+  reg_y_4.y = reg_x_4.y * s_variance * g;
+  reg_y_5.x = reg_x_5.x * s_variance * g;
+  reg_y_5.y = reg_x_5.y * s_variance * g;
+  reg_y_6.x = reg_x_6.x * s_variance * g;
+  reg_y_6.y = reg_x_6.y * s_variance * g;
+  reg_y_7.x = reg_x_7.x * s_variance * g;
+  reg_y_7.y = reg_x_7.y * s_variance * g;
+  if ((idx + 0)  < N * K) { HALF2(y[idx + 0])  = __float22half2_rn(reg_y_0); }
+  if ((idx + 2)  < N * K) { HALF2(y[idx + 2])  = __float22half2_rn(reg_y_1); }
+  if ((idx + 4)  < N * K) { HALF2(y[idx + 4])  = __float22half2_rn(reg_y_2); }
+  if ((idx + 6)  < N * K) { HALF2(y[idx + 6])  = __float22half2_rn(reg_y_3); }
+  if ((idx + 8)  < N * K) { HALF2(y[idx + 8])  = __float22half2_rn(reg_y_4); }
+  if ((idx + 10) < N * K) { HALF2(y[idx + 10]) = __float22half2_rn(reg_y_5); }
+  if ((idx + 12) < N * K) { HALF2(y[idx + 12]) = __float22half2_rn(reg_y_6); }
+  if ((idx + 14) < N * K) { HALF2(y[idx + 14]) = __float22half2_rn(reg_y_7); }
 }
 
 template<const int NUM_THREADS=256>
@@ -424,7 +634,7 @@ rms_norm_f16_f32_kernel<(K)><<<grid, block>>>( \
   } 
 
 #define LANUCH_RMS_NORM_F16x2F16_KERNEL(K)           \
-rms_norm_f16x2_f16_kernel<(K)/2><<<grid, block>>>( \
+rms_norm_f16x2_f16_kernel<(K)/2><<<grid, block>>>(   \
   reinterpret_cast<half*>(x.data_ptr()),             \
   reinterpret_cast<half*>(y.data_ptr()),             \
   g, N, (K));  
@@ -456,7 +666,7 @@ rms_norm_f16x2_f16_kernel<(K)/2><<<grid, block>>>( \
   } 
 
 #define LANUCH_RMS_NORM_F16x8F16_KERNEL(K)           \
-rms_norm_f16x8_f16_kernel<(K)/8><<<grid, block>>>( \
+rms_norm_f16x8_f16_kernel<(K)/8><<<grid, block>>>(   \
   reinterpret_cast<half*>(x.data_ptr()),             \
   reinterpret_cast<half*>(y.data_ptr()),             \
   g, N, (K));  
@@ -480,6 +690,102 @@ rms_norm_f16x8_f16_kernel<(K)/8><<<grid, block>>>( \
     break;                                        \
   case 1024:                                      \
     LANUCH_RMS_NORM_F16x8F16_KERNEL(1024)         \
+    break;                                        \
+  default:                                        \
+    throw std::runtime_error(                     \
+      "only support K: 64/128/256/512/1024");     \
+    break;                                        \
+  } 
+
+#define LANUCH_RMS_NORM_F16x8F32_KERNEL(K)           \
+rms_norm_f16x8_f16_kernel<(K)/8><<<grid, block>>>(   \
+  reinterpret_cast<half*>(x.data_ptr()),             \
+  reinterpret_cast<half*>(y.data_ptr()),             \
+  g, N, (K));  
+
+#define DISPATCH_RMS_NORM_F16x8F32_KERNEL(N, K)   \
+  dim3 block((K)/8);                              \
+  dim3 grid((N));                                 \     
+  switch ((K))                                    \
+  {                                               \
+  case 64:                                        \
+    LANUCH_RMS_NORM_F16x8F32_KERNEL(64)           \
+    break;                                        \
+  case 128:                                       \
+    LANUCH_RMS_NORM_F16x8F32_KERNEL(128)          \
+    break;                                        \
+  case 256:                                       \
+    LANUCH_RMS_NORM_F16x8F32_KERNEL(256)          \
+    break;                                        \
+  case 512:                                       \
+    LANUCH_RMS_NORM_F16x8F32_KERNEL(512)          \
+    break;                                        \
+  case 1024:                                      \
+    LANUCH_RMS_NORM_F16x8F32_KERNEL(1024)         \
+    break;                                        \
+  default:                                        \
+    throw std::runtime_error(                     \
+      "only support K: 64/128/256/512/1024");     \
+    break;                                        \
+  } 
+
+#define LANUCH_RMS_NORM_F16x16F16_KERNEL(K)          \
+rms_norm_f16x16_f16_kernel<(K)/16><<<grid, block>>>( \
+  reinterpret_cast<half*>(x.data_ptr()),             \
+  reinterpret_cast<half*>(y.data_ptr()),             \
+  g, N, (K));  
+
+#define DISPATCH_RMS_NORM_F16x16F16_KERNEL(N, K)  \
+  dim3 block((K)/16);                             \
+  dim3 grid((N));                                 \     
+  switch ((K))                                    \
+  {                                               \
+  case 64:                                        \
+    LANUCH_RMS_NORM_F16x16F16_KERNEL(64)          \
+    break;                                        \
+  case 128:                                       \
+    LANUCH_RMS_NORM_F16x16F16_KERNEL(128)         \
+    break;                                        \
+  case 256:                                       \
+    LANUCH_RMS_NORM_F16x16F16_KERNEL(256)         \
+    break;                                        \
+  case 512:                                       \
+    LANUCH_RMS_NORM_F16x16F16_KERNEL(512)         \
+    break;                                        \
+  case 1024:                                      \
+    LANUCH_RMS_NORM_F16x16F16_KERNEL(1024)        \
+    break;                                        \
+  default:                                        \
+    throw std::runtime_error(                     \
+      "only support K: 64/128/256/512/1024");     \
+    break;                                        \
+  } 
+
+#define LANUCH_RMS_NORM_F16x16F32_KERNEL(K)          \
+rms_norm_f16x16_f32_kernel<(K)/16><<<grid, block>>>( \
+  reinterpret_cast<half*>(x.data_ptr()),             \
+  reinterpret_cast<half*>(y.data_ptr()),             \
+  g, N, (K));  
+
+#define DISPATCH_RMS_NORM_F16x16F32_KERNEL(N, K)  \
+  dim3 block((K)/16);                             \
+  dim3 grid((N));                                 \     
+  switch ((K))                                    \
+  {                                               \
+  case 64:                                        \
+    LANUCH_RMS_NORM_F16x16F32_KERNEL(64)          \
+    break;                                        \
+  case 128:                                       \
+    LANUCH_RMS_NORM_F16x16F32_KERNEL(128)         \
+    break;                                        \
+  case 256:                                       \
+    LANUCH_RMS_NORM_F16x16F32_KERNEL(256)         \
+    break;                                        \
+  case 512:                                       \
+    LANUCH_RMS_NORM_F16x16F32_KERNEL(512)         \
+    break;                                        \
+  case 1024:                                      \
+    LANUCH_RMS_NORM_F16x16F32_KERNEL(1024)        \
     break;                                        \
   default:                                        \
     throw std::runtime_error(                     \
@@ -514,6 +820,33 @@ void rms_norm_f16x8_f16(torch::Tensor x, torch::Tensor y, float g) {
   DISPATCH_RMS_NORM_F16x8F16_KERNEL(N, K)
 }
 
+void rms_norm_f16x8_f32(torch::Tensor x, torch::Tensor y, float g) {
+  CHECK_TORCH_TENSOR_DTYPE(x, torch::kHalf)       
+  CHECK_TORCH_TENSOR_DTYPE(y, torch::kHalf)
+  CHECK_TORCH_TENSOR_SHAPE(x, y)
+  const int N = x.size(0);
+  const int K = x.size(1);
+  DISPATCH_RMS_NORM_F16x8F32_KERNEL(N, K)
+}
+
+void rms_norm_f16x16_f16(torch::Tensor x, torch::Tensor y, float g) {
+  CHECK_TORCH_TENSOR_DTYPE(x, torch::kHalf)       
+  CHECK_TORCH_TENSOR_DTYPE(y, torch::kHalf)
+  CHECK_TORCH_TENSOR_SHAPE(x, y)
+  const int N = x.size(0);
+  const int K = x.size(1);
+  DISPATCH_RMS_NORM_F16x16F16_KERNEL(N, K)
+}
+
+void rms_norm_f16x16_f32(torch::Tensor x, torch::Tensor y, float g) {
+  CHECK_TORCH_TENSOR_DTYPE(x, torch::kHalf)       
+  CHECK_TORCH_TENSOR_DTYPE(y, torch::kHalf)
+  CHECK_TORCH_TENSOR_SHAPE(x, y)
+  const int N = x.size(0);
+  const int K = x.size(1);
+  DISPATCH_RMS_NORM_F16x16F32_KERNEL(N, K)
+}
+
 void rms_norm_f16_f32(torch::Tensor x, torch::Tensor y, float g) {
   CHECK_TORCH_TENSOR_DTYPE(x, torch::kHalf)       
   CHECK_TORCH_TENSOR_DTYPE(y, torch::kHalf)
@@ -529,5 +862,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16_f16)
   TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16x2_f16)
   TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16x8_f16)
+  TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16x8_f32)
+  TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16x16_f16)
+  TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16x16_f32)
   TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16_f32)
 }

@@ -59,13 +59,13 @@ def run_benchmark(perf_func: callable, x: torch.Tensor,
     out_info = f"out_{tag}"
     out_val = out.flatten().detach().cpu().numpy().tolist()[:3]
     out_val = [round(v, 8) for v in out_val]
-    print(f"{out_info:>12}: {out_val}, time:{mean_time:.8f}ms")
+    print(f"{out_info:>13}: {out_val}, time:{mean_time:.8f}ms")
     if show_all: print(out)
     return out, mean_time
 
 
 print("-" * 80)
-N, K = 4096, 512
+N, K = 4096, 1024
 x = torch.randn((N, K)).cuda().float().contiguous()
 out = torch.zeros_like(x).cuda().float().contiguous()
 run_benchmark(lib.rms_norm_f32,   x, "f32",   out)
@@ -75,9 +75,12 @@ run_benchmark(naive_rms_norm,     x, "f32_th")
 print("-" * 80)
 x_f16 = x.half()
 out_f16 = out.half()
-run_benchmark(lib.rms_norm_f16_f16,   x_f16, "f16f16",   out_f16)
-run_benchmark(lib.rms_norm_f16x2_f16, x_f16, "f16x2f16", out_f16)
-run_benchmark(lib.rms_norm_f16x8_f16, x_f16, "f16x8f16", out_f16)
-run_benchmark(lib.rms_norm_f16_f32,   x_f16, "f16f32",   out_f16)
-run_benchmark(naive_rms_norm,         x_f16, "f16_th")
+run_benchmark(lib.rms_norm_f16_f16,    x_f16, "f16f16",    out_f16)
+run_benchmark(lib.rms_norm_f16x2_f16,  x_f16, "f16x2f16",  out_f16)
+run_benchmark(lib.rms_norm_f16x8_f16,  x_f16, "f16x8f16",  out_f16)
+run_benchmark(lib.rms_norm_f16x8_f32,  x_f16, "f16x8f32",  out_f16)
+run_benchmark(lib.rms_norm_f16x16_f16, x_f16, "f16x16f16", out_f16)
+run_benchmark(lib.rms_norm_f16x16_f32, x_f16, "f16x16f32", out_f16)
+run_benchmark(lib.rms_norm_f16_f32,    x_f16, "f16f32",    out_f16)
+run_benchmark(naive_rms_norm,          x_f16, "f16_th")
 print("-" * 80)
