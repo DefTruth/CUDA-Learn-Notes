@@ -54,6 +54,33 @@ __global__ void relu_f16x2_kernel(half* x, half* y, int N) {
   }
 }
 
+__global__ void relu_f16x8_kernel(half* x, half* y, int N) {
+  int idx = 8 * (blockIdx.x * blockDim.x + threadIdx.x);
+  // manual unroll and improve L2 cache hit rate.
+  // Only   L2 cache: load 32  bytes(128 bits) in 1 memory issue (default)
+  // Enable L1 cache: load 128 bytes(512 bits) in 1 memory issue (-Xptxas -dlcm=ca)
+  // why try fp16x8 within 1 threads? ref: https://zhuanlan.zhihu.com/p/641639133
+  // 0. first, tid_0 load 128 bits(32 byte) in 1 memory issue and cache data into L2 cache.
+  // 1. then, tid_1,...,tid_3 hit L2 cache and load data from L2 cache directly.
+  half2 reg_x_0 = HALF2(x[idx + 0]);
+  half2 reg_x_1 = HALF2(x[idx + 2]);
+  half2 reg_x_2 = HALF2(x[idx + 4]);
+  half2 reg_x_3 = HALF2(x[idx + 6]);
+  half2 reg_y_0, reg_y_1, reg_y_2, reg_y_3;
+  reg_y_0.x = __hmax(__float2half(0.0f), reg_x_0.x);
+  reg_y_0.y = __hmax(__float2half(0.0f), reg_x_0.y);
+  reg_y_1.x = __hmax(__float2half(0.0f), reg_x_1.x);
+  reg_y_1.y = __hmax(__float2half(0.0f), reg_x_1.y);
+  reg_y_2.x = __hmax(__float2half(0.0f), reg_x_2.x);
+  reg_y_2.y = __hmax(__float2half(0.0f), reg_x_2.y);
+  reg_y_3.x = __hmax(__float2half(0.0f), reg_x_3.x);
+  reg_y_3.y = __hmax(__float2half(0.0f), reg_x_3.y);
+  if ((idx + 0) < N) { HALF2(y[idx + 0]) = reg_y_0; }
+  if ((idx + 2) < N) { HALF2(y[idx + 2]) = reg_y_1; }
+  if ((idx + 4) < N) { HALF2(y[idx + 4]) = reg_y_2; }
+  if ((idx + 6) < N) { HALF2(y[idx + 6]) = reg_y_3; }
+}
+
 // --------------------- PyTorch bindings for custom kernel -----------------------
 #define STRINGFY(str) #str
 #define TORCH_BINDING_COMMON_EXTENSION(func) \
@@ -104,18 +131,22 @@ TORCH_BINDING_RELU(f32,       torch::kFloat32,    float,    1)
 TORCH_BINDING_RELU(f32x4,     torch::kFloat32,    float,    4)
 TORCH_BINDING_RELU(f16,       torch::kHalf,       half,     1)
 TORCH_BINDING_RELU(f16x2,     torch::kHalf,       half,     2)
+TORCH_BINDING_RELU(f16x8,     torch::kHalf,       half,     8)
 TORCH_BINDING_RELU_V2(f32,    torch::kFloat32,    float,    1)
 TORCH_BINDING_RELU_V2(f32x4,  torch::kFloat32,    float,    4)
 TORCH_BINDING_RELU_V2(f16,    torch::kHalf,       half,     1)
 TORCH_BINDING_RELU_V2(f16x2,  torch::kHalf,       half,     2)
+TORCH_BINDING_RELU_V2(f16x8,  torch::kHalf,       half,     8)
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(relu_f32)
   TORCH_BINDING_COMMON_EXTENSION(relu_f32x4)
   TORCH_BINDING_COMMON_EXTENSION(relu_f16)
   TORCH_BINDING_COMMON_EXTENSION(relu_f16x2)
+  TORCH_BINDING_COMMON_EXTENSION(relu_f16x8)
   TORCH_BINDING_COMMON_EXTENSION(relu_f32_v2)
   TORCH_BINDING_COMMON_EXTENSION(relu_f32x4_v2)
   TORCH_BINDING_COMMON_EXTENSION(relu_f16_v2)
   TORCH_BINDING_COMMON_EXTENSION(relu_f16x2_v2)
+  TORCH_BINDING_COMMON_EXTENSION(relu_f16x8_v2)
 }

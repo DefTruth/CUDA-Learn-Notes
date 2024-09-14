@@ -34,6 +34,7 @@
 | ✔️ [relu_f32x4_kernel](./relu/relu.cu)|f32|/|[link](./relu/)|⭐️|  
 | ✔️ [relu_f16_kernel](./relu/relu.cu)|f16|/|[link](./relu/)|⭐️|  
 | ✔️ [relu_f16x2_kernel](./relu/relu.cu)|f16|/|[link](./relu/)|⭐️|  
+| ✔️ [relu_f16x8_kernel](./relu/relu.cu)|f16|/|[link](./relu/)|⭐️|  
 | ✔️ [warp_reduce_f16/bf16/f32/f8/i8_kernel](./reduce/block_all_reduce.cu)|all|all|[link](./reduce/)|⭐️⭐️|  
 | ✔️ [block_reduce_f32_kernel](./reduce/block_all_reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  
 | ✔️ [block_all_reduce_f32_f32_kernel](./reduce/block_all_reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  

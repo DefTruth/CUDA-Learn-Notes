@@ -57,7 +57,7 @@ def run_benchmark(perf_func: callable, x: torch.Tensor, tag: str,
 
 
 print("-" * 80)
-N_ELEMENTS = 256*92*16
+N_ELEMENTS = 256*256*4
 x = torch.randn((N_ELEMENTS)).cuda().float()
 run_benchmark(lib.relu_f32,   x, "f32")
 run_benchmark(lib.relu_f32x4, x, "f32x4")
@@ -67,6 +67,7 @@ print("-" * 80)
 x_f16 = x.half()
 run_benchmark(lib.relu_f16,   x_f16, "f16")
 run_benchmark(lib.relu_f16x2, x_f16, "f16x2")
+run_benchmark(lib.relu_f16x8, x_f16, "f16x8")
 run_benchmark(torch.relu, x_f16 , "f16_th")
 
 print("-" * 80)
@@ -81,5 +82,6 @@ print("-" * 80)
 y_f16 = torch.zeros_like(x_f16).cuda().half()
 run_benchmark(lib.relu_f16_v2,   x_f16, "f16(v2)", y_f16)
 run_benchmark(lib.relu_f16x2_v2, x_f16, "f16x2(v2)", y_f16)
+run_benchmark(lib.relu_f16x8_v2, x_f16, "f16x8(v2)", y_f16)
 run_benchmark(torch.relu, x_f16 , "f16_th")
 print("-" * 80)
