@@ -56,7 +56,7 @@ def run_benchmark(perf_func: callable, a: torch.Tensor, b: torch.Tensor, tag: st
 
 
 print("-" * 80)
-N_ELEMENTS = 256*92*16
+N_ELEMENTS = 256*92*4
 a = torch.randn((N_ELEMENTS)).cuda().float()
 b = torch.randn((N_ELEMENTS)).cuda().float()
 run_benchmark(lib.elementwise_add_f32,   a, b, "f32")
@@ -68,6 +68,7 @@ a_f16 = a.half()
 b_f16 = b.half()
 run_benchmark(lib.elementwise_add_f16,   a_f16, b_f16, "f16")
 run_benchmark(lib.elementwise_add_f16x2, a_f16, b_f16, "f16x2")
+run_benchmark(lib.elementwise_add_f16x8, a_f16, b_f16, "f16x8")
 run_benchmark(torch.add, a_f16, b_f16, "f16_th")
 
 print("-" * 80)
@@ -82,6 +83,7 @@ print("-" * 80)
 c_f16 = torch.zeros_like(a_f16).cuda().half()
 run_benchmark(lib.elementwise_add_f16_v2,    a_f16, b_f16, "f16(v2)",   c_f16)
 run_benchmark(lib.elementwise_add_f16x2_v2,  a_f16, b_f16, "f16x2(v2)", c_f16)
+run_benchmark(lib.elementwise_add_f16x8_v2,  a_f16, b_f16, "f16x8(v2)", c_f16)
 run_benchmark(partial(torch.add, out=c_f16), a_f16, b_f16, "f16_th")
 
 print("-" * 80)
