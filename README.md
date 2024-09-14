@@ -25,6 +25,7 @@
 | ✔️ [elementwise_f32x4_kernel](./elementwise/elementwise.cu)|f32|/|[link](./elementwise/)|⭐️|
 | ✔️ [elementwise_f16_kernel](./elementwise/elementwise.cu)|f16|/|[link](./elementwise/)|⭐️|
 | ✔️ [elementwise_f16x2_kernel](./elementwise/elementwise.cu)|f16|/|[link](./elementwise/)|⭐️|
+| ✔️ [elementwise_f16x8_kernel](./elementwise/elementwise.cu)|f16|/|[link](./elementwise/)|⭐️|
 | ✔️ [histogram_i32_kernel](./histogram/histogram.cu)|i32|/|[link](./histogram/)|⭐️|
 | ✔️ [histogram_i32x4_kernel](./histogram/histogram.cu)|i32|/|[link](./histogram/)|⭐️|  
 | ✔️ [sigmoid_f32_kernel](./sigmoid/sigmoid.cu)|f32|/|[link](./sigmoid/)|⭐️|  
