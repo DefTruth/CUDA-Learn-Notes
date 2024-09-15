@@ -195,6 +195,12 @@ __global__ void rms_norm_f16x2_f16_kernel(half* x, half* y, float g, int N, int 
 #define FLOAT2_VARIANCE(reg, i) \
   (((idx + (i)) < N * K) ? ((reg).x * (reg).x + (reg).y * (reg).y) : 0.0f)
 
+#define HALF2_RMS_NORM(reg_y, reg_x, g) \
+  (reg_y).x = (reg_x).x * s_variance * (g); (reg_y).y = (reg_x).y * s_variance * (g); 
+
+#define FLOAT2_RMS_NORM(reg_y, reg_x, g) \
+  (reg_y).x = (reg_x).x * s_variance * (g); (reg_y).y = (reg_x).y * s_variance * (g);
+
 template<const int NUM_THREADS=256>
 __global__ void rms_norm_f16x8_f16_kernel(half* x, half* y, float g, int N, int K) {
   int tid = threadIdx.x; // 0..K-1
@@ -225,14 +231,10 @@ __global__ void rms_norm_f16x8_f16_kernel(half* x, half* y, float g, int N, int 
   __syncthreads(); 
   // manual unroll
   half2 reg_y_0, reg_y_1, reg_y_2, reg_y_3;
-  reg_y_0.x = reg_x_0.x * s_variance * g_;
-  reg_y_0.y = reg_x_0.y * s_variance * g_;
-  reg_y_1.x = reg_x_1.x * s_variance * g_;
-  reg_y_1.y = reg_x_1.y * s_variance * g_;
-  reg_y_2.x = reg_x_2.x * s_variance * g_;
-  reg_y_2.y = reg_x_2.y * s_variance * g_;
-  reg_y_3.x = reg_x_3.x * s_variance * g_;
-  reg_y_3.y = reg_x_3.y * s_variance * g_;
+  HALF2_RMS_NORM(reg_y_0, reg_x_0, g_);
+  HALF2_RMS_NORM(reg_y_1, reg_x_1, g_);
+  HALF2_RMS_NORM(reg_y_2, reg_x_2, g_);
+  HALF2_RMS_NORM(reg_y_3, reg_x_3, g_);
   if ((idx + 0) < N * K) { HALF2(y[idx + 0]) = reg_y_0; }
   if ((idx + 2) < N * K) { HALF2(y[idx + 2]) = reg_y_1; }
   if ((idx + 4) < N * K) { HALF2(y[idx + 4]) = reg_y_2; }
@@ -269,14 +271,10 @@ __global__ void rms_norm_f16x8_f32_kernel(half* x, half* y, float g, int N, int 
   __syncthreads(); 
   // manual unroll
   float2 reg_y_0, reg_y_1, reg_y_2, reg_y_3;
-  reg_y_0.x = reg_x_0.x * s_variance * g;
-  reg_y_0.y = reg_x_0.y * s_variance * g;
-  reg_y_1.x = reg_x_1.x * s_variance * g;
-  reg_y_1.y = reg_x_1.y * s_variance * g;
-  reg_y_2.x = reg_x_2.x * s_variance * g;
-  reg_y_2.y = reg_x_2.y * s_variance * g;
-  reg_y_3.x = reg_x_3.x * s_variance * g;
-  reg_y_3.y = reg_x_3.y * s_variance * g;
+  FLOAT2_RMS_NORM(reg_y_0, reg_x_0, g);
+  FLOAT2_RMS_NORM(reg_y_1, reg_x_1, g);
+  FLOAT2_RMS_NORM(reg_y_2, reg_x_2, g);
+  FLOAT2_RMS_NORM(reg_y_3, reg_x_3, g);
   if ((idx + 0)  < N * K) { HALF2(y[idx + 0])  = __float22half2_rn(reg_y_0); }
   if ((idx + 2)  < N * K) { HALF2(y[idx + 2])  = __float22half2_rn(reg_y_1); }
   if ((idx + 4)  < N * K) { HALF2(y[idx + 4])  = __float22half2_rn(reg_y_2); }
@@ -324,22 +322,14 @@ __global__ void rms_norm_f16x16_f16_kernel(half* x, half* y, float g, int N, int
   // manual unroll
   half2 reg_y_0, reg_y_1, reg_y_2, reg_y_3;
   half2 reg_y_4, reg_y_5, reg_y_6, reg_y_7;
-  reg_y_0.x = reg_x_0.x * s_variance * g_;
-  reg_y_0.y = reg_x_0.y * s_variance * g_;
-  reg_y_1.x = reg_x_1.x * s_variance * g_;
-  reg_y_1.y = reg_x_1.y * s_variance * g_;
-  reg_y_2.x = reg_x_2.x * s_variance * g_;
-  reg_y_2.y = reg_x_2.y * s_variance * g_;
-  reg_y_3.x = reg_x_3.x * s_variance * g_;
-  reg_y_3.y = reg_x_3.y * s_variance * g_;
-  reg_y_4.x = reg_x_4.x * s_variance * g_;
-  reg_y_4.y = reg_x_4.y * s_variance * g_;
-  reg_y_5.x = reg_x_5.x * s_variance * g_;
-  reg_y_5.y = reg_x_5.y * s_variance * g_;
-  reg_y_6.x = reg_x_6.x * s_variance * g_;
-  reg_y_6.y = reg_x_6.y * s_variance * g_;
-  reg_y_7.x = reg_x_7.x * s_variance * g_;
-  reg_y_7.y = reg_x_7.y * s_variance * g_;
+  HALF2_RMS_NORM(reg_y_0, reg_x_0, g_);
+  HALF2_RMS_NORM(reg_y_1, reg_x_1, g_);
+  HALF2_RMS_NORM(reg_y_2, reg_x_2, g_);
+  HALF2_RMS_NORM(reg_y_3, reg_x_3, g_);
+  HALF2_RMS_NORM(reg_y_4, reg_x_4, g_);
+  HALF2_RMS_NORM(reg_y_5, reg_x_5, g_);
+  HALF2_RMS_NORM(reg_y_6, reg_x_6, g_);
+  HALF2_RMS_NORM(reg_y_7, reg_x_7, g_);
   if ((idx + 0)  < N * K) { HALF2(y[idx + 0])  = reg_y_0; }
   if ((idx + 2)  < N * K) { HALF2(y[idx + 2])  = reg_y_1; }
   if ((idx + 4)  < N * K) { HALF2(y[idx + 4])  = reg_y_2; }
@@ -389,22 +379,14 @@ __global__ void rms_norm_f16x16_f32_kernel(half* x, half* y, float g, int N, int
   // manual unroll
   float2 reg_y_0, reg_y_1, reg_y_2, reg_y_3;
   float2 reg_y_4, reg_y_5, reg_y_6, reg_y_7;
-  reg_y_0.x = reg_x_0.x * s_variance * g;
-  reg_y_0.y = reg_x_0.y * s_variance * g;
-  reg_y_1.x = reg_x_1.x * s_variance * g;
-  reg_y_1.y = reg_x_1.y * s_variance * g;
-  reg_y_2.x = reg_x_2.x * s_variance * g;
-  reg_y_2.y = reg_x_2.y * s_variance * g;
-  reg_y_3.x = reg_x_3.x * s_variance * g;
-  reg_y_3.y = reg_x_3.y * s_variance * g;
-  reg_y_4.x = reg_x_4.x * s_variance * g;
-  reg_y_4.y = reg_x_4.y * s_variance * g;
-  reg_y_5.x = reg_x_5.x * s_variance * g;
-  reg_y_5.y = reg_x_5.y * s_variance * g;
-  reg_y_6.x = reg_x_6.x * s_variance * g;
-  reg_y_6.y = reg_x_6.y * s_variance * g;
-  reg_y_7.x = reg_x_7.x * s_variance * g;
-  reg_y_7.y = reg_x_7.y * s_variance * g;
+  FLOAT2_RMS_NORM(reg_y_0, reg_x_0, g);
+  FLOAT2_RMS_NORM(reg_y_1, reg_x_1, g);
+  FLOAT2_RMS_NORM(reg_y_2, reg_x_2, g);
+  FLOAT2_RMS_NORM(reg_y_3, reg_x_3, g);
+  FLOAT2_RMS_NORM(reg_y_4, reg_x_4, g);
+  FLOAT2_RMS_NORM(reg_y_5, reg_x_5, g);
+  FLOAT2_RMS_NORM(reg_y_6, reg_x_6, g);
+  FLOAT2_RMS_NORM(reg_y_7, reg_x_7, g);
   if ((idx + 0)  < N * K) { HALF2(y[idx + 0])  = __float22half2_rn(reg_y_0); }
   if ((idx + 2)  < N * K) { HALF2(y[idx + 2])  = __float22half2_rn(reg_y_1); }
   if ((idx + 4)  < N * K) { HALF2(y[idx + 4])  = __float22half2_rn(reg_y_2); }

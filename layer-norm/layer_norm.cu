@@ -225,6 +225,19 @@ __global__ void layer_norm_f16x2_f16_kernel(half* x, half* y, float g, float b, 
   }
 }
 
+#define HALF2_SUM(reg, i) \
+  (((idx + (i)) < N * K) ? ((reg).x + (reg).y) : __float2half(0.0f))
+
+#define HALF2_SUB(reg_y, reg_x) \
+  (reg_y).x = (reg_x).x - s_mean; (reg_y).y = (reg_x).y - s_mean;
+
+#define HALF2_VARIANCE(reg, i) \
+  (((idx + (i)) < N * K) ? ((reg).x * (reg).x + (reg).y * (reg).y) : __float2half(0.0f))
+
+#define HALF2_LAYER_NORM(reg_y, reg_x, g_, b_)        \
+  (reg_y).x = __hfma((reg_x).x * s_variance, g_, b_); \
+  (reg_y).y = __hfma((reg_x).y * s_variance, g_, b_);
+
 template<const int NUM_THREADS=256>
 __global__ void layer_norm_f16x8_f16_kernel(half* x, half* y, float g, float b, int N, int K) {
   int tid = threadIdx.x; // 0..K-1
@@ -247,54 +260,39 @@ __global__ void layer_norm_f16x8_f16_kernel(half* x, half* y, float g, float b, 
   half2 reg_x_1 = HALF2(x[idx + 2]);
   half2 reg_x_2 = HALF2(x[idx + 4]);
   half2 reg_x_3 = HALF2(x[idx + 6]);
-  half value = (((idx + 0) < N * K) ? (reg_x_0.x + reg_x_0.y) 
-                                      : __float2half(0.0f));
-  value     += (((idx + 2) < N * K) ? (reg_x_1.x + reg_x_1.y) 
-                                      : __float2half(0.0f));
-  value     += (((idx + 4) < N * K) ? (reg_x_2.x + reg_x_2.y) 
-                                      : __float2half(0.0f));
-  value     += (((idx + 6) < N * K) ? (reg_x_3.x + reg_x_3.y) 
-                                      : __float2half(0.0f));
+
+  half value = HALF2_SUM(reg_x_0, 0);
+  value     += HALF2_SUM(reg_x_1, 2);
+  value     += HALF2_SUM(reg_x_2, 4);
+  value     += HALF2_SUM(reg_x_3, 6);
+
   half sum = block_reduce_sum_f16_f16<NUM_THREADS>(value);
   if (tid == 0) s_mean = sum / K_;
   // wait for s_mean in shared memory to be ready for all threads
   __syncthreads();
   // manual unroll
   half2 reg_x_hat_0, reg_x_hat_1, reg_x_hat_2, reg_x_hat_3;
-  reg_x_hat_0.x = reg_x_0.x - s_mean;
-  reg_x_hat_0.y = reg_x_0.y - s_mean;
-  reg_x_hat_1.x = reg_x_1.x - s_mean;
-  reg_x_hat_1.y = reg_x_1.y - s_mean;
-  reg_x_hat_2.x = reg_x_2.x - s_mean;
-  reg_x_hat_2.y = reg_x_2.y - s_mean;
-  reg_x_hat_3.x = reg_x_3.x - s_mean;
-  reg_x_hat_3.y = reg_x_3.y - s_mean;
-  half variance = (((idx + 0) < N * K) ? (reg_x_hat_0.x * reg_x_hat_0.x 
-                                        + reg_x_hat_0.y * reg_x_hat_0.y) 
-                                        : __float2half(0.0f));
-  variance     += (((idx + 2) < N * K) ? (reg_x_hat_1.x * reg_x_hat_1.x 
-                                        + reg_x_hat_1.y * reg_x_hat_1.y) 
-                                       : __float2half(0.0f));
-  variance     += (((idx + 4) < N * K) ? (reg_x_hat_2.x * reg_x_hat_2.x 
-                                        + reg_x_hat_2.y * reg_x_hat_2.y) 
-                                        : __float2half(0.0f));
-  variance     += (((idx + 6) < N * K) ? (reg_x_hat_3.x * reg_x_hat_3.x 
-                                        + reg_x_hat_3.y * reg_x_hat_3.y) 
-                                        : __float2half(0.0f));
+  HALF2_SUB(reg_x_hat_0, reg_x_0);
+  HALF2_SUB(reg_x_hat_1, reg_x_1);
+  HALF2_SUB(reg_x_hat_2, reg_x_2);
+  HALF2_SUB(reg_x_hat_3, reg_x_3);
+
+  half variance = HALF2_VARIANCE(reg_x_hat_0, 0);
+  variance     += HALF2_VARIANCE(reg_x_hat_1, 2);
+  variance     += HALF2_VARIANCE(reg_x_hat_2, 4);
+  variance     += HALF2_VARIANCE(reg_x_hat_3, 6);
+
   variance = block_reduce_sum_f16_f16<NUM_THREADS>(variance);
   if (tid == 0) s_variance = hrsqrt(variance / (K_ + epsilon));
   // wait for s_variance in shared memory to be ready for all threads
   __syncthreads();
   // manual unroll
   half2 reg_y_0, reg_y_1, reg_y_2, reg_y_3;
-  reg_y_0.x = __hfma(reg_x_hat_0.x * s_variance, g_, b_);
-  reg_y_0.y = __hfma(reg_x_hat_0.y * s_variance, g_, b_);
-  reg_y_1.x = __hfma(reg_x_hat_1.x * s_variance, g_, b_);
-  reg_y_1.y = __hfma(reg_x_hat_1.y * s_variance, g_, b_);
-  reg_y_2.x = __hfma(reg_x_hat_2.x * s_variance, g_, b_);
-  reg_y_2.y = __hfma(reg_x_hat_2.y * s_variance, g_, b_);
-  reg_y_3.x = __hfma(reg_x_hat_3.x * s_variance, g_, b_);
-  reg_y_3.y = __hfma(reg_x_hat_3.y * s_variance, g_, b_);
+  HALF2_LAYER_NORM(reg_y_0, reg_x_hat_0, g_, b_);
+  HALF2_LAYER_NORM(reg_y_1, reg_x_hat_1, g_, b_);
+  HALF2_LAYER_NORM(reg_y_2, reg_x_hat_2, g_, b_);
+  HALF2_LAYER_NORM(reg_y_3, reg_x_hat_3, g_, b_);
+  
   if ((idx + 0) < N * K) { HALF2(y[idx + 0]) = reg_y_0; }
   if ((idx + 2) < N * K) { HALF2(y[idx + 2]) = reg_y_1; }
   if ((idx + 4) < N * K) { HALF2(y[idx + 4]) = reg_y_2; }
