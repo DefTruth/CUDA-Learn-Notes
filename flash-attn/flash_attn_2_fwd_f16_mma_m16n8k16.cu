@@ -1,13 +1,18 @@
 // modified from: https://github.com/Byeong-Chan/flash-attention-minimal/blob/add_matmul_optimize/flash_optimize_matmul.cu
-
-#include <torch/types.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
-
+#include <cuda_fp16.h>
+#include <cuda_bf16.h>
+#include <cuda_fp8.h>
+#include <torch/types.h>
+#include <torch/extension.h>
 #include <ATen/cuda/CUDAContext.h>
 
-// VECTORIZED READ
-#define FETCH_FLOAT4(pointer) (reinterpret_cast<float4*>(&(pointer))[0])
+#define WARP_SIZE 32
+#define INT4(value) (reinterpret_cast<int4*>(&(value))[0])
+#define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
+#define HALF2(value) (reinterpret_cast<half2*>(&(value))[0])
+#define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162*>(&(value))[0])
 
 // Load matrix to REGISTER
 #define LDMATRIX_X4(R0, R1, R2, R3, addr)                                             \
@@ -22,10 +27,10 @@
                  : "r"(RA0), "r"(RA1), "r"(RA2), "r"(RA3), "r"(RB0), "r"(RB1), "r"(RC0), "r"(RC1))
 
 template<const int Bc, const int Br, const int d>
-__global__
-void forward_kernel(half* Q, half* K, half* V, const int N,
-                    const int Tc, const int Tr, const float softmax_scale,
-                    half* O) {
+__global__  void flash_attn_2_fwd_f16_mma_m16n8k16_kernel(
+  half* Q, half* K, half* V, const int N,
+  const int Tc, const int Tr, const float scale,
+  half* O) {
   // batch and head index
   int bx = blockIdx.x; int by = blockIdx.y;
 
@@ -56,8 +61,7 @@ void forward_kernel(half* Q, half* K, half* V, const int N,
       int new_dim_x = dim_x % 16;
       int new_dim_y = (dim_y / 16 * (d / 16) * 16) + (dim_x / 16 * 16) + (dim_y % 16);
 
-      FETCH_FLOAT4(Qi[new_dim_y * 16 + new_dim_x]) =
-        FETCH_FLOAT4(Q[qkv_offset + (i * tile_size) + x]);
+      FLOAT4(Qi[new_dim_y * 16 + new_dim_x]) = FLOAT4(Q[qkv_offset + (i * tile_size) + x]);
     }
     __syncthreads();
 
@@ -87,8 +91,7 @@ void forward_kernel(half* Q, half* K, half* V, const int N,
         int new_dim_x = dim_x % 16;
         int new_dim_y = (dim_y / 16 * (d / 16) * 16) + (dim_x / 16 * 16) + (dim_y % 16);
 
-        FETCH_FLOAT4(Kj[new_dim_y * 16 + new_dim_x]) =
-          FETCH_FLOAT4(K[qkv_offset + (j * tile_size) + x]);
+         FLOAT4(Kj[new_dim_y * 16 + new_dim_x]) = FLOAT4(K[qkv_offset + (j * tile_size) + x]);
       }
       __syncthreads();
 
@@ -120,8 +123,7 @@ void forward_kernel(half* Q, half* K, half* V, const int N,
 
       // Read V from global memory to shared memory
       for (int x = threadIdx.x * 8; x < tile_size; x += 1024) {
-        FETCH_FLOAT4(reg[0]) =
-          FETCH_FLOAT4(V[qkv_offset + (j * tile_size) + x]);
+         FLOAT4(reg[0]) = FLOAT4(V[qkv_offset + (j * tile_size) + x]);
 
         int dim_x = x % d;
         int dim_y = x / d;
@@ -139,14 +141,10 @@ void forward_kernel(half* Q, half* K, half* V, const int N,
       // adapt from https://github.com/jundaf2/INT8-Flash-Attention-FMHA-Quantization/blob/main/inc/fmha_i8.cuh
       // Softmax phase (m, l calculate)
       // FETCHING REGISTER
-      FETCH_FLOAT4(reg[0]) =
-        FETCH_FLOAT4(RC[0][0]);
-      FETCH_FLOAT4(reg[8]) =
-        FETCH_FLOAT4(RC[2][0]);
-      FETCH_FLOAT4(reg[16]) =
-        FETCH_FLOAT4(RC[4][0]);
-      FETCH_FLOAT4(reg[24]) =
-        FETCH_FLOAT4(RC[6][0]);
+      FLOAT4(reg[0])  = FLOAT4(RC[0][0]);
+      FLOAT4(reg[8])  = FLOAT4(RC[2][0]);
+      FLOAT4(reg[16]) = FLOAT4(RC[4][0]);
+      FLOAT4(reg[24]) = FLOAT4(RC[6][0]);
 
       // thread level reduce max
       #pragma unroll
@@ -157,7 +155,7 @@ void forward_kernel(half* Q, half* K, half* V, const int N,
           for (int tc_xi = 0; tc_xi < 2; tc_xi++) {
             float tmp_val1 = __half2float(reg[xi * 8 + tc_xi * 4 + tc_yi * 2 + 0]);
             float tmp_val2 = __half2float(reg[xi * 8 + tc_xi * 4 + tc_yi * 2 + 1]);
-            float tmp_max_val = max(tmp_val1, tmp_val2) * softmax_scale;
+            float tmp_max_val = max(tmp_val1, tmp_val2) * scale;
             thread_max[tc_yi] = max(thread_max[tc_yi], tmp_max_val);
           }
         }
@@ -179,8 +177,8 @@ void forward_kernel(half* Q, half* K, half* V, const int N,
         for (int tc_yi = 0; tc_yi < 2; tc_yi++) {
           #pragma unroll
           for (int tc_xi = 0; tc_xi < 2; tc_xi++) {
-            float tmp_sum_val_0 = __expf(__half2float(reg[xi * 8 + tc_xi * 4 + tc_yi * 2 + 0]) * softmax_scale - thread_max[tc_yi]);
-            float tmp_sum_val_1 = __expf(__half2float(reg[xi * 8 + tc_xi * 4 + tc_yi * 2 + 1]) * softmax_scale - thread_max[tc_yi]);
+            float tmp_sum_val_0 = __expf(__half2float(reg[xi * 8 + tc_xi * 4 + tc_yi * 2 + 0]) * scale - thread_max[tc_yi]);
+            float tmp_sum_val_1 = __expf(__half2float(reg[xi * 8 + tc_xi * 4 + tc_yi * 2 + 1]) * scale - thread_max[tc_yi]);
             reg[xi * 8 + tc_xi * 4 + tc_yi * 2 + 0] = __float2half(tmp_sum_val_0);
             reg[xi * 8 + tc_xi * 4 + tc_yi * 2 + 1] = __float2half(tmp_sum_val_1);
             thread_sum[tc_yi] += (tmp_sum_val_0 + tmp_sum_val_1);
@@ -198,14 +196,10 @@ void forward_kernel(half* Q, half* K, half* V, const int N,
       }
 
       // FETCHING REGISTER for P
-      FETCH_FLOAT4(RC[0][0]) =
-        FETCH_FLOAT4(reg[0]);
-      FETCH_FLOAT4(RC[2][0]) =
-        FETCH_FLOAT4(reg[8]);
-      FETCH_FLOAT4(RC[4][0]) =
-        FETCH_FLOAT4(reg[16]);
-      FETCH_FLOAT4(RC[6][0]) =
-        FETCH_FLOAT4(reg[24]);
+      FLOAT4(RC[0][0]) = FLOAT4(reg[0]);
+      FLOAT4(RC[2][0]) = FLOAT4(reg[8]);
+      FLOAT4(RC[4][0]) = FLOAT4(reg[16]);
+      FLOAT4(RC[6][0]) = FLOAT4(reg[24]);
 
       // P @ V
       for (int k = 0; k < d / 16; k++) {
@@ -225,7 +219,7 @@ void forward_kernel(half* Q, half* K, half* V, const int N,
                     RD[2], RD[3]);
         }
 
-        FETCH_FLOAT4(reg[0]) = FETCH_FLOAT4(RD[0]);
+        FLOAT4(reg[0]) =  FLOAT4(RD[0]);
         #pragma unroll
         for(int tc_yi = 0; tc_yi < 2; tc_yi++) {
           float thread_max_new = max(thread_max_old[tc_yi], thread_max[tc_yi]);
@@ -277,7 +271,13 @@ void forward_kernel(half* Q, half* K, half* V, const int N,
   }
 }
 
-torch::Tensor forward(torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
+// --------------------- PyTorch bindings for custom kernel -----------------------
+#define STRINGFY(str) #str
+#define TORCH_BINDING_COMMON_EXTENSION(func) \
+  m.def(STRINGFY(func), &func, STRINGFY(func));
+
+torch::Tensor flash_attn_2_fwd_f16_mma_m16n8k16(
+  torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
   // TODO: determine Bc, Br dynamically
   const int Bc = 64; const int Br = 64;
 
@@ -285,7 +285,7 @@ torch::Tensor forward(torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
   const int N = Q.size(2); const int d = Q.size(3);
 
   const int Tc = ceil((float) N / Bc); const int Tr = ceil((float) N / Br);
-  const float softmax_scale = 1.0 / sqrt(d);
+  const float scale = 1.0 / sqrt(d);
 
   // Initialize O, l, m to HBM
   auto options = torch::TensorOptions().device(torch::kCUDA).dtype(torch::kHalf);
@@ -296,28 +296,34 @@ torch::Tensor forward(torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
   int max_sram_size;
   cudaDeviceGetAttribute(&max_sram_size, cudaDevAttrMaxSharedMemoryPerBlock, 0);
 
-  dim3 grid_dim(B, nh);  // batch_size x num_heads
-  dim3 block_dim(128);   // 4 Warps per block
+  dim3 grid(B, nh);  // batch_size x num_heads
+  dim3 block(128);   // 4 Warps per block
 
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
 
   if (d == 64) {
-    forward_kernel<Bc, Br, 64><<<grid_dim, block_dim, sram_size, stream>>>(
+    flash_attn_2_fwd_f16_mma_m16n8k16_kernel<Bc, Br, 64><<<
+    grid, block, sram_size, stream>>>(
       reinterpret_cast<half*>(Q.data_ptr()),
       reinterpret_cast<half*>(K.data_ptr()),
       reinterpret_cast<half*>(V.data_ptr()),
-      N, Tc, Tr, softmax_scale,
+      N, Tc, Tr, scale,
       reinterpret_cast<half*>(O.data_ptr())
     );
   }
   if (d == 128) {
-    forward_kernel<Bc, Br, 128><<<grid_dim, block_dim, sram_size, stream>>>(
+    flash_attn_2_fwd_f16_mma_m16n8k16_kernel<Bc, Br, 128><<<
+    grid, block, sram_size, stream>>>(
       reinterpret_cast<half*>(Q.data_ptr()),
       reinterpret_cast<half*>(K.data_ptr()),
       reinterpret_cast<half*>(V.data_ptr()),
-      N, Tc, Tr, softmax_scale,
+      N, Tc, Tr, scale,
       reinterpret_cast<half*>(O.data_ptr())
     );
   }
   return O;
+}
+
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+  TORCH_BINDING_COMMON_EXTENSION(flash_attn_2_fwd_f16_mma_m16n8k16)
 }

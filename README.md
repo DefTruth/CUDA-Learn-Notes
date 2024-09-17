@@ -87,9 +87,9 @@
 | ✔️ [hgemv_k16_f16_kernel](./hgemv)|f16|f16|[link](./hgemv/)|⭐️⭐️⭐️|  
 | ✔️ [flash_attn_1_fwd_f32_kernel](./flash-attn/flash_attn_1_fwd_f32.cu)|f32|f32|[link](./flash-attn)|⭐️⭐️⭐️|  
 | ❔ [flash_attn_2_fwd_f32_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|f32|f32|[link](./flash-attn)|⭐️⭐️⭐️|  
-| ❔ [flash_attn_2_fwd_f16_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|f16|f32|[link](./flash-attn)|⭐️⭐️⭐️|  
-| ❔ [flash_attn_2_fwd_bf16_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|bf16|f32|[link](./flash-attn)|⭐️⭐️⭐️|  
-| ✔️ [hard_nms cpp only](./nms/nms.cc)|f32|/|❔|⭐️|  
+| ❔ [flash_attn_2_fwd_f16_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|f16|f16|[link](./flash-attn)|⭐️⭐️⭐️|  
+| ✔️ [flash_attn_2_fwd_f16_mma_m16n8k16](./flash-attn/flash_attn_2_fwd_f16_mma_m16n8k16.cu)|f16|f16|[link](./flash-attn)|⭐️⭐️⭐️|  
+| ✔️ [hard_nms cpp only](./nms/nms.cc)|f32|/|/|⭐️|  
 | ✔️ [notes v1(deprecated)](./notes-v1.cu)|f32|f32|/|⭐️|  
 
 ## 0x01 📖 博客目录
