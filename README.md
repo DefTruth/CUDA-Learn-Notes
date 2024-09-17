@@ -77,8 +77,8 @@
 | ✔️ [rms_norm_f16_f32_kernel(per token)](./rms-norm/rms_norm.cu)|f16|f32|[link](./rms-norm/)|⭐️⭐️| 
 | ✔️ [sgemm_sliced_k_f32_kernel](./sgemm/sgemm.cu)|f32|f32|[link](./sgemm/)|⭐️⭐️⭐️|  
 | ✔️ [sgemm_t_8x8_sliced_k_f32x4_kernel](./sgemm/sgemm.cu)|f32|f32|[link](./sgemm/)|⭐️⭐️⭐️|  
-| ❔ [hgemm_sliced_k_f16_f32_kernel](./hgemm)|f16|f32|❔|⭐️⭐️⭐️|  
-| ❔ [hgemm_t_8x8_sliced_k_f16x2_f32_kernel](./hgemm)|f16|f32|❔|⭐️⭐️⭐️|  
+| ✔️ [hgemm_sliced_k_f16_kernel](./hgemm)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
+| ✔️ [hgemm_t_8x8_sliced_k_f16x4_kernel](./hgemm)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k32_f32_kernel](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k128_f32x4_kernel](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k16_f32_kernel](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
