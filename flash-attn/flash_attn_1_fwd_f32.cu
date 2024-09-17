@@ -246,7 +246,3 @@ void flash_attn_1_fwd_f32_v2(
 }
   
 
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  TORCH_BINDING_COMMON_EXTENSION(flash_attn_1_fwd_f32)
-  TORCH_BINDING_COMMON_EXTENSION(flash_attn_1_fwd_f32_v2)
-}

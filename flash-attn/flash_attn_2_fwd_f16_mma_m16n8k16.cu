@@ -123,7 +123,7 @@ __global__  void flash_attn_2_fwd_f16_mma_m16n8k16_kernel(
 
       // Read V from global memory to shared memory
       for (int x = threadIdx.x * 8; x < tile_size; x += 1024) {
-         FLOAT4(reg[0]) = FLOAT4(V[qkv_offset + (j * tile_size) + x]);
+        FLOAT4(reg[0]) = FLOAT4(V[qkv_offset + (j * tile_size) + x]);
 
         int dim_x = x % d;
         int dim_y = x / d;
@@ -276,15 +276,38 @@ __global__  void flash_attn_2_fwd_f16_mma_m16n8k16_kernel(
 #define TORCH_BINDING_COMMON_EXTENSION(func) \
   m.def(STRINGFY(func), &func, STRINGFY(func));
 
+#define CHECK_TORCH_TENSOR_DTYPE(T, th_type)                 \
+if(((T).options().dtype() != (th_type))) {                   \
+  std::cout << "Tensor Info:" << (T).options() << std::endl; \
+  throw std::runtime_error("values must be "#th_type);       \
+}
+
+#define CHECK_TORCH_TENSOR_SHAPE(T1, T2)             \
+if (((T2).size(0) != (T1).size(0)) ||                \
+    ((T2).size(1) != (T1).size(1)) ||                \
+    ((T2).size(2) != (T1).size(2)) ||                \
+    ((T2).size(3) != (T1).size(3))) {                \
+  throw std::runtime_error("Tensor size mismatch!"); \
+}
+
 torch::Tensor flash_attn_2_fwd_f16_mma_m16n8k16(
   torch::Tensor Q, torch::Tensor K, torch::Tensor V) {
   // TODO: determine Bc, Br dynamically
-  const int Bc = 64; const int Br = 64;
+  CHECK_TORCH_TENSOR_DTYPE(Q, torch::kHalf)
+  CHECK_TORCH_TENSOR_DTYPE(K, torch::kHalf)
+  CHECK_TORCH_TENSOR_DTYPE(V, torch::kHalf)
+  const int Bc = 64; 
+  const int Br = 64;
 
-  const int B = Q.size(0); const int nh = Q.size(1);
-  const int N = Q.size(2); const int d = Q.size(3);
+  const int B = Q.size(0); 
+  const int nh = Q.size(1);
+  const int N = Q.size(2); 
+  const int d = Q.size(3);
+  CHECK_TORCH_TENSOR_SHAPE(K, Q)
+  CHECK_TORCH_TENSOR_SHAPE(V, Q)
 
-  const int Tc = ceil((float) N / Bc); const int Tr = ceil((float) N / Br);
+  const int Tc = ceil((float) N / Bc); 
+  const int Tr = ceil((float) N / Br);
   const float scale = 1.0 / sqrt(d);
 
   // Initialize O, l, m to HBM
@@ -299,11 +322,11 @@ torch::Tensor flash_attn_2_fwd_f16_mma_m16n8k16(
   dim3 grid(B, nh);  // batch_size x num_heads
   dim3 block(128);   // 4 Warps per block
 
-  cudaStream_t stream = at::cuda::getCurrentCUDAStream();
+  // cudaStream_t stream = at::cuda::getCurrentCUDAStream();
 
   if (d == 64) {
     flash_attn_2_fwd_f16_mma_m16n8k16_kernel<Bc, Br, 64><<<
-    grid, block, sram_size, stream>>>(
+    grid, block, sram_size>>>(
       reinterpret_cast<half*>(Q.data_ptr()),
       reinterpret_cast<half*>(K.data_ptr()),
       reinterpret_cast<half*>(V.data_ptr()),
@@ -313,7 +336,7 @@ torch::Tensor flash_attn_2_fwd_f16_mma_m16n8k16(
   }
   if (d == 128) {
     flash_attn_2_fwd_f16_mma_m16n8k16_kernel<Bc, Br, 128><<<
-    grid, block, sram_size, stream>>>(
+    grid, block, sram_size>>>(
       reinterpret_cast<half*>(Q.data_ptr()),
       reinterpret_cast<half*>(K.data_ptr()),
       reinterpret_cast<half*>(V.data_ptr()),
@@ -324,6 +347,56 @@ torch::Tensor flash_attn_2_fwd_f16_mma_m16n8k16(
   return O;
 }
 
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  TORCH_BINDING_COMMON_EXTENSION(flash_attn_2_fwd_f16_mma_m16n8k16)
+void flash_attn_2_fwd_f16_mma_m16n8k16_v2(
+  torch::Tensor Q, torch::Tensor K, torch::Tensor V, torch::Tensor O) {
+  // TODO: determine Bc, Br dynamically
+  CHECK_TORCH_TENSOR_DTYPE(Q, torch::kHalf)
+  CHECK_TORCH_TENSOR_DTYPE(K, torch::kHalf)
+  CHECK_TORCH_TENSOR_DTYPE(V, torch::kHalf)
+  CHECK_TORCH_TENSOR_DTYPE(O, torch::kHalf)
+  const int Bc = 64; 
+  const int Br = 64;
+
+  const int B = Q.size(0); 
+  const int nh = Q.size(1);
+  const int N = Q.size(2); 
+  const int d = Q.size(3);
+  CHECK_TORCH_TENSOR_SHAPE(K, Q)
+  CHECK_TORCH_TENSOR_SHAPE(V, Q)
+  CHECK_TORCH_TENSOR_SHAPE(O, Q)
+
+  const int Tc = ceil((float) N / Bc); 
+  const int Tr = ceil((float) N / Br);
+  const float scale = 1.0 / sqrt(d);
+
+  // Calculate SRAM size needed per block
+  const int sram_size = (2 * Br * d * sizeof(half));
+  int max_sram_size;
+  cudaDeviceGetAttribute(&max_sram_size, cudaDevAttrMaxSharedMemoryPerBlock, 0);
+
+  dim3 grid(B, nh);  // batch_size x num_heads
+  dim3 block(128);   // 4 Warps per block
+
+  // cudaStream_t stream = at::cuda::getCurrentCUDAStream();
+
+  if (d == 64) {
+    flash_attn_2_fwd_f16_mma_m16n8k16_kernel<Bc, Br, 64><<<
+    grid, block, sram_size>>>(
+      reinterpret_cast<half*>(Q.data_ptr()),
+      reinterpret_cast<half*>(K.data_ptr()),
+      reinterpret_cast<half*>(V.data_ptr()),
+      N, Tc, Tr, scale,
+      reinterpret_cast<half*>(O.data_ptr())
+    );
+  }
+  if (d == 128) {
+    flash_attn_2_fwd_f16_mma_m16n8k16_kernel<Bc, Br, 128><<<
+    grid, block, sram_size>>>(
+      reinterpret_cast<half*>(Q.data_ptr()),
+      reinterpret_cast<half*>(K.data_ptr()),
+      reinterpret_cast<half*>(V.data_ptr()),
+      N, Tc, Tr, scale,
+      reinterpret_cast<half*>(O.data_ptr())
+    );
+  }
 }

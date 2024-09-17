@@ -1,4 +1,3 @@
-# Modified from https://github.com/tspeterkim/flash-attention-minimal/blob/main/bench.py
 import math
 import time
 import torch
@@ -10,7 +9,9 @@ from typing import Optional
 torch.set_grad_enabled(False)
 # Load the CUDA kernel as a python module
 lib = load(name='flash_attn_lib', 
-           sources=['flash_attn_1_fwd_f32.cu'], 
+           sources=['flash_attn_1_fwd_f32.cu', 
+                    'flash_attn_2_fwd_f16_mma_m16n8k16.cu',
+                    'flash_attn.cc'], 
            extra_cuda_cflags=[
                "-O3",
                 "-U__CUDA_NO_HALF_OPERATORS__",
@@ -23,10 +24,8 @@ lib = load(name='flash_attn_lib',
             ], 
            extra_cflags=['-std=c++17'])
 
-# Use small model params, otherwise slower than manual attention. See caveats in README.
-
 # un-fused naive attn
-def manual_attn(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor):
+def naive_attn(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor):
     att = (q @ k.transpose(-2, -1) * (1.0 / math.sqrt(k.size(-1))))
     att = F.softmax(att, dim=-1)
     y = att @ v
@@ -79,7 +78,17 @@ q.requires_grad = False
 k.requires_grad = False
 v.requires_grad = False
 o.requires_grad = False
-run_benchmark(lib.flash_attn_1_fwd_f32,    q, k, v, "fa1fwdf32")
-run_benchmark(lib.flash_attn_1_fwd_f32_v2, q, k, v, "fa1fwdf32(v2)", o)
-run_benchmark(manual_attn,                 q, k, v, "attnf32_th")
+run_benchmark(lib.flash_attn_1_fwd_f32,    q, k, v, "fa1f32")
+run_benchmark(lib.flash_attn_1_fwd_f32_v2, q, k, v, "fa1f32(v2)", o)
+run_benchmark(naive_attn,                  q, k, v, "attnf32_th")
+
+print("-" * 80)
+# using fp16 Tesor Core mma instruction
+q_f16 = q.half()
+k_f16 = k.half()
+v_f16 = v.half()
+o_f16 = o.half()
+run_benchmark(lib.flash_attn_2_fwd_f16_mma_m16n8k16,    q_f16, k_f16, v_f16, "fa2mmaf16")
+run_benchmark(lib.flash_attn_2_fwd_f16_mma_m16n8k16_v2, q_f16, k_f16, v_f16, "fa2mmaf16(v2)", o_f16)
+run_benchmark(naive_attn,                               q_f16, k_f16, v_f16, "attnf16_th")
 print("-" * 80)

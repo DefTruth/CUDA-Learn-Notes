@@ -184,8 +184,3 @@ torch::Tensor flash_attn_2_fwd_f32(
   );
   return O;
 }
-
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  TORCH_BINDING_COMMON_EXTENSION(flash_attn_2_fwd_f32)
-}
-  

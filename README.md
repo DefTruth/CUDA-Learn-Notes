@@ -77,20 +77,22 @@
 | ✔️ [rms_norm_f16_f32_kernel(per token)](./rms-norm/rms_norm.cu)|f16|f32|[link](./rms-norm/)|⭐️⭐️| 
 | ✔️ [sgemm_sliced_k_f32_kernel](./sgemm/sgemm.cu)|f32|f32|[link](./sgemm/)|⭐️⭐️⭐️|  
 | ✔️ [sgemm_t_8x8_sliced_k_f32x4_kernel](./sgemm/sgemm.cu)|f32|f32|[link](./sgemm/)|⭐️⭐️⭐️|  
-| ✔️ [hgemm_sliced_k_f16_kernel](./hgemm)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
-| ✔️ [hgemm_t_8x8_sliced_k_f16x4_kernel](./hgemm)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
+| ✔️ [hgemm_sliced_k_f16_kernel](./hgemm/hgemm.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
+| ✔️ [hgemm_t_8x8_sliced_k_f16x4_kernel](./hgemm/hgemm.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k32_f32_kernel](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k128_f32x4_kernel](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k16_f32_kernel](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
-| ✔️ [hgemv_k32_f16_kernel](./hgemv)|f16|f16|[link](./hgemv/)|⭐️⭐️⭐️|  
-| ✔️ [hgemv_k128_f16x4_kernel](./hgemv)|f16|f16|[link](./hgemv/)|⭐️⭐️⭐️|  
-| ✔️ [hgemv_k16_f16_kernel](./hgemv)|f16|f16|[link](./hgemv/)|⭐️⭐️⭐️|  
+| ✔️ [hgemv_k32_f16_kernel](./hgemv/hgemv.cu)|f16|f16|[link](./hgemv/)|⭐️⭐️⭐️|  
+| ✔️ [hgemv_k128_f16x4_kernel](./hgemv/hgemv.cu)|f16|f16|[link](./hgemv/)|⭐️⭐️⭐️|  
+| ✔️ [hgemv_k16_f16_kernel](./hgemv/hgemv.cu)|f16|f16|[link](./hgemv/)|⭐️⭐️⭐️|  
 | ✔️ [flash_attn_1_fwd_f32_kernel](./flash-attn/flash_attn_1_fwd_f32.cu)|f32|f32|[link](./flash-attn)|⭐️⭐️⭐️|  
 | ❔ [flash_attn_2_fwd_f32_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|f32|f32|[link](./flash-attn)|⭐️⭐️⭐️|  
 | ❔ [flash_attn_2_fwd_f16_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|f16|f16|[link](./flash-attn)|⭐️⭐️⭐️|  
-| ✔️ [flash_attn_2_fwd_f16_mma_m16n8k16](./flash-attn/flash_attn_2_fwd_f16_mma_m16n8k16.cu)|f16|f16|[link](./flash-attn)|⭐️⭐️⭐️|  
+| ✔️ [flash_attn_2_fwd_f16_m16n8k16*](./flash-attn/flash_attn_2_fwd_f16_mma_m16n8k16.cu)|f16|f16|[link](./flash-attn)|⭐️⭐️⭐️|  
 | ✔️ [hard_nms cpp only](./nms/nms.cc)|f32|/|/|⭐️|  
 | ✔️ [notes v1(deprecated)](./notes-v1.cu)|f32|f32|/|⭐️|  
+
+👉TIPS: * means using **Tensor Cores(MMA PTX)**, otherwise, using CUDA Cores by default.
 
 ## 0x01 📖 博客目录
 
