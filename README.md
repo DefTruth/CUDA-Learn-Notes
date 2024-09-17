@@ -82,9 +82,9 @@
 | ✔️ [sgemv_k32_f32_kernel](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k128_f32x4_kernel](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k16_f32_kernel](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
-| ❔ [hgemv_k32_f16_kernel](./hgemv)|f16|f16|❔|⭐️⭐️⭐️|  
-| ❔ [hgemv_k128_f16x2_kernel](./hgemv)|f16|f16|❔|⭐️⭐️⭐️|  
-| ❔ [hgemv_k16_f16_kernel](./hgemv)|f16|f16|❔|⭐️⭐️⭐️|  
+| ✔️ [hgemv_k32_f16_kernel](./hgemv)|f16|f16|[link](./hgemv/)|⭐️⭐️⭐️|  
+| ✔️ [hgemv_k128_f16x4_kernel](./hgemv)|f16|f16|[link](./hgemv/)|⭐️⭐️⭐️|  
+| ✔️ [hgemv_k16_f16_kernel](./hgemv)|f16|f16|[link](./hgemv/)|⭐️⭐️⭐️|  
 | ✔️ [flash_attn_1_fwd_f32_kernel](./flash-attn/flash_attn_1_fwd_f32.cu)|f32|f32|[link](./flash-attn)|⭐️⭐️⭐️|  
 | ❔ [flash_attn_2_fwd_f32_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|f32|f32|[link](./flash-attn)|⭐️⭐️⭐️|  
 | ❔ [flash_attn_2_fwd_f16_kernel](./flash-attn/flash_attn_2_fwd_f32.cu)|f16|f32|[link](./flash-attn)|⭐️⭐️⭐️|  
