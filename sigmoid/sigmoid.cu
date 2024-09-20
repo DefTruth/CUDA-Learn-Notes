@@ -10,13 +10,19 @@
 #define WARP_SIZE 32
 #define INT4(value) (reinterpret_cast<int4*>(&(value))[0])
 #define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
+#define MAX_EXP_INPUT 88.3762626647949f
+#define MIN_EXP_INPUT -88.3762626647949f
 
 // -------------------------------------- FP32 -------------------------------------- 
 // Sigmoid x: N, y: N y=1/(1+exp(-x))
 // grid(N/256), block(K=256) 
 __global__ void sigmoid_f32_kernel(float* x, float* y, int N) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < N) y[idx] = 1.0f / (1.0f + expf(-x[idx]));
+  if (idx < N) {
+    float v = x[idx];
+    v = fminf(fmaxf(v, MIN_EXP_INPUT), MAX_EXP_INPUT);
+    y[idx] = 1.0f / (1.0f + expf(-v));
+  }
 }
 
 // Sigmoid x: N, y: N y=1/(1+exp(-x)) Vec4
@@ -26,6 +32,12 @@ __global__ void sigmoid_f32x4_kernel(float* x, float* y, int N) {
   if (idx < N) {
     float4 reg_x = FLOAT4(x[idx]);
     float4 reg_y;
+    
+    reg_x.x = fminf(fmaxf(reg_x.x, MIN_EXP_INPUT), MAX_EXP_INPUT);
+    reg_x.y = fminf(fmaxf(reg_x.y, MIN_EXP_INPUT), MAX_EXP_INPUT);
+    reg_x.z = fminf(fmaxf(reg_x.z, MIN_EXP_INPUT), MAX_EXP_INPUT);
+    reg_x.w = fminf(fmaxf(reg_x.w, MIN_EXP_INPUT), MAX_EXP_INPUT);
+
     reg_y.x = 1.0f / (1.0f + expf(-reg_x.x));
     reg_y.y = 1.0f / (1.0f + expf(-reg_x.y));
     reg_y.z = 1.0f / (1.0f + expf(-reg_x.z));
