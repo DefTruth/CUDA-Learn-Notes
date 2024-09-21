@@ -9,7 +9,7 @@
   <img src=https://img.shields.io/badge/License-GPLv3.0-turquoise.svg >
  </div>   
 
-📖**CUDA Learn Notes with PyTorch**: **fp32、fp16/bf16、fp8/int8**、flash_attn、sgemm、sgemv、warp/block reduce、dot prod、elementwise、softmax、layernorm、rmsnorm、hist etc. 👉News: Most of my time now is focused on **LLM/VLM/Diffusion** Inference. Please check 📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social), 📖[Awesome-SD-Inference](https://github.com/DefTruth/Awesome-SD-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-SD-Inference.svg?style=social) and 📖[CUDA-Learn-Notes](https://github.com/DefTruth/CUDA-Learn-Notes)  ![](https://img.shields.io/github/stars/DefTruth/CUDA-Learn-Notes.svg?style=social) for more details.
+📖 **CUDA Learn Notes with PyTorch**: **fp32、fp16/bf16、fp8/int8**、flash_attn、sgemm、sgemv、warp/block reduce、dot prod、elementwise、softmax、layernorm、rmsnorm、hist etc. 👉News: Most of my time now is focused on **LLM/VLM/Diffusion** Inference. Please check 📖[Awesome-LLM-Inference](https://github.com/DefTruth/Awesome-LLM-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-LLM-Inference.svg?style=social), 📖[Awesome-SD-Inference](https://github.com/DefTruth/Awesome-SD-Inference)  ![](https://img.shields.io/github/stars/DefTruth/Awesome-SD-Inference.svg?style=social) and 📖[CUDA-Learn-Notes](https://github.com/DefTruth/CUDA-Learn-Notes)  ![](https://img.shields.io/github/stars/DefTruth/CUDA-Learn-Notes.svg?style=social) for more details.
 
 <img width="1438" alt="image" src="https://github.com/user-attachments/assets/0c5e5125-586f-43fa-8e8b-e2c61c1afbbe">
 
@@ -30,6 +30,10 @@
 | ✔️ [histogram_i32x4](./histogram/histogram.cu)|i32|/|[link](./histogram/)|⭐️|  
 | ✔️ [sigmoid_f32](./sigmoid/sigmoid.cu)|f32|/|[link](./sigmoid/)|⭐️|  
 | ✔️ [sigmoid_f32x4](./sigmoid/sigmoid.cu)|f32|/|[link](./sigmoid/)|⭐️|  
+| ✔️ [sigmoid_f16](./sigmoid/sigmoid.cu)|16|/|[link](./sigmoid/)|⭐️|  
+| ✔️ [sigmoid_f16x2](./sigmoid/sigmoid.cu)|f16|/|[link](./sigmoid/)|⭐️|  
+| ✔️ [sigmoid_f16x8](./sigmoid/sigmoid.cu)|f16|/|[link](./sigmoid/)|⭐️|  
+| ✔️ [sigmoid_f16x8_pack](./sigmoid/sigmoid.cu)|f16|/|[link](./sigmoid/)|⭐️⭐️|  
 | ✔️ [relu_f32](./relu/relu.cu)|f32|/|[link](./relu/)|⭐️|  
 | ✔️ [relu_f32x4](./relu/relu.cu)|f32|/|[link](./relu/)|⭐️|  
 | ✔️ [relu_f16](./relu/relu.cu)|f16|/|[link](./relu/)|⭐️|  

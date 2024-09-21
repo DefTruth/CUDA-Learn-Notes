@@ -7,6 +7,7 @@
 #include <torch/types.h>
 #include <torch/extension.h>
 #include <ATen/cuda/CUDAContext.h>
+#include <mma.h>
 
 #define WARP_SIZE 32
 #define INT4(value) (reinterpret_cast<int4*>(&(value))[0])
@@ -48,7 +49,7 @@ __global__  void flash_attn_2_fwd_f16_mma_m16n8k16_kernel(
   half* Kj = sram + tile_size;
   half* Vj = sram + tile_size; // share with K
 
-  // temporary register
+  // temporary register(memory), .local space in ptx, addressable
   half reg[32];
 
   for (int i = 0; i < Tr; i++) {
