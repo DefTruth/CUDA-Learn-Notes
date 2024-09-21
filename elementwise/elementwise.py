@@ -49,41 +49,29 @@ def run_benchmark(perf_func: callable, a: torch.Tensor, b: torch.Tensor, tag: st
     total_time = (end - start) * 1000 # ms
     mean_time = total_time / iters
     out_info = f"out_{tag}"
-    out_val = out.detach().cpu().numpy().tolist()[:2]
-    print(f"{out_info:>14}: {out_val}, time:{mean_time:.8f}ms")
+    out_val = out.flatten().detach().cpu().numpy().tolist()[:2]
+    out_val = [round(v, 8) for v in out_val]
+    print(f"{out_info:>18}: {out_val}, time:{mean_time:.8f}ms")
     if show_all: print(out)
     return out, mean_time
 
 
 print("-" * 80)
-N_ELEMENTS = 256*92*4
-a = torch.randn((N_ELEMENTS)).cuda().float()
-b = torch.randn((N_ELEMENTS)).cuda().float()
-run_benchmark(lib.elementwise_add_f32,   a, b, "f32")
-run_benchmark(lib.elementwise_add_f32x4, a, b, "f32x4")
-run_benchmark(torch.add, a, b, "f32_th")
+S, K = 4096, 4096
+a = torch.randn((S, K)).cuda().float().contiguous()
+b = torch.randn((S, K)).cuda().float().contiguous()
+c = torch.zeros_like(a).cuda().float().contiguous()
+run_benchmark(lib.elementwise_add_f32,   a, b, "f32",   c)
+run_benchmark(lib.elementwise_add_f32x4, a, b, "f32x4", c)
+run_benchmark(partial(torch.add, out=c), a, b, "f32_th")
 
 print("-" * 80)
-a_f16 = a.half()
-b_f16 = b.half()
-run_benchmark(lib.elementwise_add_f16,   a_f16, b_f16, "f16")
-run_benchmark(lib.elementwise_add_f16x2, a_f16, b_f16, "f16x2")
-run_benchmark(lib.elementwise_add_f16x8, a_f16, b_f16, "f16x8")
-run_benchmark(torch.add, a_f16, b_f16, "f16_th")
-
-print("-" * 80)
-# v2: no copy of c Tensor
-c = torch.zeros_like(a).cuda().float()
-run_benchmark(lib.elementwise_add_f32_v2,   a, b, "f32(v2)",   c)
-run_benchmark(lib.elementwise_add_f32x4_v2, a, b, "f32x4(v2)", c)
-run_benchmark(partial(torch.add, out=c),    a, b, "f32_th")
-
-print("-" * 80)
-# v2: no copy of c Tensor
-c_f16 = torch.zeros_like(a_f16).cuda().half()
-run_benchmark(lib.elementwise_add_f16_v2,    a_f16, b_f16, "f16(v2)",   c_f16)
-run_benchmark(lib.elementwise_add_f16x2_v2,  a_f16, b_f16, "f16x2(v2)", c_f16)
-run_benchmark(lib.elementwise_add_f16x8_v2,  a_f16, b_f16, "f16x8(v2)", c_f16)
-run_benchmark(partial(torch.add, out=c_f16), a_f16, b_f16, "f16_th")
-
+a_f16 = a.half().contiguous()
+b_f16 = b.half().contiguous()
+c_f16 = c.half().contiguous()
+run_benchmark(lib.elementwise_add_f16,        a_f16, b_f16, "f16",       c_f16)
+run_benchmark(lib.elementwise_add_f16x2,      a_f16, b_f16, "f16x2",     c_f16)
+run_benchmark(lib.elementwise_add_f16x8,      a_f16, b_f16, "f16x8",     c_f16)
+run_benchmark(lib.elementwise_add_f16x8_pack, a_f16, b_f16, "f16x8pack", c_f16)
+run_benchmark(partial(torch.add, out=c_f16),  a_f16, b_f16, "f16_th")
 print("-" * 80)

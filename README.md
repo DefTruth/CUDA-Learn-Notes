@@ -26,6 +26,7 @@
 | ✔️ [elementwise_f16](./elementwise/elementwise.cu)|f16|/|[link](./elementwise/)|⭐️|
 | ✔️ [elementwise_f16x2](./elementwise/elementwise.cu)|f16|/|[link](./elementwise/)|⭐️|
 | ✔️ [elementwise_f16x8](./elementwise/elementwise.cu)|f16|/|[link](./elementwise/)|⭐️|
+| ✔️ [elementwise_f16x8_pack](./elementwise/elementwise.cu)|f16|/|[link](./elementwise/)|⭐️⭐️|
 | ✔️ [histogram_i32](./histogram/histogram.cu)|i32|/|[link](./histogram/)|⭐️|
 | ✔️ [histogram_i32x4](./histogram/histogram.cu)|i32|/|[link](./histogram/)|⭐️|  
 | ✔️ [sigmoid_f32](./sigmoid/sigmoid.cu)|f32|/|[link](./sigmoid/)|⭐️|  
