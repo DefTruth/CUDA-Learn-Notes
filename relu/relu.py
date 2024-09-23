@@ -49,39 +49,27 @@ def run_benchmark(perf_func: callable, x: torch.Tensor, tag: str,
     total_time = (end - start) * 1000 # ms
     mean_time = total_time / iters
     out_info = f"out_{tag}"
-    out_val = out.detach().cpu().numpy().tolist()[:2]
+    out_val = out.flatten().detach().cpu().numpy().tolist()[:2]
     out_val = [round(v, 8) for v in out_val]
-    print(f"{out_info:>15}: {out_val}, time:{mean_time:.8f}ms")
+    print(f"{out_info:>18}: {out_val}, time:{mean_time:.8f}ms")
     if show_all: print(out)
     return out, mean_time
 
 
 print("-" * 80)
-N_ELEMENTS = 256*256*4
-x = torch.randn((N_ELEMENTS)).cuda().float()
-run_benchmark(lib.relu_f32,   x, "f32")
-run_benchmark(lib.relu_f32x4, x, "f32x4")
-run_benchmark(torch.relu, x , "f32_th")
+S, K = 4096, 4096
+x = torch.randn((S, K)).cuda().float().contiguous()
+y = torch.zeros_like(x).cuda().float().contiguous()
+run_benchmark(lib.relu_f32,   x, "f32",   y)
+run_benchmark(lib.relu_f32x4, x, "f32x4", y)
+run_benchmark(torch.relu,     x, "f32_th")
 
 print("-" * 80)
-x_f16 = x.half()
-run_benchmark(lib.relu_f16,   x_f16, "f16")
-run_benchmark(lib.relu_f16x2, x_f16, "f16x2")
-run_benchmark(lib.relu_f16x8, x_f16, "f16x8")
-run_benchmark(torch.relu, x_f16 , "f16_th")
-
-print("-" * 80)
-# v2: no copy of y Tensor
-y = torch.zeros_like(x).cuda().float()
-run_benchmark(lib.relu_f32_v2,   x, "f32(v2)", y)
-run_benchmark(lib.relu_f32x4_v2, x, "f32x4(v2)", y)
-run_benchmark(torch.relu, x , "f32_th")
-
-print("-" * 80)
-# v2: no copy of y Tensor
-y_f16 = torch.zeros_like(x_f16).cuda().half()
-run_benchmark(lib.relu_f16_v2,   x_f16, "f16(v2)", y_f16)
-run_benchmark(lib.relu_f16x2_v2, x_f16, "f16x2(v2)", y_f16)
-run_benchmark(lib.relu_f16x8_v2, x_f16, "f16x8(v2)", y_f16)
-run_benchmark(torch.relu, x_f16 , "f16_th")
+x_f16 = x.half().contiguous()
+y_f16 = y.half().contiguous()
+run_benchmark(lib.relu_f16,        x_f16, "f16",       y_f16)
+run_benchmark(lib.relu_f16x2,      x_f16, "f16x2",     y_f16)
+run_benchmark(lib.relu_f16x8,      x_f16, "f16x8",     y_f16)
+run_benchmark(lib.relu_f16x8_pack, x_f16, "f16x8pack", y_f16)
+run_benchmark(torch.relu,          x_f16, "f16_th")
 print("-" * 80)
