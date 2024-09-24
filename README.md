@@ -68,6 +68,7 @@
 | ✔️ [dot_product_f32x4](./dot-product/dot_product.cu)|f32|f32|[link](./dot-product/)|⭐️⭐️|  
 | ✔️ [dot_product_f16_f32](./dot-product/dot_product.cu)|f16|f32|[link](./dot-product/)|⭐️⭐️|  
 | ✔️ [dot_product_f16x2_f32](./dot-product/dot_product.cu)|f16|f32|[link](./dot-product/)|⭐️⭐️|  
+| ✔️ [dot_product_f16x8_pack_f32](./dot-product/dot_product.cu)|f16|f32|[link](./dot-product/)|⭐️⭐️|  
 | ✔️ [softmax_f32(memory fence)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
 | ✔️ [softmax_f32x4(memory fence)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
 | ✔️ [softmax_f32(per token)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
