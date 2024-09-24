@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
+#include <string>
 
 #define WARP_SIZE 32
 #define INT4(value) (reinterpret_cast<int4*>(&(value))[0])
@@ -97,3 +98,149 @@ __global__ void relu_f16x8_pack_kernel(half* x, half* y, int N) {
   if ((idx + 7) < N) { LDST128BITS(y[idx]) = LDST128BITS(pack_y[0]); }
 }
 
+
+int main(int argc, char *argv[]) {
+
+  constexpr int S = 4096;
+  constexpr int K = 4096;
+  constexpr int N = S * K;
+  int R = 10; // repeat
+  if (argc > 1) R = std::stoi(argv[1]);
+  printf("S=%d, K=%d, R=%d\n", S, K, R);
+
+  half *x_host = (half*)malloc(N*sizeof(half));
+  half *x_device;
+  cudaMalloc((void **)&x_device, N*sizeof(half));
+  for (int i = 0; i < N; i++) x_host[i] = (i % 2) ? 1.0 : -1.0;
+  cudaMemcpy(x_device, x_host, N*sizeof(half), cudaMemcpyHostToDevice);
+
+  half *y_host = (half*)malloc(N*sizeof(half));
+  half *y_device;
+  cudaMalloc((void **)&y_device, N*sizeof(half));
+
+  // naive relu fp16
+  {
+    dim3 block(1024);
+    dim3 grid((N + 1024 - 1) / 1024);
+
+    // warmup
+    for (int i = 0; i < 5; ++i)
+      relu_f16_kernel<<<grid, block>>>(x_device, y_device, N);
+    cudaDeviceSynchronize(); // synchronzie
+
+    cudaEvent_t start, stop;
+    float time;
+    cudaEventCreate(&start); 
+    cudaEventCreate(&stop); 
+    cudaEventRecord(start, 0); 
+    
+    for (int i = 0; i < R; ++i)
+      relu_f16_kernel<<<grid, block>>>(x_device, y_device, N);
+    cudaDeviceSynchronize(); // synchronzie
+
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&time, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    printf("naive  relu: %f ms\n", time/(float)R);
+
+    cudaMemcpy(y_host, y_device, N * sizeof(half), cudaMemcpyDeviceToHost);
+  }
+
+  // vectorize relu fp16x2
+  {
+    dim3 block(1024/2);
+    dim3 grid((N + 1024 - 1) / 1024);
+
+    // warmup
+    for (int i = 0; i < 5; ++i)
+      relu_f16x2_kernel<<<grid, block>>>(x_device, y_device, N);
+    cudaDeviceSynchronize(); // synchronzie
+
+    cudaEvent_t start, stop;
+    float time;
+    cudaEventCreate(&start); 
+    cudaEventCreate(&stop); 
+    cudaEventRecord(start, 0); 
+    
+    for (int i = 0; i < R; ++i)
+      relu_f16x2_kernel<<<grid, block>>>(x_device, y_device, N);
+    cudaDeviceSynchronize(); // synchronzie
+
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&time, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    printf("f16x2  relu: %f ms\n", time/(float)R);
+
+    cudaMemcpy(y_host, y_device, N * sizeof(half), cudaMemcpyDeviceToHost);
+  }
+
+  // unpack relu fp16x8
+  {
+    dim3 block(K/(8)); // 4096/8=512
+    dim3 grid(S);
+
+    // warmup
+    for (int i = 0; i < 5; ++i)
+      relu_f16x8_kernel<<<grid, block>>>(x_device, y_device, N);
+    cudaDeviceSynchronize(); // synchronzie
+
+    cudaEvent_t start, stop;
+    float time;
+    cudaEventCreate(&start); 
+    cudaEventCreate(&stop); 
+    cudaEventRecord(start, 0); 
+
+    for (int i = 0; i < R; ++i)
+      relu_f16x8_kernel<<<grid, block>>>(x_device, y_device, N);
+    cudaDeviceSynchronize(); // synchronzie
+
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&time, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    printf("unpack relu: %f ms\n", time/(float)R);
+
+    cudaMemcpy(y_host, y_device, N * sizeof(half), cudaMemcpyDeviceToHost);
+  }
+
+  // pack relu fp16x8
+  {
+    dim3 block(K/(8)); // 4096/8=512
+    dim3 grid(S);
+
+    // warmup
+    for (int i = 0; i < 5; ++i)
+      relu_f16x8_pack_kernel<<<grid, block>>>(x_device, y_device, N);
+    cudaDeviceSynchronize(); // synchronzie
+
+    cudaEvent_t start, stop;
+    float time;
+    cudaEventCreate(&start); 
+    cudaEventCreate(&stop); 
+    cudaEventRecord(start, 0); 
+
+    for (int i = 0; i < R; ++i)
+      relu_f16x8_pack_kernel<<<grid, block>>>(x_device, y_device, N);
+    cudaDeviceSynchronize(); // synchronzie
+
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&time, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    printf("pack   relu: %f ms\n", time/(float)R);
+
+    cudaMemcpy(y_host, y_device, N * sizeof(half), cudaMemcpyDeviceToHost);
+  }
+  
+  free(x_host);
+  free(y_host);
+  cudaFree(x_device);
+  cudaFree(y_device);
+  return 0;
+}

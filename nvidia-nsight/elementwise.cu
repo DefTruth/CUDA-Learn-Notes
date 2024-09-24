@@ -7,6 +7,7 @@
 #include <cuda_fp16.h>
 #include <cuda_bf16.h>
 #include <cuda_fp8.h>
+#include <string>
 
 #define WARP_SIZE 32
 #define INT4(value) (reinterpret_cast<int4*>(&(value))[0])
@@ -112,3 +113,156 @@ __global__ void elementwise_add_f16x8_pack_kernel(half* a, half* b, half* c, int
 }
 
 
+int main(int argc, char *argv[]) {
+
+  constexpr int S = 4096;
+  constexpr int K = 4096;
+  constexpr int N = S * K;
+  int R = 10; // repeat
+  if (argc > 1) R = std::stoi(argv[1]);
+  printf("S=%d, K=%d, R=%d\n", S, K, R);
+
+  half *a_host = (half*)malloc(N*sizeof(half));
+  half *a_device;
+  cudaMalloc((void **)&a_device, N*sizeof(half));
+  for (int i = 0; i < N; i++) a_host[i] = 1.0;
+  cudaMemcpy(a_device, a_host, N*sizeof(half), cudaMemcpyHostToDevice);
+
+  half *b_host = (half*)malloc(N*sizeof(half));
+  half *b_device;
+  cudaMalloc((void **)&b_device, N*sizeof(half));
+  for (int i = 0; i < N; i++) b_host[i] = 1.0;
+  cudaMemcpy(b_device, b_host, N*sizeof(half), cudaMemcpyHostToDevice);
+
+  half *c_host = (half*)malloc(N*sizeof(half));
+  half *c_device;
+  cudaMalloc((void **)&c_device, N*sizeof(half));
+
+  // naive elementwise fp16
+  {
+    dim3 block(1024);
+    dim3 grid((N + 1024 - 1) / 1024);
+
+    // warmup
+    for (int i = 0; i < 5; ++i)
+      elementwise_add_f16_kernel<<<grid, block>>>(a_device, b_device, c_device, N);
+    cudaDeviceSynchronize(); // synchronzie
+
+    cudaEvent_t start, stop;
+    float time;
+    cudaEventCreate(&start); 
+    cudaEventCreate(&stop); 
+    cudaEventRecord(start, 0); 
+    
+    for (int i = 0; i < R; ++i)
+      elementwise_add_f16_kernel<<<grid, block>>>(a_device, b_device, c_device, N);
+    cudaDeviceSynchronize(); // synchronzie
+
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&time, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    printf("naive  elementwise: %f ms\n", time/(float)R);
+
+    cudaMemcpy(c_host, c_device, N * sizeof(half), cudaMemcpyDeviceToHost);
+  }
+
+  // vectorize elementwise fp16x2
+  {
+    dim3 block(1024/2);
+    dim3 grid((N + 1024 - 1) / 1024);
+
+    // warmup
+    for (int i = 0; i < 5; ++i)
+      elementwise_add_f16x2_kernel<<<grid, block>>>(a_device, b_device, c_device, N);
+    cudaDeviceSynchronize(); // synchronzie
+
+    cudaEvent_t start, stop;
+    float time;
+    cudaEventCreate(&start); 
+    cudaEventCreate(&stop); 
+    cudaEventRecord(start, 0); 
+    
+    for (int i = 0; i < R; ++i)
+      elementwise_add_f16x2_kernel<<<grid, block>>>(a_device, b_device, c_device, N);
+    cudaDeviceSynchronize(); // synchronzie
+
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&time, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    printf("f16x2  elementwise: %f ms\n", time/(float)R);
+
+    cudaMemcpy(c_host, c_device, N * sizeof(half), cudaMemcpyDeviceToHost);
+  }
+
+  // unpack elementwise fp16x8
+  {
+    dim3 block(K/(8)); // 4096/8=512
+    dim3 grid(S);
+
+    // warmup
+    for (int i = 0; i < 5; ++i)
+      elementwise_add_f16x8_kernel<<<grid, block>>>(a_device, b_device, c_device, N);
+    cudaDeviceSynchronize(); // synchronzie
+
+    cudaEvent_t start, stop;
+    float time;
+    cudaEventCreate(&start); 
+    cudaEventCreate(&stop); 
+    cudaEventRecord(start, 0); 
+
+    for (int i = 0; i < R; ++i)
+      elementwise_add_f16x8_kernel<<<grid, block>>>(a_device, b_device, c_device, N);
+    cudaDeviceSynchronize(); // synchronzie
+
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&time, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    printf("unpack elementwise: %f ms\n", time/(float)R);
+
+    cudaMemcpy(c_host, c_device, N * sizeof(half), cudaMemcpyDeviceToHost);
+  }
+
+  // pack elementwise fp16x8
+  {
+    dim3 block(K/(8)); // 4096/8=512
+    dim3 grid(S);
+
+    // warmup
+    for (int i = 0; i < 5; ++i)
+      elementwise_add_f16x8_pack_kernel<<<grid, block>>>(a_device, b_device, c_device, N);
+    cudaDeviceSynchronize(); // synchronzie
+
+    cudaEvent_t start, stop;
+    float time;
+    cudaEventCreate(&start); 
+    cudaEventCreate(&stop); 
+    cudaEventRecord(start, 0); 
+
+    for (int i = 0; i < R; ++i)
+      elementwise_add_f16x8_pack_kernel<<<grid, block>>>(a_device, b_device, c_device, N);
+    cudaDeviceSynchronize(); // synchronzie
+
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&time, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    printf("pack   elementwise: %f ms\n", time/(float)R);
+
+    cudaMemcpy(c_host, c_device, N * sizeof(half), cudaMemcpyDeviceToHost);
+  }
+  
+  free(a_host);
+  free(b_host);
+  free(c_host);
+  cudaFree(a_device);
+  cudaFree(b_device);
+  cudaFree(c_device);
+  return 0;
+}

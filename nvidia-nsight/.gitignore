@@ -16,3 +16,6 @@ tmp
 *.nsys*
 *.profile*
 *.cubin
+bin
+*.bin
+*.ncu*

@@ -21,6 +21,7 @@
 
 |📖 cuda kernel| 📖 elem dtype| 📖 acc dtype| 📖 docs | 📖 level |
 |:---|:---|:---|:---|:---|  
+| ✔️ [nsys/ncu usage(timeline/ptx/sass)](./nvidia-nsight/)|/|/|[link](./nvidia-nsight/)|⭐️|  
 | ✔️ [elementwise_f32](./elementwise/elementwise.cu)|f32|/|[link](./elementwise/)|⭐️|
 | ✔️ [elementwise_f32x4](./elementwise/elementwise.cu)|f32|/|[link](./elementwise/)|⭐️|
 | ✔️ [elementwise_f16](./elementwise/elementwise.cu)|f16|/|[link](./elementwise/)|⭐️|
