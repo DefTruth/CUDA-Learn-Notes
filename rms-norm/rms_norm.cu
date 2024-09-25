@@ -15,6 +15,7 @@
 #define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
 #define HALF2(value) (reinterpret_cast<half2*>(&(value))[0])
 #define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162*>(&(value))[0])
+#define LDST128BITS(value) (reinterpret_cast<float4*>(&(value))[0])
 
 // -------------------------------------- FP32 -------------------------------------- 
 // Warp Reduce Sum
@@ -282,122 +283,6 @@ __global__ void rms_norm_f16x8_f32_kernel(half* x, half* y, float g, int N, int 
 }
 
 template<const int NUM_THREADS=256>
-__global__ void rms_norm_f16x16_f16_kernel(half* x, half* y, float g, int N, int K) {
-  int tid = threadIdx.x; // 0..K-1
-  int bid = blockIdx.x; // 0..N-1
-  int idx = (bid * blockDim.x + threadIdx.x) * 16;
-  const half epsilon = __float2half(1e-5f);
-  const half g_      = __float2half(g);
-  const half K_      = __int2half_rn(K);
-
-  __shared__ half s_variance; // shared within block
-  // manual unroll and improve L2 cache hit rate.
-  // Only   L2 cache: load 32  bytes in 1 memory issue (default)
-  // Enable L1 cache: load 128 bytes in 1 memory issue (-Xptxas -dlcm=ca)
-  // why try fp16x8 within 1 threads? ref: https://zhuanlan.zhihu.com/p/641639133
-  // 0. first, tid_0 load 32 bytes in 1 memory issue and cache data into L2 cache.
-  // 1. then, tid_1,...,tid_3 hit L2 cache and load data from L2 cache directly.
-  half2 reg_x_0 = HALF2(x[idx + 0]);
-  half2 reg_x_1 = HALF2(x[idx + 2]);
-  half2 reg_x_2 = HALF2(x[idx + 4]);
-  half2 reg_x_3 = HALF2(x[idx + 6]);
-  half2 reg_x_4 = HALF2(x[idx + 8]);
-  half2 reg_x_5 = HALF2(x[idx + 10]);
-  half2 reg_x_6 = HALF2(x[idx + 12]);
-  half2 reg_x_7 = HALF2(x[idx + 14]);
-
-  half variance = HALF2_VARIANCE(reg_x_0, 0);
-  variance     += HALF2_VARIANCE(reg_x_1, 2);
-  variance     += HALF2_VARIANCE(reg_x_2, 4);
-  variance     += HALF2_VARIANCE(reg_x_3, 6);
-  variance     += HALF2_VARIANCE(reg_x_4, 8);
-  variance     += HALF2_VARIANCE(reg_x_5, 10);
-  variance     += HALF2_VARIANCE(reg_x_6, 12);
-  variance     += HALF2_VARIANCE(reg_x_7, 14);
-
-  variance = block_reduce_sum_f16_f16<NUM_THREADS>(variance);
-  if (tid == 0) s_variance = hrsqrt(variance / (K_ + epsilon));
-  // wait for s_variance in shared memory to be ready for all threads
-  __syncthreads(); 
-  // manual unroll
-  half2 reg_y_0, reg_y_1, reg_y_2, reg_y_3;
-  half2 reg_y_4, reg_y_5, reg_y_6, reg_y_7;
-  HALF2_RMS_NORM(reg_y_0, reg_x_0, g_);
-  HALF2_RMS_NORM(reg_y_1, reg_x_1, g_);
-  HALF2_RMS_NORM(reg_y_2, reg_x_2, g_);
-  HALF2_RMS_NORM(reg_y_3, reg_x_3, g_);
-  HALF2_RMS_NORM(reg_y_4, reg_x_4, g_);
-  HALF2_RMS_NORM(reg_y_5, reg_x_5, g_);
-  HALF2_RMS_NORM(reg_y_6, reg_x_6, g_);
-  HALF2_RMS_NORM(reg_y_7, reg_x_7, g_);
-  if ((idx + 0)  < N * K) { HALF2(y[idx + 0])  = reg_y_0; }
-  if ((idx + 2)  < N * K) { HALF2(y[idx + 2])  = reg_y_1; }
-  if ((idx + 4)  < N * K) { HALF2(y[idx + 4])  = reg_y_2; }
-  if ((idx + 6)  < N * K) { HALF2(y[idx + 6])  = reg_y_3; }
-  if ((idx + 8)  < N * K) { HALF2(y[idx + 8])  = reg_y_4; }
-  if ((idx + 10) < N * K) { HALF2(y[idx + 10]) = reg_y_5; }
-  if ((idx + 12) < N * K) { HALF2(y[idx + 12]) = reg_y_6; }
-  if ((idx + 14) < N * K) { HALF2(y[idx + 14]) = reg_y_7; }
-}
-
-template<const int NUM_THREADS=256>
-__global__ void rms_norm_f16x16_f32_kernel(half* x, half* y, float g, int N, int K) {
-  int tid = threadIdx.x; // 0..K-1
-  int bid = blockIdx.x; // 0..N-1
-  int idx = (bid * blockDim.x + threadIdx.x) * 16;
-  const float epsilon = 1e-5f;
-
-  __shared__ float s_variance; // shared within block
-  // manual unroll and improve L2 cache hit rate.
-  // Only   L2 cache: load 32  bytes in 1 memory issue (default)
-  // Enable L1 cache: load 128 bytes in 1 memory issue (-Xptxas -dlcm=ca)
-  // why try fp16x8 within 1 threads? ref: https://zhuanlan.zhihu.com/p/641639133
-  // 0. first, tid_0 load 32 bytes in 1 memory issue and cache data into L2 cache.
-  // 1. then, tid_1,...,tid_3 hit L2 cache and load data from L2 cache directly.
-  float2 reg_x_0 = __half22float2(HALF2(x[idx + 0]));
-  float2 reg_x_1 = __half22float2(HALF2(x[idx + 2]));
-  float2 reg_x_2 = __half22float2(HALF2(x[idx + 4]));
-  float2 reg_x_3 = __half22float2(HALF2(x[idx + 6]));
-  float2 reg_x_4 = __half22float2(HALF2(x[idx + 8]));
-  float2 reg_x_5 = __half22float2(HALF2(x[idx + 10]));
-  float2 reg_x_6 = __half22float2(HALF2(x[idx + 12]));
-  float2 reg_x_7 = __half22float2(HALF2(x[idx + 14]));
-
-  float variance = FLOAT2_VARIANCE(reg_x_0, 0);
-  variance      += FLOAT2_VARIANCE(reg_x_1, 2);
-  variance      += FLOAT2_VARIANCE(reg_x_2, 4);
-  variance      += FLOAT2_VARIANCE(reg_x_3, 6);
-  variance      += FLOAT2_VARIANCE(reg_x_4, 8);
-  variance      += FLOAT2_VARIANCE(reg_x_5, 10);
-  variance      += FLOAT2_VARIANCE(reg_x_6, 12);
-  variance      += FLOAT2_VARIANCE(reg_x_7, 14);
-
-  variance = block_reduce_sum_f32<NUM_THREADS>(variance);
-  if (tid == 0) s_variance = rsqrtf(variance / ((float) K + epsilon));
-  // wait for s_variance in shared memory to be ready for all threads
-  __syncthreads(); 
-  // manual unroll
-  float2 reg_y_0, reg_y_1, reg_y_2, reg_y_3;
-  float2 reg_y_4, reg_y_5, reg_y_6, reg_y_7;
-  FLOAT2_RMS_NORM(reg_y_0, reg_x_0, g);
-  FLOAT2_RMS_NORM(reg_y_1, reg_x_1, g);
-  FLOAT2_RMS_NORM(reg_y_2, reg_x_2, g);
-  FLOAT2_RMS_NORM(reg_y_3, reg_x_3, g);
-  FLOAT2_RMS_NORM(reg_y_4, reg_x_4, g);
-  FLOAT2_RMS_NORM(reg_y_5, reg_x_5, g);
-  FLOAT2_RMS_NORM(reg_y_6, reg_x_6, g);
-  FLOAT2_RMS_NORM(reg_y_7, reg_x_7, g);
-  if ((idx + 0)  < N * K) { HALF2(y[idx + 0])  = __float22half2_rn(reg_y_0); }
-  if ((idx + 2)  < N * K) { HALF2(y[idx + 2])  = __float22half2_rn(reg_y_1); }
-  if ((idx + 4)  < N * K) { HALF2(y[idx + 4])  = __float22half2_rn(reg_y_2); }
-  if ((idx + 6)  < N * K) { HALF2(y[idx + 6])  = __float22half2_rn(reg_y_3); }
-  if ((idx + 8)  < N * K) { HALF2(y[idx + 8])  = __float22half2_rn(reg_y_4); }
-  if ((idx + 10) < N * K) { HALF2(y[idx + 10]) = __float22half2_rn(reg_y_5); }
-  if ((idx + 12) < N * K) { HALF2(y[idx + 12]) = __float22half2_rn(reg_y_6); }
-  if ((idx + 14) < N * K) { HALF2(y[idx + 14]) = __float22half2_rn(reg_y_7); }
-}
-
-template<const int NUM_THREADS=256>
 __global__ void rms_norm_f16_f32_kernel(half* x, half* y, float g, int N, int K) {
   int tid = threadIdx.x; // 0..K-1
   int bid = blockIdx.x; // 0..N-1
@@ -415,6 +300,76 @@ __global__ void rms_norm_f16_f32_kernel(half* x, half* y, float g, int N, int K)
     y[idx] = __float2half((value * s_variance) * g);
   }
 }
+
+template<const int NUM_THREADS=256>
+__global__ void rms_norm_f16x8_pack_f16_kernel(half* x, half* y, float g, int N, int K) {
+  int tid = threadIdx.x; // 0..K-1
+  int bid = blockIdx.x; // 0..N-1
+  int idx = (bid * blockDim.x + threadIdx.x) * 8;
+  const half epsilon = __float2half(1e-5f);
+  const half g_      = __float2half(g);
+  const half K_      = __int2half_rn(K);
+  const half z_      = __float2half(0.0f);
+
+  __shared__ half s_variance; // shared within block
+  // temporary register(memory), .local space in ptx, addressable
+  half pack_x[8], pack_y[8]; // 8x16 bits=128 bits.
+  // reinterpret as float4 and load 128 bits in 1 memory issue.
+  LDST128BITS(pack_x[0]) = LDST128BITS(x[idx]); // load 128 bits
+
+  half variance = z_;
+  #pragma unroll
+  for (int i = 0; i < 8; ++i) {
+    variance += ((idx + i) < N * K ? pack_x[i] * pack_x[i] : z_);
+  }
+  variance = block_reduce_sum_f16_f16<NUM_THREADS>(variance);
+  if (tid == 0) s_variance = hrsqrt(variance / (K_ + epsilon));
+  // wait for s_variance in shared memory to be ready for all threads
+  __syncthreads(); 
+
+  #pragma unroll
+  for (int i = 0; i < 8; ++i) {
+    pack_y[i] = pack_x[i] * s_variance * g_;
+  }
+  // reinterpret as float4 and store 128 bits in 1 memory issue.
+  if ((idx + 7) < N * K) { LDST128BITS(y[idx]) = LDST128BITS(pack_y[0]); }
+  // TODO: support non 8-multiple K here
+}
+
+template<const int NUM_THREADS=256>
+__global__ void rms_norm_f16x8_pack_f32_kernel(half* x, half* y, float g, int N, int K) {
+  int tid = threadIdx.x; // 0..K-1
+  int bid = blockIdx.x; // 0..N-1
+  int idx = (bid * blockDim.x + threadIdx.x) * 8;
+  const float epsilon = 1e-5f;
+  __shared__ float s_variance; // shared within block
+  // temporary register(memory), .local space in ptx, addressable
+  half pack_x[8], pack_y[8]; // 8x16 bits=128 bits.
+  // reinterpret as float4 and load 128 bits in 1 memory issue.
+  LDST128BITS(pack_x[0]) = LDST128BITS(x[idx]); // load 128 bits
+
+  float variance = 0.0f;
+  #pragma unroll
+  for (int i = 0; i < 8; ++i) {
+    float v = __half2float(pack_x[i]);
+    variance += ((idx + i) < N * K ? v * v : 0.0f);
+  }
+  variance = block_reduce_sum_f32<NUM_THREADS>(variance);
+  if (tid == 0) s_variance = rsqrtf(variance / ((float) K + epsilon));
+  // wait for s_variance in shared memory to be ready for all threads
+  __syncthreads(); 
+
+  #pragma unroll
+  for (int i = 0; i < 8; i += 2) {
+    float2 v2 = __half22float2(HALF2(pack_x[i]));
+    float2 y2 = {v2.x * s_variance * g, v2.y * s_variance * g};
+    HALF2(pack_y[i]) = __float22half2_rn(y2);
+  }
+  // reinterpret as float4 and store 128 bits in 1 memory issue.
+  if ((idx + 7) < N * K) { LDST128BITS(y[idx]) = LDST128BITS(pack_y[0]); }
+  // TODO: support non 8-multiple K here
+}
+
 
 // --------------------- PyTorch bindings for custom kernel -----------------------
 #define STRINGFY(str) #str
@@ -490,9 +445,15 @@ rms_norm_f32x4_kernel<(K)/4><<<grid, block>>>( \
   case 1024:                                 \
     LANUCH_RMS_NORM_F32x4_KERNEL(1024)       \
     break;                                   \
+  case 2048:                                 \
+    LANUCH_RMS_NORM_F32x4_KERNEL(2048)       \
+    break;                                   \
+  case 4096:                                 \
+    LANUCH_RMS_NORM_F32x4_KERNEL(4096)       \
+    break;                                   \
   default:                                   \
     throw std::runtime_error(                \
-      "only support K: 64/128/256/512/1024");\
+      "only support K: 64/.../512/1024*4");  \
     break;                                   \
   } 
 
@@ -523,7 +484,7 @@ rms_norm_f16_f16_kernel<(K)><<<grid, block>>>(   \
 
 #define DISPATCH_RMS_NORM_F16F16_KERNEL(N, K)   \
   dim3 block((K));                              \
-  dim3 grid((N));                               \     
+  dim3 grid((N));                               \
   switch ((K))                                  \
   {                                             \
   case 64:                                      \
@@ -555,7 +516,7 @@ rms_norm_f16_f32_kernel<(K)><<<grid, block>>>(   \
 
 #define DISPATCH_RMS_NORM_F16F32_KERNEL(N, K)   \
   dim3 block((K));                              \
-  dim3 grid((N));                               \     
+  dim3 grid((N));                               \
   switch ((K))                                  \
   {                                             \
   case 64:                                      \
@@ -587,7 +548,7 @@ rms_norm_f16x2_f16_kernel<(K)/2><<<grid, block>>>(   \
 
 #define DISPATCH_RMS_NORM_F16x2F16_KERNEL(N, K)   \
   dim3 block((K)/2);                              \
-  dim3 grid((N));                                 \     
+  dim3 grid((N));                                 \
   switch ((K))                                    \
   {                                               \
   case 64:                                        \
@@ -605,9 +566,12 @@ rms_norm_f16x2_f16_kernel<(K)/2><<<grid, block>>>(   \
   case 1024:                                      \
     LANUCH_RMS_NORM_F16x2F16_KERNEL(1024)         \
     break;                                        \
+  case 2048:                                      \
+    LANUCH_RMS_NORM_F16x2F16_KERNEL(2048)         \
+    break;                                        \
   default:                                        \
     throw std::runtime_error(                     \
-      "only support K: 64/128/256/512/1024");     \
+      "only support K: 64/128/.../1024*2");       \
     break;                                        \
   } 
 
@@ -619,7 +583,7 @@ rms_norm_f16x8_f16_kernel<(K)/8><<<grid, block>>>(   \
 
 #define DISPATCH_RMS_NORM_F16x8F16_KERNEL(N, K)   \
   dim3 block((K)/8);                              \
-  dim3 grid((N));                                 \     
+  dim3 grid((N));                                 \
   switch ((K))                                    \
   {                                               \
   case 64:                                        \
@@ -637,9 +601,18 @@ rms_norm_f16x8_f16_kernel<(K)/8><<<grid, block>>>(   \
   case 1024:                                      \
     LANUCH_RMS_NORM_F16x8F16_KERNEL(1024)         \
     break;                                        \
+  case 2048:                                      \
+    LANUCH_RMS_NORM_F16x8F16_KERNEL(2048)         \
+    break;                                        \
+  case 4096:                                      \
+    LANUCH_RMS_NORM_F16x8F16_KERNEL(4096)         \
+    break;                                        \
+  case 8192:                                      \
+    LANUCH_RMS_NORM_F16x8F16_KERNEL(8192)         \
+    break;                                        \
   default:                                        \
     throw std::runtime_error(                     \
-      "only support K: 64/128/256/512/1024");     \
+      "only support K: 64/128/.../1024*8");       \
     break;                                        \
   } 
 
@@ -651,7 +624,7 @@ rms_norm_f16x8_f16_kernel<(K)/8><<<grid, block>>>(   \
 
 #define DISPATCH_RMS_NORM_F16x8F32_KERNEL(N, K)   \
   dim3 block((K)/8);                              \
-  dim3 grid((N));                                 \     
+  dim3 grid((N));                                 \
   switch ((K))                                    \
   {                                               \
   case 64:                                        \
@@ -669,74 +642,101 @@ rms_norm_f16x8_f16_kernel<(K)/8><<<grid, block>>>(   \
   case 1024:                                      \
     LANUCH_RMS_NORM_F16x8F32_KERNEL(1024)         \
     break;                                        \
+  case 2048:                                      \
+    LANUCH_RMS_NORM_F16x8F32_KERNEL(2048)         \
+    break;                                        \
+  case 4096:                                      \
+    LANUCH_RMS_NORM_F16x8F32_KERNEL(4096)         \
+    break;                                        \
+  case 8192:                                      \
+    LANUCH_RMS_NORM_F16x8F32_KERNEL(8192)         \
+    break;                                        \
   default:                                        \
     throw std::runtime_error(                     \
-      "only support K: 64/128/256/512/1024");     \
+      "only support K: 64/128/.../1024*8");       \
     break;                                        \
   } 
 
-#define LANUCH_RMS_NORM_F16x16F16_KERNEL(K)          \
-rms_norm_f16x16_f16_kernel<(K)/16><<<grid, block>>>( \
-  reinterpret_cast<half*>(x.data_ptr()),             \
-  reinterpret_cast<half*>(y.data_ptr()),             \
+#define LANUCH_RMS_NORM_F16x8_PACK_F16_KERNEL(K)        \
+rms_norm_f16x8_pack_f16_kernel<(K)/8><<<grid, block>>>( \
+  reinterpret_cast<half*>(x.data_ptr()),                \
+  reinterpret_cast<half*>(y.data_ptr()),                \
   g, N, (K));  
 
-#define DISPATCH_RMS_NORM_F16x16F16_KERNEL(N, K)  \
-  dim3 block((K)/16);                             \
-  dim3 grid((N));                                 \     
-  switch ((K))                                    \
-  {                                               \
-  case 64:                                        \
-    LANUCH_RMS_NORM_F16x16F16_KERNEL(64)          \
-    break;                                        \
-  case 128:                                       \
-    LANUCH_RMS_NORM_F16x16F16_KERNEL(128)         \
-    break;                                        \
-  case 256:                                       \
-    LANUCH_RMS_NORM_F16x16F16_KERNEL(256)         \
-    break;                                        \
-  case 512:                                       \
-    LANUCH_RMS_NORM_F16x16F16_KERNEL(512)         \
-    break;                                        \
-  case 1024:                                      \
-    LANUCH_RMS_NORM_F16x16F16_KERNEL(1024)        \
-    break;                                        \
-  default:                                        \
-    throw std::runtime_error(                     \
-      "only support K: 64/128/256/512/1024");     \
-    break;                                        \
+#define DISPATCH_RMS_NORM_F16x8_PACK_F16_KERNEL(N, K) \
+  dim3 block((K)/8);                                  \
+  dim3 grid((N));                                     \
+  switch ((K))                                        \
+  {                                                   \
+  case 64:                                            \
+    LANUCH_RMS_NORM_F16x8_PACK_F16_KERNEL(64)         \
+    break;                                            \
+  case 128:                                           \
+    LANUCH_RMS_NORM_F16x8_PACK_F16_KERNEL(128)        \
+    break;                                            \
+  case 256:                                           \
+    LANUCH_RMS_NORM_F16x8_PACK_F16_KERNEL(256)        \
+    break;                                            \
+  case 512:                                           \
+    LANUCH_RMS_NORM_F16x8_PACK_F16_KERNEL(512)        \
+    break;                                            \
+  case 1024:                                          \
+    LANUCH_RMS_NORM_F16x8_PACK_F16_KERNEL(1024)       \
+    break;                                            \
+  case 2048:                                          \
+    LANUCH_RMS_NORM_F16x8_PACK_F16_KERNEL(2048)       \
+    break;                                            \
+  case 4096:                                          \
+    LANUCH_RMS_NORM_F16x8_PACK_F16_KERNEL(4096)       \
+    break;                                            \
+  case 8192:                                          \
+    LANUCH_RMS_NORM_F16x8_PACK_F16_KERNEL(8192)       \
+    break;                                            \
+  default:                                            \
+    throw std::runtime_error(                         \
+      "only support K: 64/128/.../1024*8");           \
+    break;                                            \
   } 
 
-#define LANUCH_RMS_NORM_F16x16F32_KERNEL(K)          \
-rms_norm_f16x16_f32_kernel<(K)/16><<<grid, block>>>( \
-  reinterpret_cast<half*>(x.data_ptr()),             \
-  reinterpret_cast<half*>(y.data_ptr()),             \
+#define LANUCH_RMS_NORM_F16x8_PACK_F32_KERNEL(K)        \
+rms_norm_f16x8_pack_f32_kernel<(K)/8><<<grid, block>>>( \
+  reinterpret_cast<half*>(x.data_ptr()),                \
+  reinterpret_cast<half*>(y.data_ptr()),                \
   g, N, (K));  
 
-#define DISPATCH_RMS_NORM_F16x16F32_KERNEL(N, K)  \
-  dim3 block((K)/16);                             \
-  dim3 grid((N));                                 \     
-  switch ((K))                                    \
-  {                                               \
-  case 64:                                        \
-    LANUCH_RMS_NORM_F16x16F32_KERNEL(64)          \
-    break;                                        \
-  case 128:                                       \
-    LANUCH_RMS_NORM_F16x16F32_KERNEL(128)         \
-    break;                                        \
-  case 256:                                       \
-    LANUCH_RMS_NORM_F16x16F32_KERNEL(256)         \
-    break;                                        \
-  case 512:                                       \
-    LANUCH_RMS_NORM_F16x16F32_KERNEL(512)         \
-    break;                                        \
-  case 1024:                                      \
-    LANUCH_RMS_NORM_F16x16F32_KERNEL(1024)        \
-    break;                                        \
-  default:                                        \
-    throw std::runtime_error(                     \
-      "only support K: 64/128/256/512/1024");     \
-    break;                                        \
+#define DISPATCH_RMS_NORM_F16x8_PACK_F32_KERNEL(N, K) \
+  dim3 block((K)/8);                                  \
+  dim3 grid((N));                                     \
+  switch ((K))                                        \
+  {                                                   \
+  case 64:                                            \
+    LANUCH_RMS_NORM_F16x8_PACK_F32_KERNEL(64)         \
+    break;                                            \
+  case 128:                                           \
+    LANUCH_RMS_NORM_F16x8_PACK_F32_KERNEL(128)        \
+    break;                                            \
+  case 256:                                           \
+    LANUCH_RMS_NORM_F16x8_PACK_F32_KERNEL(256)        \
+    break;                                            \
+  case 512:                                           \
+    LANUCH_RMS_NORM_F16x8_PACK_F32_KERNEL(512)        \
+    break;                                            \
+  case 1024:                                          \
+    LANUCH_RMS_NORM_F16x8_PACK_F32_KERNEL(1024)       \
+    break;                                            \
+  case 2048:                                          \
+    LANUCH_RMS_NORM_F16x8_PACK_F32_KERNEL(2048)       \
+    break;                                            \
+  case 4096:                                          \
+    LANUCH_RMS_NORM_F16x8_PACK_F32_KERNEL(4096)       \
+    break;                                            \
+  case 8192:                                          \
+    LANUCH_RMS_NORM_F16x8_PACK_F32_KERNEL(8192)       \
+    break;                                            \
+  default:                                            \
+    throw std::runtime_error(                         \
+      "only support K: 64/128/.../1024*8");           \
+    break;                                            \
   } 
 
 void rms_norm_f16_f16(torch::Tensor x, torch::Tensor y, float g) {
@@ -775,24 +775,6 @@ void rms_norm_f16x8_f32(torch::Tensor x, torch::Tensor y, float g) {
   DISPATCH_RMS_NORM_F16x8F32_KERNEL(N, K)
 }
 
-void rms_norm_f16x16_f16(torch::Tensor x, torch::Tensor y, float g) {
-  CHECK_TORCH_TENSOR_DTYPE(x, torch::kHalf)       
-  CHECK_TORCH_TENSOR_DTYPE(y, torch::kHalf)
-  CHECK_TORCH_TENSOR_SHAPE(x, y)
-  const int N = x.size(0);
-  const int K = x.size(1);
-  DISPATCH_RMS_NORM_F16x16F16_KERNEL(N, K)
-}
-
-void rms_norm_f16x16_f32(torch::Tensor x, torch::Tensor y, float g) {
-  CHECK_TORCH_TENSOR_DTYPE(x, torch::kHalf)       
-  CHECK_TORCH_TENSOR_DTYPE(y, torch::kHalf)
-  CHECK_TORCH_TENSOR_SHAPE(x, y)
-  const int N = x.size(0);
-  const int K = x.size(1);
-  DISPATCH_RMS_NORM_F16x16F32_KERNEL(N, K)
-}
-
 void rms_norm_f16_f32(torch::Tensor x, torch::Tensor y, float g) {
   CHECK_TORCH_TENSOR_DTYPE(x, torch::kHalf)       
   CHECK_TORCH_TENSOR_DTYPE(y, torch::kHalf)
@@ -802,14 +784,33 @@ void rms_norm_f16_f32(torch::Tensor x, torch::Tensor y, float g) {
   DISPATCH_RMS_NORM_F16F32_KERNEL(N, K)
 }
 
+// pack
+void rms_norm_f16x8_pack_f16(torch::Tensor x, torch::Tensor y, float g) {
+  CHECK_TORCH_TENSOR_DTYPE(x, torch::kHalf)       
+  CHECK_TORCH_TENSOR_DTYPE(y, torch::kHalf)
+  CHECK_TORCH_TENSOR_SHAPE(x, y)
+  const int N = x.size(0);
+  const int K = x.size(1);
+  DISPATCH_RMS_NORM_F16x8_PACK_F16_KERNEL(N, K)
+}
+
+void rms_norm_f16x8_pack_f32(torch::Tensor x, torch::Tensor y, float g) {
+  CHECK_TORCH_TENSOR_DTYPE(x, torch::kHalf)       
+  CHECK_TORCH_TENSOR_DTYPE(y, torch::kHalf)
+  CHECK_TORCH_TENSOR_SHAPE(x, y)
+  const int N = x.size(0);
+  const int K = x.size(1);
+  DISPATCH_RMS_NORM_F16x8_PACK_F32_KERNEL(N, K)
+}
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(rms_norm_f32)
   TORCH_BINDING_COMMON_EXTENSION(rms_norm_f32x4)
   TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16_f16)
   TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16x2_f16)
   TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16x8_f16)
+  TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16x8_pack_f16)
   TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16x8_f32)
-  TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16x16_f16)
-  TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16x16_f32)
+  TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16x8_pack_f32)
   TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16_f32)
 }
