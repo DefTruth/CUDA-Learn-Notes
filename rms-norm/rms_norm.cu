@@ -382,9 +382,12 @@ if(((T).options().dtype() != (th_type))) {                   \
   throw std::runtime_error("values must be "#th_type);       \
 }
 
-#define CHECK_TORCH_TENSOR_SHAPE(T1, T2)                                \
-if (((T2).size(0) != (T1).size(0)) || ((T2).size(1) != (T1).size(1))) { \
-  throw std::runtime_error("Tensor size mismatch!");                    \
+#define CHECK_TORCH_TENSOR_SHAPE(T1, T2)               \
+assert((T1).dim() == (T2).dim());                      \
+for (int i = 0; i < (T1).dim(); ++i) {                 \
+  if ((T2).size(i) != (T1).size(i)) {                  \
+    throw std::runtime_error("Tensor size mismatch!"); \
+  }                                                    \
 }
 
 #define LANUCH_RMS_NORM_F32_KERNEL(K)      \

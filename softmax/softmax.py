@@ -50,40 +50,146 @@ def run_benchmark(perf_func: callable, x: torch.Tensor,
     out_info = f"out_{tag}"
     out_val = out.flatten().detach().cpu().numpy().tolist()[:3]
     out_val = [round(v, 8) for v in out_val]
-    print(f"{out_info:>20}: {out_val}, time:{mean_time:.8f}ms")
+    out_val = [f"{v:<12}" for v in out_val]
+    print(f"{out_info:>24}: {out_val}, time:{mean_time:.8f}ms")
     if show_all: print(out)
     return out, mean_time
 
-
-print("-" * 80)
-N_ELEMENTS = 256*48
-x = torch.randn((N_ELEMENTS)).cuda().float()
-run_benchmark(lib.softmax_f32,               x, "f32")
-run_benchmark(lib.softmax_f32x4,             x, "f32x4")
-run_benchmark(partial(torch.softmax, dim=0), x, "f32_th")
-
-print("-" * 80)
-# v2: no copy for out Tensor
+# grid memory fence
+print("-" * 100)
+N = 128 * 128
+print(" " * 45 + f"N={N}")
+print("-" * 100)
+x = torch.randn((N)).cuda().float()
 out = torch.zeros_like(x).cuda().float().contiguous()
-run_benchmark(lib.softmax_f32_v2,                     x, "f32(v2)",   out)
-run_benchmark(lib.softmax_f32x4_v2,                   x, "f32x4(v2)", out)
-run_benchmark(partial(torch.softmax, dim=0, out=out), x, "f32_th(v2)")
+run_benchmark(lib.softmax_f32,                        x, "f32(fence)",   out)
+run_benchmark(lib.softmax_f32x4,                      x, "f32x4(fence)", out)
+run_benchmark(partial(torch.softmax, dim=0, out=out), x, "f32_th")
 
-print("-" * 80)
-S, H = 1024, 512
+# per token softmax
+print("-" * 100)
+S, H = 4096, 256
+print(" " * 45 + f"S={S}, H={H}")
+print("-" * 100)
 x = torch.randn((S, H)).cuda().float().contiguous()
-run_benchmark(lib.softmax_f32_per_token,        x, "f32(per)")
-run_benchmark(lib.softmax_f32x4_per_token,      x, "f32x4(per)")
-run_benchmark(lib.safe_softmax_f32_per_token,   x, "f32(safe)")
-run_benchmark(lib.safe_softmax_f32x4_per_token, x, "f32x4(safe)")
-run_benchmark(partial(torch.softmax, dim=1),    x, "f32_th(per)")
-
-print("-" * 80)
-# v2: no copy for out Tensor
 out = torch.zeros_like(x).cuda().float().contiguous()
-run_benchmark(lib.softmax_f32_per_token_v2,           x, "f32(per v2)",    out)
-run_benchmark(lib.softmax_f32x4_per_token_v2,         x, "f32x4(per v2)",  out)
-run_benchmark(lib.safe_softmax_f32_per_token_v2,      x, "f32(safe v2)",   out) 
-run_benchmark(lib.safe_softmax_f32x4_per_token_v2,    x, "f32x4(safe v2)", out) 
-run_benchmark(partial(torch.softmax, dim=1, out=out), x, "f32_th(per v2)")
-print("-" * 80)
+run_benchmark(lib.softmax_f32_per_token,              x, "f32(per)",    out)
+run_benchmark(lib.softmax_f32x4_per_token,            x, "f32x4(per)",  out)
+run_benchmark(lib.safe_softmax_f32_per_token,         x, "f32(safe)",   out) 
+run_benchmark(lib.safe_softmax_f32x4_per_token,       x, "f32x4(safe)", out) 
+run_benchmark(partial(torch.softmax, dim=1, out=out), x, "f32_th(per)")
+
+print("-" * 100)
+x_f16 = x.half().contiguous()
+out_f16 = out.half().contiguous()
+run_benchmark(lib.safe_softmax_f16_f32_per_token,         x_f16, "f16f32(safe)",       out_f16) 
+run_benchmark(lib.safe_softmax_f16x2_f32_per_token,       x_f16, "f16x2f32(safe)",     out_f16) 
+run_benchmark(lib.safe_softmax_f16x8_pack_f32_per_token,  x_f16, "f16x8packf32(safe)", out_f16) 
+run_benchmark(partial(torch.softmax, dim=1, out=out_f16), x_f16, "f16_th(per)")
+print("-" * 100)
+
+# per token softmax
+print("-" * 100)
+S, H = 4096, 512
+print(" " * 45 + f"S={S}, H={H}")
+print("-" * 100)
+x = torch.randn((S, H)).cuda().float().contiguous()
+out = torch.zeros_like(x).cuda().float().contiguous()
+run_benchmark(lib.softmax_f32_per_token,              x, "f32(per)",    out)
+run_benchmark(lib.softmax_f32x4_per_token,            x, "f32x4(per)",  out)
+run_benchmark(lib.safe_softmax_f32_per_token,         x, "f32(safe)",   out) 
+run_benchmark(lib.safe_softmax_f32x4_per_token,       x, "f32x4(safe)", out) 
+run_benchmark(partial(torch.softmax, dim=1, out=out), x, "f32_th(per)")
+
+print("-" * 100)
+x_f16 = x.half().contiguous()
+out_f16 = out.half().contiguous()
+run_benchmark(lib.safe_softmax_f16_f32_per_token,         x_f16, "f16f32(safe)",       out_f16) 
+run_benchmark(lib.safe_softmax_f16x2_f32_per_token,       x_f16, "f16x2f32(safe)",     out_f16) 
+run_benchmark(lib.safe_softmax_f16x8_pack_f32_per_token,  x_f16, "f16x8packf32(safe)", out_f16) 
+run_benchmark(partial(torch.softmax, dim=1, out=out_f16), x_f16, "f16_th(per)")
+print("-" * 100)
+
+# per token softmax
+print("-" * 100)
+S, H = 4096, 1024
+print(" " * 45 + f"S={S}, H={H}")
+print("-" * 100)
+x = torch.randn((S, H)).cuda().float().contiguous()
+out = torch.zeros_like(x).cuda().float().contiguous()
+run_benchmark(lib.softmax_f32_per_token,              x, "f32(per)",    out)
+run_benchmark(lib.softmax_f32x4_per_token,            x, "f32x4(per)",  out)
+run_benchmark(lib.safe_softmax_f32_per_token,         x, "f32(safe)",   out) 
+run_benchmark(lib.safe_softmax_f32x4_per_token,       x, "f32x4(safe)", out) 
+run_benchmark(partial(torch.softmax, dim=1, out=out), x, "f32_th(per)")
+
+print("-" * 100)
+x_f16 = x.half().contiguous()
+out_f16 = out.half().contiguous()
+run_benchmark(lib.safe_softmax_f16_f32_per_token,         x_f16, "f16f32(safe)",       out_f16) 
+run_benchmark(lib.safe_softmax_f16x2_f32_per_token,       x_f16, "f16x2f32(safe)",     out_f16) 
+run_benchmark(lib.safe_softmax_f16x8_pack_f32_per_token,  x_f16, "f16x8packf32(safe)", out_f16) 
+run_benchmark(partial(torch.softmax, dim=1, out=out_f16), x_f16, "f16_th(per)")
+print("-" * 100)
+
+# per token softmax
+print("-" * 100)
+S, H = 4096, 2048
+print(" " * 45 + f"S={S}, H={H}")
+print("-" * 100)
+x = torch.randn((S, H)).cuda().float().contiguous()
+out = torch.zeros_like(x).cuda().float().contiguous()
+run_benchmark(lib.softmax_f32x4_per_token,            x, "f32x4(per)",  out)
+run_benchmark(lib.safe_softmax_f32x4_per_token,       x, "f32x4(safe)", out) 
+run_benchmark(partial(torch.softmax, dim=1, out=out), x, "f32_th(per)")
+
+print("-" * 100)
+x_f16 = x.half().contiguous()
+out_f16 = out.half().contiguous()
+run_benchmark(lib.safe_softmax_f16x2_f32_per_token,       x_f16, "f16x2f32(safe)",     out_f16) 
+run_benchmark(lib.safe_softmax_f16x8_pack_f32_per_token,  x_f16, "f16x8packf32(safe)", out_f16) 
+run_benchmark(partial(torch.softmax, dim=1, out=out_f16), x_f16, "f16_th(per)")
+print("-" * 100)
+
+# per token softmax
+print("-" * 100)
+S, H = 4096, 4096
+print(" " * 45 + f"S={S}, H={H}")
+print("-" * 100)
+x = torch.randn((S, H)).cuda().float().contiguous()
+out = torch.zeros_like(x).cuda().float().contiguous()
+run_benchmark(lib.softmax_f32x4_per_token,            x, "f32x4(per)",  out)
+run_benchmark(lib.safe_softmax_f32x4_per_token,       x, "f32x4(safe)", out) 
+run_benchmark(partial(torch.softmax, dim=1, out=out), x, "f32_th(per)")
+
+print("-" * 100)
+x_f16 = x.half().contiguous()
+out_f16 = out.half().contiguous()
+run_benchmark(lib.safe_softmax_f16x8_pack_f32_per_token,  x_f16, "f16x8packf32(safe)", out_f16) 
+run_benchmark(partial(torch.softmax, dim=1, out=out_f16), x_f16, "f16_th(per)")
+print("-" * 100)
+
+# per token softmax
+print("-" * 100)
+S, H = 4096, 8192
+print(" " * 45 + f"S={S}, H={H}")
+print("-" * 100)
+x = torch.randn((S, H)).cuda().float().contiguous()
+out = torch.zeros_like(x).cuda().float().contiguous()
+x_f16 = x.half().contiguous()
+out_f16 = out.half().contiguous()
+run_benchmark(lib.safe_softmax_f16x8_pack_f32_per_token,  x_f16, "f16x8packf32(safe)", out_f16) 
+run_benchmark(partial(torch.softmax, dim=1, out=out_f16), x_f16, "f16_th(per)")
+
+# per token softmax
+print("-" * 100)
+S, H = 8192, 8192
+print(" " * 45 + f"S={S}, H={H}")
+print("-" * 100)
+x = torch.randn((S, H)).cuda().float().contiguous()
+out = torch.zeros_like(x).cuda().float().contiguous()
+x_f16 = x.half().contiguous()
+out_f16 = out.half().contiguous()
+run_benchmark(lib.safe_softmax_f16x8_pack_f32_per_token,  x_f16, "f16x8packf32(safe)", out_f16) 
+run_benchmark(partial(torch.softmax, dim=1, out=out_f16), x_f16, "f16_th(per)")
+print("-" * 100)
