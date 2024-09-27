@@ -15,6 +15,23 @@
 #define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
 
 // -------------------------------------- FP32 -------------------------------------- 
+// SGEMM naive: compute one c[i,j] element per threads, all row major
+__global__ void sgemm_naive_f32_kernel(float* a, float* b, float* c, int M, int N, int K) {
+
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  int m = blockIdx.y * blockDim.y + threadIdx.y;
+
+  if (m < M && n < N) {
+    float psum = 0.0;
+    #pragma unroll
+    for (int k = 0; k < K; k++) {
+      // m row in a matrix, n col in b matrix
+      psum += a[m * K + k] * b[k * N + n];
+    }
+    c[m * N + n] = psum; // c[m,n]
+  }
+}
+
 // SGEMM: Block Tile + K Tile, with smem
 // Block Tile (BM, BN) + K Tile (BK=32)
 // grid((N + BN - 1) / BN, (M + BM - 1) / BM), block(BN, BM)
@@ -157,6 +174,31 @@ if (((T).size(0) != (S0)) || ((T).size(1) != (S1))) { \
   throw std::runtime_error("Tensor size mismatch!");  \
 }
 
+// SGEMM naive: compute one c[i,j] element per threads, all row major
+void sgemm_naive_f32(torch::Tensor a, torch::Tensor b, torch::Tensor c) {
+  CHECK_TORCH_TENSOR_DTYPE(a, torch::kFloat32)
+  CHECK_TORCH_TENSOR_DTYPE(b, torch::kFloat32)
+  CHECK_TORCH_TENSOR_DTYPE(c, torch::kFloat32)
+  const int M = a.size(0);
+  const int K = a.size(1);
+  const int N = b.size(1); 
+  CHECK_TORCH_TENSOR_SHAPE(a, M, K)
+  CHECK_TORCH_TENSOR_SHAPE(b, K, N)
+  CHECK_TORCH_TENSOR_SHAPE(c, M, N)
+  constexpr int BM = 32;
+  constexpr int BN = 32;
+
+  dim3 block(BN, BM);
+  dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
+
+  sgemm_naive_f32_kernel<<<grid, block>>>(
+    reinterpret_cast<float*>(a.data_ptr()),
+    reinterpret_cast<float*>(b.data_ptr()),
+    reinterpret_cast<float*>(c.data_ptr()),
+    M, N, K
+  );
+}
+
 // SGEMM: Block Tile + K Tile, with smem
 // Block Tile (BM, BN) + K Tile (BK=32)
 // grid((N + BN - 1) / BN, (M + BM - 1) / BM), block(BN, BM)
@@ -219,6 +261,7 @@ void sgemm_t_8x8_sliced_k_f32x4(torch::Tensor a, torch::Tensor b, torch::Tensor 
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+  TORCH_BINDING_COMMON_EXTENSION(sgemm_naive_f32)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_sliced_k_f32)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_f32x4)
 }
