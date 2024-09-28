@@ -42,64 +42,63 @@
 | ✔️ [relu_f16x2](./relu/relu.cu)|f16|/|[link](./relu/)|⭐️|  
 | ✔️ [relu_f16x8](./relu/relu.cu)|f16|/|[link](./relu/)|⭐️|  
 | ✔️ [relu_f16x8_pack](./relu/relu.cu)|f16|/|[link](./relu/)|⭐️⭐️|  
-| ✔️ [warp_reduce_f16/bf16/f32/f8/i8](./reduce/block_all_reduce.cu)|all|all|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_reduce_f32](./reduce/block_all_reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_f32_f32](./reduce/block_all_reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_f32x4_f32](./reduce/block_all_reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_f16_f16](./reduce/block_all_reduce.cu)|f16|f16|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_f16_f32](./reduce/block_all_reduce.cu)|f16|f32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_f16x2_f16](./reduce/block_all_reduce.cu)|f16|f16|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_f16x2_f32](./reduce/block_all_reduce.cu)|f16|f32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_f16x8_pack_f16](./reduce/block_all_reduce.cu)|f16|f16|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_f16x8_pack_f32](./reduce/block_all_reduce.cu)|f16|f32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_bf16_bf16](./reduce/block_all_reduce.cu)|bf16|bf16|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_bf16_f32](./reduce/block_all_reduce.cu)|bf16|f32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_bf16x2_bf16](./reduce/block_all_reduce.cu)|bf16|bf16|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_bf16x2_f32](./reduce/block_all_reduce.cu)|bf16|f32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_bf16x8_pack_bf16](./reduce/block_all_reduce.cu)|bf16|bf16|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_bf16x8_pack_f32](./reduce/block_all_reduce.cu)|bf16|f32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_fp8_e4m3_f16](./reduce/block_all_reduce.cu)|fp8_e4m3|f16|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_fp8_e5m2_f16](./reduce/block_all_reduce.cu)|fp8_e5m2|f16|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_fp8_e4m3x16_pack_f16](./reduce/block_all_reduce.cu)|fp8_e4m3|f16|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_fp8_e5m2x16_pack_f16](./reduce/block_all_reduce.cu)|fp8_e5m2|f16|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_i8_i32](./reduce/block_all_reduce.cu)|i8|i32|[link](./reduce/)|⭐️⭐️|  
-| ✔️ [block_all_reduce_i8x16_pack_i32](./reduce/block_all_reduce.cu)|i8|i32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [warp_reduce_[all]](./reduce/reduce.cu)|all|all|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_f32_f32](./reduce/reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_f32x4_f32](./reduce/reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_f16_f16](./reduce/reduce.cu)|f16|f16|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_f16_f32](./reduce/reduce.cu)|f16|f32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_f16x2_f16](./reduce/reduce.cu)|f16|f16|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_f16x2_f32](./reduce/reduce.cu)|f16|f32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_f16x8_pack_f16](./reduce/reduce.cu)|f16|f16|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_f16x8_pack_f32](./reduce/reduce.cu)|f16|f32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_bf16_bf16](./reduce/reduce.cu)|bf16|bf16|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_bf16_f32](./reduce/reduce.cu)|bf16|f32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_bf16x2_bf16](./reduce/reduce.cu)|bf16|bf16|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_bf16x2_f32](./reduce/reduce.cu)|bf16|f32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_bf16x8_pack_bf16](./reduce/reduce.cu)|bf16|bf16|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_bf16x8_pack_f32](./reduce/reduce.cu)|bf16|f32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_fp8_e4m3_f16](./reduce/reduce.cu)|fp8_e4m3|f16|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_fp8_e5m2_f16](./reduce/reduce.cu)|fp8_e5m2|f16|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_fp8_e4m3x16_pack_f16](./reduce/reduce.cu)|fp8_e4m3|f16|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_fp8_e5m2x16_pack_f16](./reduce/reduce.cu)|fp8_e5m2|f16|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_i8_i32](./reduce/reduce.cu)|i8|i32|[link](./reduce/)|⭐️⭐️|  
+| ✔️ [reduce_i8x16_pack_i32](./reduce/reduce.cu)|i8|i32|[link](./reduce/)|⭐️⭐️|  
 | ✔️ [dot_product_f32](./dot-product/dot_product.cu)|f32|f32|[link](./dot-product/)|⭐️⭐️|  
 | ✔️ [dot_product_f32x4](./dot-product/dot_product.cu)|f32|f32|[link](./dot-product/)|⭐️⭐️|  
 | ✔️ [dot_product_f16_f32](./dot-product/dot_product.cu)|f16|f32|[link](./dot-product/)|⭐️⭐️|  
 | ✔️ [dot_product_f16x2_f32](./dot-product/dot_product.cu)|f16|f32|[link](./dot-product/)|⭐️⭐️|  
 | ✔️ [dot_product_f16x8_pack_f32](./dot-product/dot_product.cu)|f16|f32|[link](./dot-product/)|⭐️⭐️|  
-| ✔️ [softmax_f32(memory fence)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
-| ✔️ [softmax_f32x4(memory fence)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
-| ✔️ [softmax_f32(per token)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
-| ✔️ [softmax_f32x4(per token)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
-| ✔️ [safe_softmax_f32(per token)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
-| ✔️ [safe_softmax_f32x4(per token)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
-| ✔️ [safe_softmax_f16_f32(per token)](./softmax/softmax.cu)|f16|f32|[link](./softmax/)|⭐️⭐️|  
-| ✔️ [safe_softmax_f16x2_f32(per token)](./softmax/softmax.cu)|f16|f32|[link](./softmax/)|⭐️⭐️|  
-| ✔️ [safe_softmax_f16x8_pack_f32(per token)](./softmax/softmax.cu)|f16|f32|[link](./softmax/)|⭐️⭐️|  
-| ✔️ [layer_norm_f32(per token)](./layer-norm/layer_norm.cu)|f32|f32|[link](./layer-norm/)|⭐️⭐️|  
-| ✔️ [layer_norm_f32x4(per token)](./layer-norm/layer_norm.cu)|f32|f32|[link](./layer-norm/)|⭐️⭐️|  
-| ✔️ [layer_norm_f16_f16(per token)](./layer-norm/layer_norm.cu)|f16|f16|[link](./layer-norm/)|⭐️⭐️|  
-| ✔️ [layer_norm_f16x2_f16(per token)](./layer-norm/layer_norm.cu)|f16|f16|[link](./layer-norm/)|⭐️⭐️|  
-| ✔️ [layer_norm_f16x8_f16(per token)](./layer-norm/layer_norm.cu)|f16|f16|[link](./layer-norm/)|⭐️⭐️|  
-| ✔️ [layer_norm_f16x8_pack_f16(per token)](./layer-norm/layer_norm.cu)|f16|f16|[link](./layer-norm/)|⭐️⭐️|  
-| ✔️ [layer_norm_f16x8_pack_f32(per token)](./layer-norm/layer_norm.cu)|f16|f32|[link](./layer-norm/)|⭐️⭐️|  
-| ✔️ [layer_norm_f16_f32(per token)](./layer-norm/layer_norm.cu)|f16|f32|[link](./layer-norm/)|⭐️⭐️|  
-| ✔️ [rms_norm_f32(per token)](./rms-norm/rms_norm.cu)|f32|f32|[link](./rms-norm/)|⭐️⭐️|  
-| ✔️ [rms_norm_f32x4(per token)](./rms-norm/rms_norm.cu)|f32|f32|[link](./rms-norm/)|⭐️⭐️|  
-| ✔️ [rms_norm_f16_f16(per token)](./rms-norm/rms_norm.cu)|f16|f16|[link](./rms-norm/)|⭐️⭐️|  
-| ✔️ [rms_norm_f16x2_f16(per token)](./rms-norm/rms_norm.cu)|f16|f16|[link](./rms-norm/)|⭐️⭐️|  
-| ✔️ [rms_norm_f16x8_f16(per token)](./rms-norm/rms_norm.cu)|f16|f16|[link](./rms-norm/)|⭐️⭐️|  
-| ✔️ [rms_norm_f16x8_f32(per token)](./rms-norm/rms_norm.cu)|f16|f32|[link](./rms-norm/)|⭐️⭐️|  
-| ✔️ [rms_norm_f16x8_pack_f16(per token)](./rms-norm/rms_norm.cu)|f16|f16|[link](./rms-norm/)|⭐️⭐️|  
-| ✔️ [rms_norm_f16x8_pack_f32(per token)](./rms-norm/rms_norm.cu)|f16|f32|[link](./rms-norm/)|⭐️⭐️|  
-| ✔️ [rms_norm_f16_f32(per token)](./rms-norm/rms_norm.cu)|f16|f32|[link](./rms-norm/)|⭐️⭐️| 
+| ✔️ [softmax_f32(fence)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
+| ✔️ [softmax_f32x4(fence)](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
+| ✔️ [softmax_f32](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
+| ✔️ [softmax_f32x4](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
+| ✔️ [safe_softmax_f32](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
+| ✔️ [safe_softmax_f32x4](./softmax/softmax.cu)|f32|f32|[link](./softmax/)|⭐️⭐️|  
+| ✔️ [safe_softmax_f16_f32](./softmax/softmax.cu)|f16|f32|[link](./softmax/)|⭐️⭐️|  
+| ✔️ [safe_softmax_f16x2_f32](./softmax/softmax.cu)|f16|f32|[link](./softmax/)|⭐️⭐️|  
+| ✔️ [safe_softmax_f16x8_pack_f32](./softmax/softmax.cu)|f16|f32|[link](./softmax/)|⭐️⭐️|  
+| ✔️ [layer_norm_f32](./layer-norm/layer_norm.cu)|f32|f32|[link](./layer-norm/)|⭐️⭐️|  
+| ✔️ [layer_norm_f32x4](./layer-norm/layer_norm.cu)|f32|f32|[link](./layer-norm/)|⭐️⭐️|  
+| ✔️ [layer_norm_f16_f16](./layer-norm/layer_norm.cu)|f16|f16|[link](./layer-norm/)|⭐️⭐️|  
+| ✔️ [layer_norm_f16x2_f16](./layer-norm/layer_norm.cu)|f16|f16|[link](./layer-norm/)|⭐️⭐️|  
+| ✔️ [layer_norm_f16x8_f16](./layer-norm/layer_norm.cu)|f16|f16|[link](./layer-norm/)|⭐️⭐️|  
+| ✔️ [layer_norm_f16x8_pack_f16](./layer-norm/layer_norm.cu)|f16|f16|[link](./layer-norm/)|⭐️⭐️|  
+| ✔️ [layer_norm_f16x8_pack_f32](./layer-norm/layer_norm.cu)|f16|f32|[link](./layer-norm/)|⭐️⭐️|  
+| ✔️ [layer_norm_f16_f32](./layer-norm/layer_norm.cu)|f16|f32|[link](./layer-norm/)|⭐️⭐️|  
+| ✔️ [rms_norm_f32](./rms-norm/rms_norm.cu)|f32|f32|[link](./rms-norm/)|⭐️⭐️|  
+| ✔️ [rms_norm_f32x4](./rms-norm/rms_norm.cu)|f32|f32|[link](./rms-norm/)|⭐️⭐️|  
+| ✔️ [rms_norm_f16_f16](./rms-norm/rms_norm.cu)|f16|f16|[link](./rms-norm/)|⭐️⭐️|  
+| ✔️ [rms_norm_f16x2_f16](./rms-norm/rms_norm.cu)|f16|f16|[link](./rms-norm/)|⭐️⭐️|  
+| ✔️ [rms_norm_f16x8_f16](./rms-norm/rms_norm.cu)|f16|f16|[link](./rms-norm/)|⭐️⭐️|  
+| ✔️ [rms_norm_f16x8_f32](./rms-norm/rms_norm.cu)|f16|f32|[link](./rms-norm/)|⭐️⭐️|  
+| ✔️ [rms_norm_f16x8_pack_f16](./rms-norm/rms_norm.cu)|f16|f16|[link](./rms-norm/)|⭐️⭐️|  
+| ✔️ [rms_norm_f16x8_pack_f32](./rms-norm/rms_norm.cu)|f16|f32|[link](./rms-norm/)|⭐️⭐️|  
+| ✔️ [rms_norm_f16_f32](./rms-norm/rms_norm.cu)|f16|f32|[link](./rms-norm/)|⭐️⭐️| 
 | ✔️ [sgemm_naive_f32](./sgemm/sgemm.cu)|f32|f32|[link](./sgemm/)|⭐️⭐️|  
 | ✔️ [sgemm_sliced_k_f32](./sgemm/sgemm.cu)|f32|f32|[link](./sgemm/)|⭐️⭐️⭐️|  
 | ✔️ [sgemm_t_8x8_sliced_k_f32x4](./sgemm/sgemm.cu)|f32|f32|[link](./sgemm/)|⭐️⭐️⭐️|  
-| ✔️ [sgemm_t_8x8_sliced_k_f32x4_bcf](./sgemm/sgemm.cu)|f32|f32|[link](./sgemm/)|⭐️⭐️⭐️|  
-| ✔️ [sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf](./sgemm/sgemm.cu)|f32|f32|[link](./sgemm/)|⭐️⭐️⭐️|  
+| ✔️ [sgemm_t_8x8_sliced_k_..._bcf](./sgemm/sgemm.cu)|f32|f32|[link](./sgemm/)|⭐️⭐️⭐️|  
+| ✔️ [sgemm_t_8x8_sliced_k_..._dbuf](./sgemm/sgemm.cu)|f32|f32|[link](./sgemm/)|⭐️⭐️⭐️|  
 | ✔️ [hgemm_sliced_k_f16](./hgemm/hgemm.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
 | ✔️ [hgemm_t_8x8_sliced_k_f16x4](./hgemm/hgemm.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k32_f32](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  

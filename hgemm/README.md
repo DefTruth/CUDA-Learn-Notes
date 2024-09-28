@@ -11,7 +11,7 @@
 ## 测试
 
 ```bash
-# 只测试Ada架构 不指定默认编译所有架构 耗时较长
+# 只测试Ada架构 不指定默认编译所有架构 耗时较长: Volta, Ampere, Ada, Hopper, ...
 export TORCH_CUDA_ARCH_LIST=Ada 
 python3 hgemm.py
 ```
