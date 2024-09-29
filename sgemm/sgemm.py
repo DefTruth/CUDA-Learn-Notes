@@ -52,6 +52,7 @@ def run_benchmark(perf_func: callable,
     out_info = f"out_{tag}"
     out_val = out.flatten().detach().cpu().numpy().tolist()[:3]
     out_val = [round(v, 8) for v in out_val]
+    out_val = [f"{v:<12}" for v in out_val]
     print(f"{out_info:>20}: {out_val}, time:{mean_time:.6f}ms")
     if show_all: print(out)
     return out.clone(), mean_time

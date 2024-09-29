@@ -171,6 +171,8 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(
 
   __shared__ float s_a[BK][BM];
   __shared__ float s_b[BK][BN];
+  // __shared__ float s_a[BK][BM + 4];
+  // __shared__ float s_b[BK][BN + 4];
 
   float r_load_a[TM/2]; // 4
   float r_load_b[TN/2]; // 4
@@ -178,17 +180,29 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(
   float r_comp_b[TN];
   float r_c[TM][TN] = {0.0};
 
-  // TODO: 增加注释
-  int load_a_smem_m = tid >> 1;
-  int load_a_smem_k = (tid & 1) << 2;
-  int load_b_smem_k = tid >> 5;
-  int load_b_smem_n = (tid & 31) << 2;
+  // mapping tid to s_a[BK][BM], for each orginal m-th row, load 4 + 4 K-dim 
+  // row major values from A matrix, and store it in COL major s_a[BK][BM].
+  int load_a_smem_m = tid / 2; // tid / 2，(0,1,2,...,128)
+  // (0b00000000 & 0b00000001) << 2 = 0
+  // (0b00000001 & 0b00000001) << 2 = 4
+  // (0b00000010 & 0b00000001) << 2 = 0
+  // (0b00000011 & 0b00000001) << 2 = 4
+  int load_a_smem_k = (tid & 1) << 2; // (0,4)
+  // mapping tid to s_b[BK][BN], for each orginal k-th row, load 4 + 4 N-dim 
+  // row major values from B matrix, and store it in ROW major s_b[BK][BN].
+  int load_b_smem_k = tid / 32; // 0~8
+  // (0b00000000 & 0b00011111) << 2 = 0
+  // (0b00000001 & 0b00011111) << 2 = 4
+  // (0b00000010 & 0b00011111) << 2 = 8
+  // (0b00000011 & 0b00011111) << 2 = 12
+  int load_b_smem_n = (tid & 31) << 2; // (0,4,8,12,...,124)
 
   int load_a_gmem_m = by * BM + load_a_smem_m;
   int load_b_gmem_n = bx * BN + load_b_smem_n;
 
-  for (int bk = 0; bk < (K + BK - 1) / BK; bk++) {
+  if (load_a_gmem_m >= M || load_b_gmem_n >= N) return;
 
+  for (int bk = 0; bk < (K + BK - 1) / BK; bk++) {
     int load_a_gmem_k = bk * BK + load_a_smem_k;
     int load_a_gmem_addr = load_a_gmem_m * K + load_a_gmem_k;
     int load_b_gmem_k = bk * BK + load_b_smem_k;
@@ -196,29 +210,109 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(
     FLOAT4(r_load_a[0]) = FLOAT4(a[load_a_gmem_addr]);
     FLOAT4(r_load_b[0]) = FLOAT4(b[load_b_gmem_addr]);
 
-    s_a[load_a_smem_k    ][load_a_smem_m] = r_load_a[0];
-    s_a[load_a_smem_k + 1][load_a_smem_m] = r_load_a[1];
-    s_a[load_a_smem_k + 2][load_a_smem_m] = r_load_a[2];
-    s_a[load_a_smem_k + 3][load_a_smem_m] = r_load_a[3];
+    // 0. bank layout analysis: s_a[8][128]
+    // 4 bytes per bank(32 banks, total 128 bytes, 32 float values), 
+    // 1 float per bank. smem banks layout for s_a[8][128]:
+    // 8*(128/32)=32 bank layers, 4 layers per k-th row.
+    // [k=0][m=  [0],   [1],   [2],...,    [31]]
+    // layer_0   [b0],  [b1],  [b2],...,   [b31]
+    // [k=0][m=  [32],  [33],  [34],...,   [63]]
+    // layer_1   [b0],  [b1],  [b2],...,   [b31]
+    // [k=0][m=  [64],  [65],  [66],...,   [95]]
+    // layer_2   [b0],  [b1],  [b2],...,   [b31]
+    // [k=0][m=  [96],  [97],  [98],...,   [127]]
+    // layer_3   [b0],  [b1],  [b2],...,   [b31]
+    // ...       ...               ...
+    // [k=7][m=  [0],   [1],   [2],...,    [31]]
+    // layer_28  [b0],  [b1],  [b2],...,   [b31]
+    // [k=7][m=  [32],  [33],  [34],...,   [63]]
+    // layer_29  [b0],  [b1],  [b2],...,   [b31]
+    // [k=7][m=  [64],  [65],  [66],...,   [95]]
+    // layer_30  [b0],  [b1],  [b2],...,   [b31]
+    // [k=7][m=  [96],  [97],  [98],...,   [127]]
+    // layer_31  [b0],  [b1],  [b2],...,   [b31]
+    // 1. bank conficts analysis: s_a[8][128]
+    // tid 0   -> m 0,   k 0 -> all access bank 0  (layer_0/4/8/12)
+    // tid 1   -> m 0,   k 4 -> all access bank 0  (layer_16/20/24/28)
+    // tid 2   -> m 1,   k 0 -> all access bank 1  (layer_0/4/8/12)
+    // tid 3   -> m 1,   k 4 -> all access bank 1  (layer_16/20/24/28)
+    // tid 4   -> m 2,   k 0 -> all access bank 2  (layer_0/4/8/12)
+    // tid 5   -> m 2,   k 4 -> all access bank 2  (layer_16/20/24/28)
+    // tid 6   -> m 3,   k 0 -> all access bank 3  (layer_0/4/8/12)
+    // tid 7   -> m 3,   k 4 -> all access bank 3  (layer_16/20/24/28)
+    // ...        ...           ...                ...
+    // tid 28  -> m 14,  k 0 -> all access bank 14 (layer_0/4/8/12)
+    // tid 29  -> m 14,  k 4 -> all access bank 14 (layer_16/20/24/28)
+    // tid 30  -> m 15,  k 0 -> all access bank 15 (layer_0/2/4/6)
+    // tid 31  -> m 15,  k 4 -> all access bank 15 (layer_16/20/24/28)
+    // conclusion: we still have bank conflicts for smem_a write access, 
+    // each 2 consecutive threads within warp access the same bank! 
+    // thus, we still need 2 memory issues as least per warp.
+    s_a[load_a_smem_k    ][load_a_smem_m] = r_load_a[0]; // e.g layer_0  b0
+    s_a[load_a_smem_k + 1][load_a_smem_m] = r_load_a[1]; // e.g layer_4  b0
+    s_a[load_a_smem_k + 2][load_a_smem_m] = r_load_a[2]; // e.g layer_8  b0
+    s_a[load_a_smem_k + 3][load_a_smem_m] = r_load_a[3]; // e.g layer_12 b0
+    // 2. bank layout analysis: s_b[8][128] same as s_a[8][128]
+    // 3. bank conficts analysis: s_b[8][128]
+    // tid 0   -> k 0, n 0   -> all access bank 0~3   (layer_0)
+    // tid 1   -> k 0, n 4   -> all access bank 4~7   (layer_0)
+    // tid 2   -> k 0, n 8   -> all access bank 7~11  (layer_0)
+    // tid 7   -> k 0, n 28  -> all access bank 28~31 (layer_0)
+    // tid 8   -> k 0, n 32  -> all access bank 0~3   (layer_1)
+    // ...        ...         ...                 ...
+    // tid 15  -> k 0, n 60  -> all access bank 28~31 (layer_1)
+    // tid 16  -> k 0, n 64  -> all access bank 0~3   (layer_2)
+    // ...        ...         ...                 ...
+    // tid 31  -> k 0, n 124 -> all access bank 28~31 (layer_3)
+    // conclusion: we still have bank conflicts within warp, 
+    // 0/8/16/24 -> bank 0~3, 1/9/17/25 -> bank 4~7, etc. 
+    // thus, we still need 4 memory issues at least per warp.
     FLOAT4(s_b[load_b_smem_k][load_b_smem_n]) = FLOAT4(r_load_b[0]);
 
     __syncthreads();
 
     #pragma unroll
     for (int tk = 0; tk < BK; tk++) {
+      // bank conflicts analysis, tx/ty 0~15, 0~7 bank 4*8=32 bytes
+      // tid 0~15 access bank 0~3,  tid 16~31 access bank 4~7, etc.
+      // tid 0,  tk 0 -> ty 0 -> [0][0+0~3],[0][64+0~3] -> bank 0~3(layer_0/2),   
+      // tid 0,  tk 7 -> ty 0 -> [7][0+0~3],[0][64+0~3] -> bank 0~3(layer_28/30), 
+      // tid 15, tk 0 -> ty 0 -> [0][0+0~3],[0][64+0~3] -> bank 0~3(layer_0/2),   
+      // tid 15, tk 7 -> ty 0 -> [7][0+0~3],[0][64+0~3] -> bank 0~3(layer_28/30), 
+      // tid 16, tk 0 -> ty 1 -> [0][0+4~7],[0][64+4~7] -> bank 4~7(layer_0/2),   
+      // tid 16, tk 7 -> ty 1 -> [7][0+4~7],[0][64+4~7] -> bank 4~7(layer_28/30), 
+      // tid 31, tk 0 -> ty 1 -> [0][0+4~7],[0][64+4~7] -> bank 4~7(layer_0/2),   
+      // tid 31, tk 7 -> ty 1 -> [7][0+4~7],[0][64+4~7] -> bank 4~7(layer_28/30), 
+      // tid 255,tk 0 -> ty 15 -> [0][0+60~63],[0][64+60~63] -> bank 28~31(layer_1/3),   
+      // tid 255,tk 7 -> ty 15 -> [7][0+60~63],[0][64+60~63] -> bank 28~31(layer_29/31), 
       FLOAT4(r_comp_a[0]) = FLOAT4(s_a[tk][ty * TM / 2         ]);
       FLOAT4(r_comp_a[4]) = FLOAT4(s_a[tk][ty * TM / 2 + BM / 2]);
+      // if (tid == < 32 && bx == 0 && by == 0) {
+      //   printf("tid: %d, tx: %d, ty: %d, [%d][%d]\n", tid, tx, ty, tk, ty * TM / 2);
+      //   printf("tid: %d, tx: %d, ty: %d, [%d][%d]\n", tid, tx, ty, tk, ty * TM / 2 + BM / 2);
+      // }
+      // conclusion: still have bank conflicts, need 16 memory issues ?
+
+      // tid 0/8/16/24  access bank 0~3,  tid 1/9/17/25  access bank 4~7, 
+      // tid 2/10/18/26 access bank 8~11, tid 7/15/23/31 access bank 28~31, etc.
+      // tid 0, tk 0 -> tx 0 -> [0][0+0~3],[0][64+0~3] -> bank 0~3(layer_0/2),    
+      // tid 0, tk 7 -> tx 0 -> [7][0+0~3],[0][64+0~3] -> bank 0~3(layer_28/30), 
+      // tid 1, tk 0 -> tx 1 -> [0][0+4~7],[0][64+4~7] -> bank 4~7(layer_0/2),    
+      // tid 1, tk 7 -> tx 1 -> [7][0+4~7],[0][64+4~7] -> bank 4~7(layer_28/30), 
       FLOAT4(r_comp_b[0]) = FLOAT4(s_b[tk][tx * TN / 2         ]);
       FLOAT4(r_comp_b[4]) = FLOAT4(s_b[tk][tx * TN / 2 + BN / 2]);
+      // conclusion: still have some bank conflicts, need 4 memory issues.
 
       #pragma unroll
       for (int tm = 0; tm < TM; tm++) {
         #pragma unroll
         for (int tn = 0; tn < TN; tn++) {
-          r_c[tm][tn] += r_comp_a[tm] * r_comp_b[tn];
+          // r_c[tm][tn] += r_comp_a[tm] * r_comp_b[tn];
+          r_c[tm][tn] = __fmaf_rn(r_comp_a[tm], r_comp_b[tn], r_c[tm][tn]);
         }
       }
     }
+    // sync per BK.
     __syncthreads();
   }
 
@@ -259,11 +353,22 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_kernel(
   float r_comp_b[TN];
   float r_c[TM][TN] = {0.0};
 
-  // TODO: 增加注释
-  int load_a_smem_m = tid >> 1;
-  int load_a_smem_k = (tid & 1) << 2;
-  int load_b_smem_k = tid >> 5;
-  int load_b_smem_n = (tid & 31) << 2;
+  // mapping tid to s_a[BK][BM], for each orginal m-th row, load 4 + 4 K-dim 
+  // row major values from A matrix, and store it in COL major s_a[BK][BM].
+  int load_a_smem_m = tid / 2; // tid / 2，(0,1,2,...,128)
+  // (0b00000000 & 0b00000001) << 2 = 0
+  // (0b00000001 & 0b00000001) << 2 = 4
+  // (0b00000010 & 0b00000001) << 2 = 0
+  // (0b00000011 & 0b00000001) << 2 = 4
+  int load_a_smem_k = (tid & 1) << 2; // (0,4)
+  // mapping tid to s_b[BK][BN], for each orginal k-th row, load 4 + 4 N-dim 
+  // row major values from B matrix, and store it in ROW major s_b[BK][BN].
+  int load_b_smem_k = tid / 32; // 0~8
+  // (0b00000000 & 0b00011111) << 2 = 0
+  // (0b00000001 & 0b00011111) << 2 = 4
+  // (0b00000010 & 0b00011111) << 2 = 8
+  // (0b00000011 & 0b00011111) << 2 = 12
+  int load_b_smem_n = (tid & 31) << 2; // (0,4,8,12,...,124)
 
   int load_a_gmem_m = by * BM + load_a_smem_m;
   int load_b_gmem_n = bx * BN + load_b_smem_n;
@@ -282,7 +387,7 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_kernel(
     s_a[0][load_a_smem_k + 3][load_a_smem_m] = r_load_a[3];
     FLOAT4(s_b[0][load_b_smem_k][load_b_smem_n]) = FLOAT4(r_load_b[0]);
   }
-  // 没有这个同步 精度偶发异常
+  // Without this synchronization, accuracy may occasionally be abnormal.
   __syncthreads(); 
 
   for (int bk = 1; bk < (K + BK - 1) / BK; bk++) {
@@ -308,7 +413,8 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_kernel(
       for (int tm = 0; tm < TM; tm++) {
         #pragma unroll
         for (int tn = 0; tn < TN; tn++) {
-          r_c[tm][tn] += r_comp_a[tm] * r_comp_b[tn];
+          // r_c[tm][tn] += r_comp_a[tm] * r_comp_b[tn];
+          r_c[tm][tn] = __fmaf_rn(r_comp_a[tm], r_comp_b[tn], r_c[tm][tn]);
         }
       }
     }
@@ -333,7 +439,8 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_kernel(
     for (int tm = 0; tm < TM; tm++) {
       #pragma unroll
       for (int tn = 0; tn < TN; tn++) {
-        r_c[tm][tn] += r_comp_a[tm] * r_comp_b[tn];
+        // r_c[tm][tn] += r_comp_a[tm] * r_comp_b[tn];
+        r_c[tm][tn] = __fmaf_rn(r_comp_a[tm], r_comp_b[tn], r_c[tm][tn]);
       }
     }
   }
@@ -484,6 +591,7 @@ void sgemm_t_8x8_sliced_k_f32x4_bcf(torch::Tensor a, torch::Tensor b, torch::Ten
     M, N, K
   );
 }
+
 void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf(torch::Tensor a, torch::Tensor b, torch::Tensor c) {
   CHECK_TORCH_TENSOR_DTYPE(a, torch::kFloat32)
   CHECK_TORCH_TENSOR_DTYPE(b, torch::kFloat32)

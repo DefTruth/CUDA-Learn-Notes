@@ -52,18 +52,33 @@ def run_benchmark(perf_func: callable,
     out_info = f"out_{tag}"
     out_val = out.flatten().detach().cpu().numpy().tolist()[:3]
     out_val = [round(v, 8) for v in out_val]
-    print(f"{out_info:>17}: {out_val}, time:{mean_time:.8f}ms")
+    out_val = [f"{v:<12}" for v in out_val]
+    print(f"{out_info:>32}: {out_val}, time:{mean_time:.6f}ms")
     if show_all: print(out)
     return out.clone(), mean_time
 
 
-print("-" * 80)
-M, N, K = 2048, 1024, 128
-a = torch.randn((M, K)).cuda().half().contiguous() 
-b = torch.randn((K, N)).cuda().half().contiguous() 
-c = torch.randn((M, N)).cuda().half().contiguous() 
-run_benchmark(lib.hgemm_sliced_k_f16, a, b, "f16(sk)", c)
-run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x4, a, b, "f16x4(t8x8sk)", c)
-run_benchmark(partial(torch.matmul, out=c), a, b, "f16_th")
-print("-" * 80)
+Ms = [1024, 2048, 4096]
+Ns = [1024, 2048, 4096]
+Ks = [256,  512,  1024]
+MNKs = [(M, N, K) for M in Ms for N in Ns for K in Ks]
+for (M, N, K) in MNKs:
+    print("-" * 110)
+    print(" " * 45 + f"M={M}, N={N}, K={K}")
+    a = torch.randn((M, K)).cuda().half().contiguous() 
+    b = torch.randn((K, N)).cuda().half().contiguous() 
+    c = torch.randn((M, N)).cuda().half().contiguous() 
+    run_benchmark(lib.hgemm_naive_f16,                                     a, b, "f16",                   c)
+    run_benchmark(lib.hgemm_sliced_k_f16,                                  a, b, "f16(sk)",               c)
+    run_benchmark(lib.hgemm_t_4x4_sliced_k_f16x4_pack_bcf,                 a, b, "f16x4pack(t4x4bcf)",    c)
+    run_benchmark(lib.hgemm_t_4x4_sliced_k_f16x4_pack_bcf_offset,          a, b, "f16x4pack(t4x4offset)", c)
+    run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x4,                          a, b, "f16x4(t8x8sk)",         c)
+    run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x4_bcf,                      a, b, "f16x4(t8x8bcf)",        c)
+    run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x4_pack,                     a, b, "f16x4pack(t8x8sk)",     c)
+    run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x4_pack_bcf,                 a, b, "f16x4pack(bcf)",        c)
+    run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x4_pack_bcf_offset,          a, b, "f16x4pack(offset)",     c)
+    run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf,                 a, b, "f16x8pack(bcf)",        c)
+    run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf_offset,          a, b, "f16x8pack(offset)",     c)
+    run_benchmark(partial(torch.matmul, out=c),                            a, b, "f16_th")
+    print("-" * 110)
 
