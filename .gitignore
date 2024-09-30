@@ -13,5 +13,6 @@ __pycache__
 *.pt
 *.pth
 *.nsys*
-*.sqlite
+*.ncu*
+*.sqlite*
 *.engine
