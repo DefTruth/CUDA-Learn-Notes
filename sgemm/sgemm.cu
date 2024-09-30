@@ -159,7 +159,7 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_kernel(float* a, float* b, float* c, 
   }
 }
 
-template<const int BM=128, const int BN=128, const int BK=8, const int TM=8, const int TN=8>
+template<const int BM=128, const int BN=128, const int BK=8, const int TM=8, const int TN=8, const int OFFSET=0>
 __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(
   float* a, float* b, float* c, const int M, const int N, const int K) {
   
@@ -169,8 +169,8 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(
   const int ty = threadIdx.y;
   const int tid = ty * blockDim.x + tx;
 
-  __shared__ float s_a[BK][BM];
-  __shared__ float s_b[BK][BN];
+  __shared__ float s_a[BK][BM + OFFSET];
+  __shared__ float s_b[BK][BN + OFFSET];
   // __shared__ float s_a[BK][BM + 4];
   // __shared__ float s_b[BK][BN + 4];
 
@@ -334,7 +334,7 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(
   }
 }
 
-template<const int BM=128, const int BN=128, const int BK=8, const int TM=8, const int TN=8>
+template<const int BM=128, const int BN=128, const int BK=8, const int TM=8, const int TN=8, const int OFFSET=0>
 __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_kernel(
   float* a, float* b, float* c, const int M, const int N, const int K) {
 
@@ -344,8 +344,8 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_kernel(
   const int ty = threadIdx.y;
   const int tid = ty * blockDim.x + tx;
 
-  __shared__ float s_a[2][BK][BM];
-  __shared__ float s_b[2][BK][BN];
+  __shared__ float s_a[2][BK][BM + OFFSET];
+  __shared__ float s_b[2][BK][BN + OFFSET];
 
   float r_load_a[TM/2];
   float r_load_b[TN/2];
@@ -592,6 +592,34 @@ void sgemm_t_8x8_sliced_k_f32x4_bcf(torch::Tensor a, torch::Tensor b, torch::Ten
   );
 }
 
+void sgemm_t_8x8_sliced_k_f32x4_bcf_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c) {
+  CHECK_TORCH_TENSOR_DTYPE(a, torch::kFloat32)
+  CHECK_TORCH_TENSOR_DTYPE(b, torch::kFloat32)
+  CHECK_TORCH_TENSOR_DTYPE(c, torch::kFloat32)
+  const int M = a.size(0);
+  const int K = a.size(1);
+  const int N = b.size(1); 
+  CHECK_TORCH_TENSOR_SHAPE(a, M, K)
+  CHECK_TORCH_TENSOR_SHAPE(b, K, N)
+  CHECK_TORCH_TENSOR_SHAPE(c, M, N)
+  constexpr int BM = 128;
+  constexpr int BN = 128;
+  constexpr int BK = 8; 
+  constexpr int TM = 8;
+  constexpr int TN = 8;
+  constexpr int OFFSET = 4;
+
+  dim3 block(BN/TN, BM/TM);
+  dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
+
+  sgemm_t_8x8_sliced_k_f32x4_bcf_kernel<BM, BN, BK, TM, TN, OFFSET><<<grid, block>>>(
+    reinterpret_cast<float*>(a.data_ptr()),
+    reinterpret_cast<float*>(b.data_ptr()),
+    reinterpret_cast<float*>(c.data_ptr()),
+    M, N, K
+  );
+}
+
 void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf(torch::Tensor a, torch::Tensor b, torch::Tensor c) {
   CHECK_TORCH_TENSOR_DTYPE(a, torch::kFloat32)
   CHECK_TORCH_TENSOR_DTYPE(b, torch::kFloat32)
@@ -619,10 +647,40 @@ void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf(torch::Tensor a, torch::Tensor b, torch
   );
 }
 
+void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c) {
+  CHECK_TORCH_TENSOR_DTYPE(a, torch::kFloat32)
+  CHECK_TORCH_TENSOR_DTYPE(b, torch::kFloat32)
+  CHECK_TORCH_TENSOR_DTYPE(c, torch::kFloat32)
+  const int M = a.size(0);
+  const int K = a.size(1);
+  const int N = b.size(1); 
+  CHECK_TORCH_TENSOR_SHAPE(a, M, K)
+  CHECK_TORCH_TENSOR_SHAPE(b, K, N)
+  CHECK_TORCH_TENSOR_SHAPE(c, M, N)
+  constexpr int BM = 128;
+  constexpr int BN = 128;
+  constexpr int BK = 8; 
+  constexpr int TM = 8;
+  constexpr int TN = 8;
+  constexpr int OFFSET = 4;
+
+  dim3 block(BN/TN, BM/TM);
+  dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
+
+  sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_kernel<BM, BN, BK, TM, TN, OFFSET><<<grid, block>>>(
+    reinterpret_cast<float*>(a.data_ptr()),
+    reinterpret_cast<float*>(b.data_ptr()),
+    reinterpret_cast<float*>(c.data_ptr()),
+    M, N, K
+  );
+}
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(sgemm_naive_f32)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_sliced_k_f32)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_f32x4)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_f32x4_bcf)
+  TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_f32x4_bcf_offset)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf)
+  TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_offset)
 }
