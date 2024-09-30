@@ -762,7 +762,9 @@ __global__ void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf_kernel(
   // Without this synchronization, accuracy may occasionally be abnormal.
   __syncthreads(); 
   
-  // bk start from 1
+  // bk start from 1，需要注意的是，虽然 bk 从 1 开始，但实际上 bk=1时，使用的是
+  // 第0块BK中的数据（已经加载到共享内存s_a[0]和s_b[0]）；bk=2时，实际计算的是第1块
+  // BK中的数据。其余以此类推，这个循环结束后，剩下最后一块BK大小的数据需要计算。
   for (int bk = 1; bk < (K + BK - 1) / BK; bk++) {
 
     int smem_sel = (bk - 1) & 1; // bk 1->0, bk 2->1, bk 3->0, ...
@@ -789,6 +791,11 @@ __global__ void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf_kernel(
       }
     }
 
+    // 对比非double buffers版本，此处不需要__syncthreads()，总共节省了
+    // ((K + BK - 1) / BK) - 1 次block内的同步操作。比如，bk=1时，HFMA计算
+    // 使用的是s_a[0]和s_b[0]，因此，和s_a[1]和s_b[1]的加载是没有依赖关系的。
+    // 从global内存到s_a[1]和s_b[1]和HFMA计算可以并行。s_a[1]和s_b[1]用于
+    // 加载下一块BK需要的数据到共享内存。
     s_a[smem_sel_next][load_a_smem_k + 0][load_a_smem_m] = r_load_a[0];
     s_a[smem_sel_next][load_a_smem_k + 1][load_a_smem_m] = r_load_a[1];
     s_a[smem_sel_next][load_a_smem_k + 2][load_a_smem_m] = r_load_a[2];
@@ -798,7 +805,7 @@ __global__ void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf_kernel(
     __syncthreads();
   }
   
-  // buffer 1
+  // 计算剩下最后一块BK
   #pragma unroll
   for (int tk = 0; tk < BK; tk++) {
     LDST128BITS(r_comp_a[0]) = LDST128BITS(s_a[1][tk][ty * TM]);
@@ -1165,6 +1172,7 @@ void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf(torch::Tensor a, torch::Tensor b, 
   constexpr int BK = 8; 
   constexpr int TM = 8;
   constexpr int TN = 8;
+  // cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
 
   dim3 block(BN/TN, BM/TM);
   dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);

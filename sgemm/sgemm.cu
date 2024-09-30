@@ -373,6 +373,14 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_kernel(
   int load_a_gmem_m = by * BM + load_a_smem_m;
   int load_b_gmem_n = bx * BN + load_b_smem_n;
 
+  // 1）主循环从bk = 1 开始，第一次数据加载在主循环之前，最后一次计算在主循环之后，这是pipeline 的特点决定的；
+  // 2）由于计算和下一次访存使用的Shared Memory不同，因此主循环中每次循环只需要一次__syncthreads()即可
+  // 3）由于GPU不能向CPU那样支持乱序执行，主循环中需要先将下一次循环计算需要的Gloabal Memory中的数据load 
+  // 到寄存器，然后进行本次计算，之后再将load到寄存器中的数据写到Shared Memory，这样在LDG指令向Global 
+  // Memory做load时，不会影响后续FFMA及其它运算指令的 launch 执行，也就达到了Double Buffering的目的。
+  
+  // bk = 0 is loading here, buffer 0
+
   {
     int load_a_gmem_k = load_a_smem_k;
     int load_a_gmem_addr = load_a_gmem_m * K + load_a_gmem_k;
@@ -390,6 +398,9 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_kernel(
   // Without this synchronization, accuracy may occasionally be abnormal.
   __syncthreads(); 
 
+  // bk start from 1，需要注意的是，虽然 bk 从 1 开始，但实际上 bk=1时，使用的是
+  // 第0块BK中的数据（已经加载到共享内存s_a[0]和s_b[0]）；bk=2时，实际计算的是第1块
+  // BK中的数据。其余以此类推，这个循环结束后，剩下最后一块BK大小的数据需要计算。
   for (int bk = 1; bk < (K + BK - 1) / BK; bk++) {
 
     int smem_sel = (bk - 1) & 1;
@@ -418,7 +429,12 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_kernel(
         }
       }
     }
-
+    
+    // 对比非double buffers版本，此处不需要__syncthreads()，总共节省了
+    // ((K + BK - 1) / BK) - 1 次block内的同步操作。比如，bk=1时，HFMA计算
+    // 使用的是s_a[0]和s_b[0]，因此，和s_a[1]和s_b[1]的加载是没有依赖关系的。
+    // 从global内存到s_a[1]和s_b[1]和HFMA计算可以并行。s_a[1]和s_b[1]用于
+    // 加载下一块BK需要的数据到共享内存。
     s_a[smem_sel_next][load_a_smem_k + 0][load_a_smem_m] = r_load_a[0];
     s_a[smem_sel_next][load_a_smem_k + 1][load_a_smem_m] = r_load_a[1];
     s_a[smem_sel_next][load_a_smem_k + 2][load_a_smem_m] = r_load_a[2];
@@ -427,7 +443,8 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_kernel(
 
     __syncthreads();
   }
-
+  
+  // 计算剩下最后一块BK
   #pragma unroll
   for (int tk = 0; tk < BK; tk++) {
     FLOAT4(r_comp_a[0]) = FLOAT4(s_a[1][tk][ty * TM / 2     ]);
