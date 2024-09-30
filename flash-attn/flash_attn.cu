@@ -135,61 +135,7 @@ if (((T2).size(0) != (T1).size(0)) ||                \
   throw std::runtime_error("Tensor size mismatch!"); \
 }
 
-torch::Tensor flash_attn_1_fwd_f32(
-  torch::Tensor Q, 
-  torch::Tensor K, 
-  torch::Tensor V) {
-  CHECK_TORCH_TENSOR_DTYPE(Q, torch::kFloat32)
-  CHECK_TORCH_TENSOR_DTYPE(K, torch::kFloat32)
-  CHECK_TORCH_TENSOR_DTYPE(V, torch::kFloat32)
-  const int Bc = 32; 
-  const int Br = 32;
-  // batch_size, n_head, seq_len, head_dim (B,nh,N,d)
-  const int B = Q.size(0); 
-  const int nh = Q.size(1);
-  const int N = Q.size(2); 
-  const int d = Q.size(3);
-  CHECK_TORCH_TENSOR_SHAPE(K, Q)
-  CHECK_TORCH_TENSOR_SHAPE(V, Q)
-  const int Tc = ceil((float) N / Bc); 
-  const int Tr = ceil((float) N / Br);
-  const float scale = 1.0 / sqrt(d);
-
-  // Initialize O, l, m to HBM
-  auto O = torch::zeros_like(Q);
-  auto options = torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCUDA, 0);
-  auto l = torch::zeros({B, nh, N}, options);
-  auto m = torch::full({B, nh, N}, -INFINITY, options);
-
-  // Calculate SRAM size needed per block
-  const int sram_size = (3 * Bc * d * sizeof(float)) + (Bc * Br * sizeof(float));
-  int max_sram_size;
-  cudaDeviceGetAttribute(&max_sram_size, cudaDevAttrMaxSharedMemoryPerBlock, 0);
-#if ENABLE_NOTE_LOG
-  printf("Max shared memory: %d, requested shared memory: %d \\n", max_sram_size, sram_size);
-#endif 
-  dim3 grid(B, nh); // batch_size x num_heads
-  dim3 block(Bc);  // Bc threads per block
-
-  flash_attn_1_fwd_f32_kernel<<<grid, block, sram_size>>>(
-    reinterpret_cast<float*>(Q.data_ptr()), 
-    reinterpret_cast<float*>(K.data_ptr()), 
-    reinterpret_cast<float*>(V.data_ptr()), 
-    N, 
-    d, 
-    Tc, 
-    Tr, 
-    Bc, 
-    Br, 
-    scale,
-    reinterpret_cast<float*>(l.data_ptr()), 
-    reinterpret_cast<float*>(m.data_ptr()), 
-    reinterpret_cast<float*>(O.data_ptr())
-  );
-  return O;
-}
-
-void flash_attn_1_fwd_f32_v2(
+void flash_attn_1_fwd_f32(
   torch::Tensor Q, 
   torch::Tensor K, 
   torch::Tensor V,
