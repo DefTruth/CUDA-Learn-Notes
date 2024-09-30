@@ -694,6 +694,133 @@ __global__ void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_kernel(
 }
 
 // TODO: Double Buffering support
+template<const int BM=128, 
+         const int BN=128, 
+         const int BK=8, 
+         const int TM=8, 
+         const int TN=8, 
+         const int OFFSET=0>
+__global__ void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf_kernel(
+  half* a, half* b, half* c, const int M, const int N, const int K) {
+  // threads: 128/8 * 128/8 = 256
+  const int bx = blockIdx.x;
+  const int by = blockIdx.y;
+  const int tx = threadIdx.x;
+  const int ty = threadIdx.y;
+  const int tid = ty * blockDim.x + tx;
+
+  __shared__ half s_a[2][BK][BM + OFFSET]; // 8*128*2=2KB
+  __shared__ half s_b[2][BK][BN + OFFSET]; // 8*128*2=2KB
+
+  half r_load_a[TM/2]; // 4
+  half r_load_b[TN/2]; // 4
+  half r_comp_a[TM]; // 8
+  half r_comp_b[TN]; // 8
+  half r_c[TM][TN] = {__float2half(0.0f)}; // 8x8
+  
+  // mapping tid to s_a[BK][BM], for each orginal m-th row, load 4 + 4 K-dim 
+  // row major values from A matrix, and store it in COL major s_a[BK][BM].
+  int load_a_smem_m = tid / 2; // tid / 2，(0,1,2,...,128)
+  // (0b00000000 & 0b00000001) << 2 = 0
+  // (0b00000001 & 0b00000001) << 2 = 4
+  // (0b00000010 & 0b00000001) << 2 = 0
+  // (0b00000011 & 0b00000001) << 2 = 4
+  int load_a_smem_k = (tid & 1) << 2; // (0,4)
+  // mapping tid to s_b[BK][BN], for each orginal k-th row, load 4 + 4 N-dim 
+  // row major values from B matrix, and store it in ROW major s_b[BK][BN].
+  int load_b_smem_k = tid / 32; // 0~8
+  // (0b00000000 & 0b00011111) << 2 = 0
+  // (0b00000001 & 0b00011111) << 2 = 4
+  // (0b00000010 & 0b00011111) << 2 = 8
+  // (0b00000011 & 0b00011111) << 2 = 12
+  int load_b_smem_n = (tid & 31) << 2; // (0,4,8,12,...,124)
+
+  int load_a_gmem_m = by * BM + load_a_smem_m;
+  int load_b_gmem_n = bx * BN + load_b_smem_n;
+
+  // 1）主循环从bk = 1 开始，第一次数据加载在主循环之前，最后一次计算在主循环之后，这是pipeline 的特点决定的；
+  // 2）由于计算和下一次访存使用的Shared Memory不同，因此主循环中每次循环只需要一次__syncthreads()即可
+  // 3）由于GPU不能向CPU那样支持乱序执行，主循环中需要先将下一次循环计算需要的Gloabal Memory中的数据load 
+  // 到寄存器，然后进行本次计算，之后再将load到寄存器中的数据写到Shared Memory，这样在LDG指令向Global 
+  // Memory做load时，不会影响后续FFMA及其它运算指令的 launch 执行，也就达到了Double Buffering的目的。
+  
+  // bk = 0 is loading here, buffer 0
+  {
+    int load_a_gmem_k = load_a_smem_k;
+    int load_a_gmem_addr = load_a_gmem_m * K + load_a_gmem_k;
+    int load_b_gmem_k = load_b_smem_k;
+    int load_b_gmem_addr = load_b_gmem_k * N + load_b_gmem_n;
+    LDST64BITS(r_load_a[0]) = LDST64BITS(a[load_a_gmem_addr]);
+    LDST64BITS(r_load_b[0]) = LDST64BITS(b[load_b_gmem_addr]);
+
+    s_a[0][load_a_smem_k + 0][load_a_smem_m] = r_load_a[0];
+    s_a[0][load_a_smem_k + 1][load_a_smem_m] = r_load_a[1];
+    s_a[0][load_a_smem_k + 2][load_a_smem_m] = r_load_a[2];
+    s_a[0][load_a_smem_k + 3][load_a_smem_m] = r_load_a[3];
+    LDST64BITS(s_b[0][load_b_smem_k][load_b_smem_n]) = LDST64BITS(r_load_b[0]);
+  }
+  // Without this synchronization, accuracy may occasionally be abnormal.
+  __syncthreads(); 
+  
+  // bk start from 1
+  for (int bk = 1; bk < (K + BK - 1) / BK; bk++) {
+
+    int smem_sel = (bk - 1) & 1; // bk 1->0, bk 2->1, bk 3->0, ...
+    int smem_sel_next = bk & 1;  // bk 1->1, bk 2->0, bk 3->1, ...
+
+    int load_a_gmem_k = bk * BK + load_a_smem_k;
+    int load_a_gmem_addr = load_a_gmem_m * K + load_a_gmem_k;
+    int load_b_gmem_k = bk * BK + load_b_smem_k;
+    int load_b_gmem_addr = load_b_gmem_k * N + load_b_gmem_n;
+    LDST64BITS(r_load_a[0]) = LDST64BITS(a[load_a_gmem_addr]);
+    LDST64BITS(r_load_b[0]) = LDST64BITS(b[load_b_gmem_addr]);
+    
+    #pragma unroll
+    for (int tk = 0; tk < BK; tk++) {
+      LDST128BITS(r_comp_a[0]) = LDST128BITS(s_a[smem_sel][tk][ty * TM]);
+      LDST128BITS(r_comp_b[0]) = LDST128BITS(s_b[smem_sel][tk][tx * TN]);
+
+      #pragma unroll
+      for (int tm = 0; tm < TM; tm++) {
+        #pragma unroll
+        for (int tn = 0; tn < TN; tn++) {
+          r_c[tm][tn] = __hfma(r_comp_a[tm], r_comp_b[tn], r_c[tm][tn]);
+        }
+      }
+    }
+
+    s_a[smem_sel_next][load_a_smem_k + 0][load_a_smem_m] = r_load_a[0];
+    s_a[smem_sel_next][load_a_smem_k + 1][load_a_smem_m] = r_load_a[1];
+    s_a[smem_sel_next][load_a_smem_k + 2][load_a_smem_m] = r_load_a[2];
+    s_a[smem_sel_next][load_a_smem_k + 3][load_a_smem_m] = r_load_a[3];
+    LDST128BITS(s_b[smem_sel_next][load_b_smem_k][load_b_smem_n]) = LDST128BITS(r_load_b[0]);
+
+    __syncthreads();
+  }
+  
+  // buffer 1
+  #pragma unroll
+  for (int tk = 0; tk < BK; tk++) {
+    LDST128BITS(r_comp_a[0]) = LDST128BITS(s_a[1][tk][ty * TM]);
+    LDST128BITS(r_comp_b[0]) = LDST128BITS(s_b[1][tk][tx * TN]);
+
+    #pragma unroll
+    for (int tm = 0; tm < TM; tm++) {
+      #pragma unroll
+      for (int tn = 0; tn < TN; tn++) {
+        r_c[tm][tn] = __hfma(r_comp_a[tm], r_comp_b[tn], r_c[tm][tn]);
+      }
+    }
+  }
+
+  #pragma unroll
+  for (int i = 0; i < TM; i++) {
+    int store_c_gmem_m = by * BM + ty * TM + i;
+    int store_c_gmem_n = bx * BN + tx * TN;
+    int store_c_gmem_addr = store_c_gmem_m * N + store_c_gmem_n;
+    LDST128BITS(c[store_c_gmem_addr]) = LDST128BITS(r_c[i][0]);
+  }
+}
 
 // --------------------- PyTorch bindings for custom kernel -----------------------
 #define STRINGFY(str) #str
@@ -1022,6 +1149,35 @@ void hgemm_t_4x4_sliced_k_f16x4_pack_bcf_offset(torch::Tensor a, torch::Tensor b
   );
 }
 
+// double buffers
+void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf(torch::Tensor a, torch::Tensor b, torch::Tensor c) {
+  CHECK_TORCH_TENSOR_DTYPE(a, torch::kHalf)
+  CHECK_TORCH_TENSOR_DTYPE(b, torch::kHalf)
+  CHECK_TORCH_TENSOR_DTYPE(c, torch::kHalf)
+  const int M = a.size(0);
+  const int K = a.size(1);
+  const int N = b.size(1); 
+  CHECK_TORCH_TENSOR_SHAPE(a, M, K)
+  CHECK_TORCH_TENSOR_SHAPE(b, K, N)
+  CHECK_TORCH_TENSOR_SHAPE(c, M, N)
+  constexpr int BM = 128;
+  constexpr int BN = 128;
+  constexpr int BK = 8; 
+  constexpr int TM = 8;
+  constexpr int TN = 8;
+
+  dim3 block(BN/TN, BM/TM);
+  dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
+
+  hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf_kernel<BM, BN, BK, TM, TN><<<grid, block>>>(
+    reinterpret_cast<half*>(a.data_ptr()),
+    reinterpret_cast<half*>(b.data_ptr()),
+    reinterpret_cast<half*>(c.data_ptr()),
+    M, N, K
+  );
+}
+
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(hgemm_naive_f16)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_sliced_k_f16)
@@ -1034,4 +1190,5 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k_f16x4_pack_bcf_offset)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k_f16x8_pack_bcf)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k_f16x8_pack_bcf_offset)
+  TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf)
 }

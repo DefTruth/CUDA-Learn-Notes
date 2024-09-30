@@ -76,9 +76,10 @@ for (M, N, K) in MNKs:
     run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x4_bcf,                      a, b, "f16x4(t8x8bcf)",        c)
     run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x4_pack,                     a, b, "f16x4pack(t8x8sk)",     c)
     run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x4_pack_bcf,                 a, b, "f16x4pack(bcf)",        c)
-    run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x4_pack_bcf_offset,          a, b, "f16x4pack(offset)",     c)
+    run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x4_pack_bcf_offset,          a, b, "f16x4pack(bcf+offset)", c)
     run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf,                 a, b, "f16x8pack(bcf)",        c)
-    run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf_offset,          a, b, "f16x8pack(offset)",     c)
+    run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf_offset,          a, b, "f16x8pack(bcf+offset)", c)
+    run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf,            a, b, "f16x8pack(dbuf)",       c)
     run_benchmark(partial(torch.matmul, out=c),                            a, b, "f16_th")
     print("-" * 110)
 
