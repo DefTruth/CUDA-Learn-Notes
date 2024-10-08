@@ -16,34 +16,28 @@
 #define HALF2(value) (reinterpret_cast<half2*>(&(value))[0])
 #define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162*>(&(value))[0])
 #define LDST128BITS(value) (reinterpret_cast<float4*>(&(value))[0])
-// DS required for Online Softmax
-struct __align__(8) MD
-{
-    float m;
-    float d;
-}; 
 
 // -------------------------------------- FP32 -------------------------------------- 
+// DS required for Online Softmax
+struct __align__(8) MD { float m; float d; }; 
 // Warp Reduce for Online Softmax
-
 template<const int kWarpSize = WARP_SIZE >
 __device__ __forceinline__ MD warp_reduce_md_op(MD value) {
-    unsigned int mask = 0xffffffff;
-    #pragma unroll
-    for(int stride = kWarpSize >> 1; stride >= 1; stride >>= 1) {
-        MD other;
-        other.m = __shfl_xor_sync(mask, value.m, stride);
-        other.d = __shfl_xor_sync(mask, value.d, stride);
+  unsigned int mask = 0xffffffff;
+  #pragma unroll
+  for(int stride = kWarpSize >> 1; stride >= 1; stride >>= 1) {
+    MD other;
+    other.m = __shfl_xor_sync(mask, value.m, stride);
+    other.d = __shfl_xor_sync(mask, value.d, stride);
 
-        bool value_bigger = (value.m > other.m);
-        MD bigger_m = value_bigger ? value : other;
-        MD smaller_m = value_bigger ? other : value;
-        
-        value.d = bigger_m.d + smaller_m.d * __expf(smaller_m.m - bigger_m.m);
-        value.m = bigger_m.m;
-    }
-    return value;
-}
+    bool value_bigger = (value.m > other.m);
+    MD bigger_m = value_bigger ? value : other;
+    MD smaller_m = value_bigger ? other : value;
+    
+    value.d = bigger_m.d + smaller_m.d * __expf(smaller_m.m - bigger_m.m);
+    value.m = bigger_m.m;
+  }
+  return value;
 
 // Warp Reduce Sum
 template<const int kWarpSize = WARP_SIZE>
@@ -318,36 +312,36 @@ __global__ void safe_softmax_f16x8_pack_f32_per_token_kernel(half* x, half* y, i
 
 template<const int NUM_THREADS = 256 >
 __global__ void online_softmax_f32_per_token_kernel(const float* x, float* y, int N) {
-  
-    int local_tid = threadIdx.x;
-    int global_tid = blockIdx.x * NUM_THREADS + threadIdx.x;
-    const int WAPR_NUM = NUM_THREADS / WARP_SIZE;
-    int warp_id = local_tid / WARP_SIZE;
-    int lane_id = local_tid % WARP_SIZE;
-    MD val;
-    val.m = global_tid < N ? x[global_tid] : -FLT_MAX;
-    val.d = global_tid < N ? 1.0f : 0.0f;
+  // reference: https://arxiv.org/pdf/1805.02867 (Online normalizer calculation for softmax)
+  int local_tid = threadIdx.x;
+  int global_tid = blockIdx.x * NUM_THREADS + threadIdx.x;
+  const int WAPR_NUM = NUM_THREADS / WARP_SIZE;
+  int warp_id = local_tid / WARP_SIZE;
+  int lane_id = local_tid % WARP_SIZE;
+  MD val;
+  val.m = global_tid < N ? x[global_tid] : -FLT_MAX;
+  val.d = global_tid < N ? 1.0f : 0.0f;
 
-    __shared__ MD shared[ WAPR_NUM ]; 
-    MD res = warp_reduce_md_op<WARP_SIZE>(val);
+  __shared__ MD shared[WAPR_NUM]; 
+  MD res = warp_reduce_md_op<WARP_SIZE>(val);
 
-    if (lane_id == 0) shared[warp_id] = res; 
-    __syncthreads();
+  if (lane_id == 0) shared[warp_id] = res; 
+  __syncthreads();
 
-    if (local_tid < WARP_SIZE) {
-        MD block_res = shared[local_tid];
-        block_res = warp_reduce_md_op<WAPR_NUM>(block_res); 
-        if (local_tid == 0) {
-            shared[0] = block_res; 
-        }
+  if (local_tid < WARP_SIZE) {
+    MD block_res = shared[local_tid];
+    block_res = warp_reduce_md_op<WAPR_NUM>(block_res); 
+    if (local_tid == 0) {
+      shared[0] = block_res; 
     }
-    __syncthreads();
+  }
+  __syncthreads();
 
-    MD final_res = shared[0];
-    float d_total_inverse = __fdividef(1.0f, final_res.d);
-    if (global_tid < N) {
-        y[global_tid] = __expf(x[global_tid] - final_res.m) * d_total_inverse;
-    }
+  MD final_res = shared[0];
+  float d_total_inverse = __fdividef(1.0f, final_res.d);
+  if (global_tid < N) {
+    y[global_tid] = __expf(x[global_tid] - final_res.m) * d_total_inverse;
+  }
 }
 
 // --------------------- PyTorch bindings for custom kernel -----------------------
@@ -504,8 +498,8 @@ safe_softmax_f32_per_token_kernel<(H)><<<grid, block>>>(  \
 // online softmax per token
 #define LANUCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(H)       \
 online_softmax_f32_per_token_kernel<(H)><<<grid, block>>>(  \
-      reinterpret_cast<float*>(x.data_ptr()),             \
-      reinterpret_cast<float*>(y.data_ptr()),             \
+      reinterpret_cast<float*>(x.data_ptr()),               \
+      reinterpret_cast<float*>(y.data_ptr()),               \
       N);  
 
 #define DISPATCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(S, H) \
@@ -514,22 +508,22 @@ online_softmax_f32_per_token_kernel<(H)><<<grid, block>>>(  \
   switch ((H))                                           \
   {                                                      \
   case 32:                                               \
-    LANUCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(32)         \
+    LANUCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(32)       \
     break;                                               \
   case 64:                                               \
-    LANUCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(64)         \
+    LANUCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(64)       \
     break;                                               \
   case 128:                                              \
-    LANUCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(128)        \
+    LANUCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(128)      \
     break;                                               \
   case 256:                                              \
-    LANUCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(256)        \
+    LANUCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(256)      \
     break;                                               \
   case 512:                                              \
-    LANUCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(512)        \
+    LANUCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(512)      \
     break;                                               \
   case 1024:                                             \
-    LANUCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(1024)       \
+    LANUCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(1024)     \
     break;                                               \
   default:                                               \
     throw std::runtime_error(                            \

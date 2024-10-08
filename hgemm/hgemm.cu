@@ -659,18 +659,35 @@ __global__ void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_kernel(
     LDST64BITS(r_load_a[0]) = LDST64BITS(a[load_a_gmem_addr]);
     LDST64BITS(r_load_b[0]) = LDST64BITS(b[load_b_gmem_addr]);
     
+    // s_a[8][128] write: 4路 bank conflicts
     s_a[load_a_smem_k    ][load_a_smem_m] = r_load_a[0]; 
     s_a[load_a_smem_k + 1][load_a_smem_m] = r_load_a[1]; 
     s_a[load_a_smem_k + 2][load_a_smem_m] = r_load_a[2]; 
     s_a[load_a_smem_k + 3][load_a_smem_m] = r_load_a[3]; 
+    // s_b[8][128] write: 2路 bank conflicts
     LDST64BITS(s_b[load_b_smem_k][load_b_smem_n]) = LDST64BITS(r_load_b[0]);
   
     __syncthreads();
 
     #pragma unroll
     for (int tk = 0; tk < BK; tk++) {
+      // bank conflicts analysis, tx/ty 0~15, 0~7 bank 4*8=32 bytes
+      // 进入具体线程后，可以认为该线程对应的值都已经固定了，比如tid, tx, ty.
+      // 因此对于这个循环的理解，应该按照tk迭代，tid, tx, ty固定为某个值来理解.
+      // 但是分析bank conflicts需要考虑warp内线程的并发行为，因此，应该分析
+      // 不同线程在同一个时间点的bank访存情况. 
+      // s_a[8][128] load: 16路 bank conflicts
+      // tid 0~15,  tk 0~7 -> ty 0 -> [0~7][0+0~7]  bank 0~3 layers_0~15
+      // tid 16~31, tk 0~7 -> ty 1 -> [0~7][0+8~15] bank 4~7 layers_0~15
       LDST128BITS(r_comp_a[0]) = LDST128BITS(s_a[tk][ty * TM]);
+      // s_b[8][128] load: 4路 bank conflicts
+      // tid 0, tk 0~7 -> tx 0 -> [0~7][0+0~7]   bank 0~3   
+      // tid 1, tk 0~7 -> tx 1 -> [0~7][0+8~15]  bank 4~7   
+      // tid 7, tk 0~7 -> tx 7 -> [0~7][0+56~63] bank 28~31 
+      // tid 0/8/16/24, tk 0~7 -> tx 0/8/16/24 -> [0~7][0+...] bank 0~3   
       LDST128BITS(r_comp_b[0]) = LDST128BITS(s_b[tk][tx * TN]);
+      // TODO: 手工实现 swizzle之行列号异或
+      // https://zhuanlan.zhihu.com/p/722286440
 
       #pragma unroll
       for (int tm = 0; tm < TM; tm++) {
@@ -1185,6 +1202,14 @@ void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf(torch::Tensor a, torch::Tensor b, 
   );
 }
 
+// from hgemm_async.cu
+void hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf(torch::Tensor a, torch::Tensor b, torch::Tensor c);
+void hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
+void hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf_async(torch::Tensor a, torch::Tensor b, torch::Tensor c);
+void hgemm_t_8x8_sliced_k32_f16x8_pack_dbuf(torch::Tensor a, torch::Tensor b, torch::Tensor c);
+void hgemm_t_8x8_sliced_k32_f16x8_pack_dbuf_async(torch::Tensor a, torch::Tensor b, torch::Tensor c);
+void hgemm_t_16x8_sliced_k32_f16x8_pack_dbuf(torch::Tensor a, torch::Tensor b, torch::Tensor c);
+void hgemm_t_16x8_sliced_k32_f16x8_pack_dbuf_async(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(hgemm_naive_f16)
@@ -1199,4 +1224,11 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k_f16x8_pack_bcf)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k_f16x8_pack_bcf_offset)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf)
+  TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf)
+  TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf_offset)
+  TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf_async)
+  TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k32_f16x8_pack_dbuf)
+  TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k32_f16x8_pack_dbuf_async)
+  TORCH_BINDING_COMMON_EXTENSION(hgemm_t_16x8_sliced_k32_f16x8_pack_dbuf)
+  TORCH_BINDING_COMMON_EXTENSION(hgemm_t_16x8_sliced_k32_f16x8_pack_dbuf_async)
 }
