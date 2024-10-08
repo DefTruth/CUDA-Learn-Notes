@@ -8,7 +8,7 @@ torch.set_grad_enabled(False)
 
 # Load the CUDA kernel as a python module
 lib = load(name='sgemm_lib', 
-           sources=['sgemm.cu'], 
+           sources=['sgemm.cu', 'sgemm_async.cu'], 
            extra_cuda_cflags=[
                "-O3",
                 "-U__CUDA_NO_HALF_OPERATORS__",
@@ -53,7 +53,7 @@ def run_benchmark(perf_func: callable,
     out_val = out.flatten().detach().cpu().numpy().tolist()[:3]
     out_val = [round(v, 8) for v in out_val]
     out_val = [f"{v:<12}" for v in out_val]
-    print(f"{out_info:>27}: {out_val}, time:{mean_time:.6f}ms")
+    print(f"{out_info:>32}: {out_val}, time:{mean_time:.6f}ms")
     if show_all: print(out)
     return out.clone(), mean_time
 
@@ -63,7 +63,7 @@ Ns = [2048, 4096]
 Ks = [1024, 2048]
 MNKs = [(M, N, K) for M in Ms for N in Ns for K in Ks]
 for (M, N, K) in MNKs:
-    print("-" * 100)
+    print("-" * 110)
     print(" " * 45 + f"M={M}, N={N}, K={K}")
     a = torch.randn((M, K)).cuda().float().contiguous() 
     b = torch.randn((K, N)).cuda().float().contiguous() 
@@ -82,6 +82,9 @@ for (M, N, K) in MNKs:
                   a, b, "f32x4(t8x8dbuf)", c)
     run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_offset, 
                   a, b, "f32x4(t8x8dbuf+offset)", c)
+    print("-" * 52 + "Async" + "-" * 53)
+    run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_async, 
+                  a, b, "f32x4(t8x8dbuf+async)",  c)
     run_benchmark(partial(torch.matmul, out=c),            
                   a, b, "f32_th")
-    print("-" * 100)
+    print("-" * 110)

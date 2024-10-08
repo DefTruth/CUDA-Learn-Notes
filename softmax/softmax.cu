@@ -312,7 +312,7 @@ __global__ void safe_softmax_f16x8_pack_f32_per_token_kernel(half* x, half* y, i
 }
 
 template<const int NUM_THREADS = 256 >
-__global__ void online_softmax_f32_per_token_kernel(const float* x, float* y, int N) {
+__global__ void online_safe_softmax_f32_per_token_kernel(const float* x, float* y, int N) {
   // reference: https://arxiv.org/pdf/1805.02867 (Online normalizer calculation for softmax)
   int local_tid = threadIdx.x;
   int global_tid = blockIdx.x * NUM_THREADS + threadIdx.x;
@@ -497,10 +497,10 @@ safe_softmax_f32_per_token_kernel<(H)><<<grid, block>>>(  \
   } 
 
 // online softmax per token
-#define LANUCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(H)       \
-online_softmax_f32_per_token_kernel<(H)><<<grid, block>>>(  \
-      reinterpret_cast<float*>(x.data_ptr()),               \
-      reinterpret_cast<float*>(y.data_ptr()),               \
+#define LANUCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(H)            \
+online_safe_softmax_f32_per_token_kernel<(H)><<<grid, block>>>(  \
+      reinterpret_cast<float*>(x.data_ptr()),                    \
+      reinterpret_cast<float*>(y.data_ptr()),                    \
       N);  
 
 #define DISPATCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(S, H) \
@@ -765,7 +765,7 @@ void safe_softmax_f16x8_pack_f32_per_token(torch::Tensor x, torch::Tensor y) {
   DISPATCH_SATE_SOFTMAX_F16x8_PACK_F32_PER_TOKEN_KERNEL(S, H)
 }
 
-void online_softmax_f32_per_token(torch::Tensor x, torch::Tensor y) {
+void online_safe_softmax_f32_per_token(torch::Tensor x, torch::Tensor y) {
   CHECK_TORCH_TENSOR_DTYPE(x, torch::kFloat32)                       
   CHECK_TORCH_TENSOR_DTYPE(y, torch::kFloat32)
   CHECK_TORCH_TENSOR_SHAPE(x, y)                                                                                                                              
@@ -789,5 +789,5 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(safe_softmax_f16_f32_per_token)
   TORCH_BINDING_COMMON_EXTENSION(safe_softmax_f16x2_f32_per_token)
   TORCH_BINDING_COMMON_EXTENSION(safe_softmax_f16x8_pack_f32_per_token)
-  TORCH_BINDING_COMMON_EXTENSION(online_softmax_f32_per_token)
+  TORCH_BINDING_COMMON_EXTENSION(online_safe_softmax_f32_per_token)
 }
