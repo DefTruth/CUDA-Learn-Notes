@@ -25,7 +25,7 @@ lib = load(name='sgemm_lib',
 def run_benchmark(perf_func: callable, 
                   a: torch.Tensor, b: torch.Tensor,
                   tag: str, out: Optional[torch.Tensor] = None, 
-                  warmup: int = 10, iters: int = 100,
+                  warmup: int = 2, iters: int = 20,
                   show_all: bool = False):
     if out is not None: 
         out.fill_(0)      
@@ -60,7 +60,7 @@ def run_benchmark(perf_func: callable,
 
 Ms = [2048, 4096]
 Ns = [2048, 4096]
-Ks = [1024, 2048]
+Ks = [512,  1024]
 MNKs = [(M, N, K) for M in Ms for N in Ns for K in Ks]
 for (M, N, K) in MNKs:
     print("-" * 110)
@@ -69,22 +69,32 @@ for (M, N, K) in MNKs:
     b = torch.randn((K, N)).cuda().float().contiguous() 
     c = torch.randn((M, N)).cuda().float().contiguous() 
     run_benchmark(lib.sgemm_naive_f32,                     
-                  a, b, "f32", c)
+                  a, b, "f32",                        c)
     run_benchmark(lib.sgemm_sliced_k_f32,                  
-                  a, b, "f32(sk)", c)
+                  a, b, "f32(sk)",                    c)
     run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4,          
-                  a, b, "f32x4(t8x8sk)", c)
+                  a, b, "f32x4(t8x8sk)",              c)
     run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4_bcf,      
-                  a, b, "f32x4(t8x8bcf)", c)
+                  a, b, "f32x4(t8x8bcf)",             c)
     run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4_bcf_offset,      
-                  a, b, "f32x4(t8x8bcf+offset)", c)
+                  a, b, "f32x4(t8x8bcf+offset)",      c)
     run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf, 
-                  a, b, "f32x4(t8x8dbuf)", c)
+                  a, b, "f32x4(t8x8dbuf)",            c)
     run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_offset, 
-                  a, b, "f32x4(t8x8dbuf+offset)", c)
+                  a, b, "f32x4(t8x8dbuf+offset)",     c)
     print("-" * 52 + "Async" + "-" * 53)
-    run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_async, 
-                  a, b, "f32x4(t8x8dbuf+async)",  c)
+    run_benchmark(lib.sgemm_t_8x16_sliced_k16_f32x4_bcf_dbuf, 
+                  a, b, "f32x4(t8x16dbuf+k16)",       c)
+    run_benchmark(lib.sgemm_t_8x16_sliced_k16_f32x4_bcf_dbuf_async, 
+                  a, b, "f32x4(t8x16dbuf+k16+async)", c)
+    run_benchmark(lib.sgemm_t_8x4_sliced_k16_f32x4_bcf_dbuf, 
+                  a, b, "f32x4(t8x4dbuf+k16)",        c)
+    run_benchmark(lib.sgemm_t_8x4_sliced_k16_f32x4_bcf_dbuf_async, 
+                  a, b, "f32x4(t8x4dbuf+k16+async)",  c)
+    run_benchmark(lib.sgemm_t_8x8_sliced_k16_f32x4_bcf_dbuf, 
+                  a, b, "f32x4(t8x8dbuf+k16)",        c)
+    run_benchmark(lib.sgemm_t_8x8_sliced_k16_f32x4_bcf_dbuf_async, 
+                  a, b, "f32x4(t8x8dbuf+k16+async)",  c)
     run_benchmark(partial(torch.matmul, out=c),            
                   a, b, "f32_th")
     print("-" * 110)
