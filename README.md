@@ -42,6 +42,12 @@
 | ✔️ [relu_f16x2](./relu/relu.cu)|f16|/|[link](./relu/)|⭐️|  
 | ✔️ [relu_f16x8](./relu/relu.cu)|f16|/|[link](./relu/)|⭐️|  
 | ✔️ [relu_f16x8_pack](./relu/relu.cu)|f16|/|[link](./relu/)|⭐️⭐️|  
+| ✔️ [gelu_f32](./gelu/gelu.cu)|f32|/|[link](./gelu/)|⭐️|  
+| ✔️ [gelu_f32x4](./gelu/gelu.cu)|f32|/|[link](./gelu/)|⭐️|  
+| ✔️ [gelu_f16](./gelu/gelu.cu)|f16|/|[link](./gelu/)|⭐️|  
+| ✔️ [gelu_f16x2](./gelu/gelu.cu)|f16|/|[link](./gelu/)|⭐️|  
+| ✔️ [gelu_f16x8](./gelu/gelu.cu)|f16|/|[link](./gelu/)|⭐️|  
+| ✔️ [gelu_f16x8_pack](./gelu/gelu.cu)|f16|/|[link](./gelu/)|⭐️⭐️|  
 | ✔️ [warp_reduce_[all]](./reduce/reduce.cu)|all|all|[link](./reduce/)|⭐️⭐️|  
 | ✔️ [reduce_f32_f32](./reduce/reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  
 | ✔️ [reduce_f32x4_f32](./reduce/reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  
