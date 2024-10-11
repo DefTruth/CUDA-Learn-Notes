@@ -117,6 +117,11 @@
 | ✔️ [hgemm_t_8x8_sliced_k...dbuf](./hgemm/hgemm.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
 | ✔️ [hgemm_t_8/16x8...k16/32...dbuf](./hgemm/hgemm_async.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
 | ✔️ [hgemm_t_8/16x8...k16/32...async](./hgemm/hgemm_async.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
+| ✔️ [hgemm_wmma_m16n16k16...naive*](./hgemm/hgemm_wmma.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
+| ✔️ [hgemm_wmma_m16n16k16...mma4x2*](./hgemm/hgemm_wmma.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
+| ✔️ [hgemm_wmma_m16n16k16...warp2x4*](./hgemm/hgemm_wmma.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
+| ✔️ [hgemm_wmma_m16n16k16...async*](./hgemm/hgemm_wmma.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
+| ✔️ [hgemm_wmma_m16n16k16...offset*](./hgemm/hgemm_wmma.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k32_f32](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k128_f32x4](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k16_f32](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  

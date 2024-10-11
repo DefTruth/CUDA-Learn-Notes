@@ -8,7 +8,7 @@ torch.set_grad_enabled(False)
 
 # Load the CUDA kernel as a python module
 lib = load(name='hgemm_lib', 
-           sources=['hgemm.cu', 'hgemm_async.cu'], 
+           sources=['hgemm.cu', 'hgemm_async.cu', 'hgemm_wmma.cu'], 
            extra_cuda_cflags=[
                "-O3",
                 "-U__CUDA_NO_HALF_OPERATORS__",
@@ -25,7 +25,7 @@ lib = load(name='hgemm_lib',
 def run_benchmark(perf_func: callable, 
                   a: torch.Tensor, b: torch.Tensor,
                   tag: str, out: Optional[torch.Tensor] = None, 
-                  warmup: int = 5, iters: int = 100,
+                  warmup: int = 5, iters: int = 20,
                   show_all: bool = False):
     
     if (a.size(0) > 1024 or a.size(1) >= 1024 
@@ -112,7 +112,18 @@ for (M, N, K) in MNKs:
                   a, b, "f16x8pack(k32+dbuf+t16x8)",         c)
     run_benchmark(lib.hgemm_t_16x8_sliced_k32_f16x8_pack_dbuf_async,              
                   a, b, "f16x8pack(k32+dbuf+t16x8+async)",   c)
-    run_benchmark(partial(torch.matmul, out=c),                            
+    print("-" * 53 + "WMMA" + "-" * 53)
+    run_benchmark(lib.hgemm_wmma_m16n16k16_naive,              
+                  a, b, "f16wmma(+naive)",                      c)
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2,              
+                  a, b, "f16wmma(mma4x2)",                      c)
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4,              
+                  a, b, "f16wmma(mma4x2+warp2x4)",              c)
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_async,              
+                  a, b, "f16wmma(mma4x2+warp2x4+async)",        c)
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_async_offset,              
+                  a, b, "f16wmma(mma4x2+warp2x4+async+offset)", c)
+    run_benchmark(partial(torch.matmul, out=c),
                   a, b, "f16_th")
     print("-" * 110)
 
