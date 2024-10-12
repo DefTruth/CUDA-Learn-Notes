@@ -58,7 +58,7 @@ def run_benchmark(perf_func: callable,
     out_val = out.flatten().detach().cpu().numpy().tolist()[:3]
     out_val = [round(v, 8) for v in out_val]
     out_val = [f"{v:<12}" for v in out_val]
-    print(f"{out_info:>40}: {out_val}, time:{mean_time:.6f}ms")
+    print(f"{out_info:>45}: {out_val}, time:{mean_time:.6f}ms")
     if show_all: print(out)
     return out.clone(), mean_time
 
@@ -123,10 +123,18 @@ for (M, N, K) in MNKs:
                   a, b, "f16wmma(mma4x2+warp2x4+async)",        c)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_async_offset,              
                   a, b, "f16wmma(mma4x2+warp2x4+async+offset)", c)
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_async,              
+                  a, b, "f16wmma(mma4x2+warp2x4x2+async)",        c)
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_async_offset,              
+                  a, b, "f16wmma(mma4x2+warp2x4x2+async+offset)", c)
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_dbuf_async,              
+                  a, b, "f16wmma(mma4x2+warp2x4x2+dbuf)",         c)
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_dbuf_async_offset,              
+                  a, b, "f16wmma(mma4x2+warp2x4x2+dbuf+offset)",  c)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_dbuf_async,              
-                  a, b, "f16wmma(mma4x2+warp2x4+dbuf)", c)
+                  a, b, "f16wmma(mma4x2+warp2x4+dbuf)",           c)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_dbuf_async_offset,              
-                  a, b, "f16wmma(mma4x2+warp2x4+dbuf+offset)", c)
+                  a, b, "f16wmma(mma4x2+warp2x4+dbuf+offset)",    c)
     run_benchmark(partial(torch.matmul, out=c),
                   a, b, "f16_th")
     print("-" * 110)
