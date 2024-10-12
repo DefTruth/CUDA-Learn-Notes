@@ -1228,6 +1228,11 @@ void hgemm_wmma_m32n8k16_mma2x4_warp2x4_dbuf_async(torch::Tensor a, torch::Tenso
 void hgemm_wmma_m32n8k16_mma2x4_warp2x4_dbuf_async_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_rbuf_async(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_rbuf_async_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
+// from hgemm_wmma_stage.cu
+void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stage3(torch::Tensor a, torch::Tensor b, torch::Tensor c);
+void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stage3_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
+void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stage4(torch::Tensor a, torch::Tensor b, torch::Tensor c);
+void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stage4_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
@@ -1267,4 +1272,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m32n8k16_mma2x4_warp2x4_dbuf_async_offset)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_rbuf_async)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_rbuf_async_offset)
+  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4_stage3)
+  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4_stage3_offset)
+  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4_stage4)
+  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4_stage4_offset)
 }

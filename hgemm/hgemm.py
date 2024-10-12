@@ -8,7 +8,8 @@ torch.set_grad_enabled(False)
 
 # Load the CUDA kernel as a python module
 lib = load(name='hgemm_lib', 
-           sources=['hgemm.cu', 'hgemm_async.cu', 'hgemm_wmma.cu'], 
+           sources=['hgemm.cu', 'hgemm_async.cu', 'hgemm_wmma.cu', 
+                    'hgemm_wmma_stage.cu'], 
            extra_cuda_cflags=[
                "-O3",
                 "-U__CUDA_NO_HALF_OPERATORS__",
@@ -137,6 +138,10 @@ for (M, N, K) in MNKs:
                   a, b, "f16wmma(mma4x2+warp2x4+dbuf)",                  c)
     run_benchmark(lib.hgemm_wmma_m32n8k16_mma2x4_warp2x4_dbuf_async,              
                   a, b, "f16wmma(m32n8k16+mma2x4+warp2x4+dbuf)",         c)
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stage3,              
+                  a, b, "f16wmma(mma2x4+warp2x4+stage3)",                c)
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stage4,              
+                  a, b, "f16wmma(mma2x4+warp2x4+stage4)",                c)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_rbuf_async_offset,              
                   a, b, "f16wmma(mma4x2+warp2x4x2+rbuf+offset)",         c)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_dbuf_async_offset,              
@@ -145,8 +150,13 @@ for (M, N, K) in MNKs:
                   a, b, "f16wmma(mma4x4+warp2x2x2+dbuf+offset)",         c)
     run_benchmark(lib.hgemm_wmma_m32n8k16_mma2x4_warp2x4_dbuf_async_offset,              
                   a, b, "f16wmma(m32n8k16+mma2x4+warp2x4+dbuf+offset)",  c)
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stage4_offset,              
+                  a, b, "f16wmma(mma4x2+warp2x4+stage4+offset)",         c)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_dbuf_async_offset,              
                   a, b, "f16wmma(mma4x2+warp2x4+dbuf+offset)",           c)
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stage3_offset,              
+                  a, b, "f16wmma(mma4x2+warp2x4+stage3+offset)",         c)
     run_benchmark(partial(torch.matmul, out=c),
                   a, b, "f16_th")
     print("-" * 120)
+
