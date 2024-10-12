@@ -77,6 +77,7 @@ run_benchmark(lib.softmax_f32_per_token,              x, "f32(per)",         out
 run_benchmark(lib.softmax_f32x4_per_token,            x, "f32x4(per)",       out)
 run_benchmark(lib.safe_softmax_f32_per_token,         x, "f32(safe)",        out) 
 run_benchmark(lib.online_safe_softmax_f32_per_token,  x, "f32(safe+online)", out)
+run_benchmark(lib.online_safe_softmax_f32x4_pack_per_token,  x, "f32x4(safe+online)", out)
 run_benchmark(lib.safe_softmax_f32x4_per_token,       x, "f32x4(safe)",      out) 
 run_benchmark(partial(torch.softmax, dim=1, out=out), x, "f32_th(per)")
 
@@ -100,6 +101,7 @@ run_benchmark(lib.softmax_f32_per_token,              x, "f32(per)",         out
 run_benchmark(lib.softmax_f32x4_per_token,            x, "f32x4(per)",       out)
 run_benchmark(lib.safe_softmax_f32_per_token,         x, "f32(safe)",        out) 
 run_benchmark(lib.online_safe_softmax_f32_per_token,  x, "f32(safe+online)", out)
+run_benchmark(lib.online_safe_softmax_f32x4_pack_per_token,  x, "f32x4(safe+online)", out)
 run_benchmark(lib.safe_softmax_f32x4_per_token,       x, "f32x4(safe)",      out) 
 run_benchmark(partial(torch.softmax, dim=1, out=out), x, "f32_th(per)")
 
@@ -123,6 +125,7 @@ run_benchmark(lib.softmax_f32_per_token,              x, "f32(per)",         out
 run_benchmark(lib.softmax_f32x4_per_token,            x, "f32x4(per)",       out)
 run_benchmark(lib.safe_softmax_f32_per_token,         x, "f32(safe)",        out) 
 run_benchmark(lib.online_safe_softmax_f32_per_token,  x, "f32(safe+online)", out)
+run_benchmark(lib.online_safe_softmax_f32x4_pack_per_token,  x, "f32x4(safe+online)", out)
 run_benchmark(lib.safe_softmax_f32x4_per_token,       x, "f32x4(safe)",      out) 
 run_benchmark(partial(torch.softmax, dim=1, out=out), x, "f32_th(per)")
 

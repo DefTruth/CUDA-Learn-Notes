@@ -345,6 +345,50 @@ __global__ void online_safe_softmax_f32_per_token_kernel(const float* x, float* 
   }
 }
 
+template <const int NUM_THREADS = 256 / 4>
+__global__ void online_safe_softmax_f32x4_pack_per_token_kernel(float *x, float *y, int N)
+{
+    // reference: https://arxiv.org/pdf/1805.02867 (Online normalizer calculation for softmax)
+    int local_tid = threadIdx.x;
+    int global_tid = (blockIdx.x * NUM_THREADS + local_tid) * 4;
+
+    const int WAPR_NUM = NUM_THREADS / WARP_SIZE;
+    int warp_id = local_tid / WARP_SIZE;
+    int lane_id = local_tid % WARP_SIZE;
+    // compare local max value
+    float4 val = FLOAT4((x)[global_tid]);
+    float local_m = fmaxf(fmaxf(val.x, val.y), fmaxf(val.z, val.w));
+    float local_d = __expf(val.x - local_m) + __expf(val.y - local_m) + __expf(val.z - local_m) + __expf(val.w - local_m);
+
+    
+    MD local_md = {local_m, local_d};
+    MD res = warp_reduce_md_op<WARP_SIZE>(local_md);
+    __shared__ MD shared[WAPR_NUM];
+
+    if (lane_id == 0) shared[warp_id] = res;
+    __syncthreads();
+    // do block reduce
+    if (local_tid < WARP_SIZE)
+    {
+        MD block_res = shared[local_tid];
+        block_res = warp_reduce_md_op<WAPR_NUM>(block_res);
+        if (local_tid == 0) shared[0] = block_res;
+    }
+    __syncthreads();
+    // write back
+    MD final_res = shared[0];
+    float d_total_inverse = __fdividef(1.0f, final_res.d);
+    if (global_tid < N)
+    {
+        float4 reg_y;
+        reg_y.x = __expf(val.x - final_res.m) * d_total_inverse;
+        reg_y.y = __expf(val.y - final_res.m) * d_total_inverse;
+        reg_y.z = __expf(val.z - final_res.m) * d_total_inverse;
+        reg_y.w = __expf(val.w - final_res.m) * d_total_inverse;
+        FLOAT4((y)[global_tid]) = reg_y;
+    }
+}
+
 // --------------------- PyTorch bindings for custom kernel -----------------------
 #define STRINGFY(str) #str
 #define TORCH_BINDING_COMMON_EXTENSION(func) \
@@ -531,6 +575,37 @@ online_safe_softmax_f32_per_token_kernel<(H)><<<grid, block>>>(  \
       "only support H: 64/128/256/512/1024");            \
     break;                                               \
   } 
+
+// online softmax per token
+#define LANUCH_ONLINE_SOFTMAX_F32X4_PACK_PER_TOKEN_KERNEL(H)              \
+online_safe_softmax_f32x4_pack_per_token_kernel<(H/4)><<<grid, block>>>(  \
+      reinterpret_cast<float*>(x.data_ptr()),                             \
+      reinterpret_cast<float*>(y.data_ptr()),                             \
+      N);  
+
+#define DISPATCH_ONLINE_SOFTMAX_F32X4_PACK_PER_TOKEN_KERNEL(S, H)                     \
+  dim3 block((H/4));                                                                  \
+  dim3 grid((S));                                                                     \
+  switch ((H))                                                                        \
+  {                                                                                   \
+  case 128:                                                                           \
+    LANUCH_ONLINE_SOFTMAX_F32X4_PACK_PER_TOKEN_KERNEL(128)                            \
+    break;                                                                            \
+  case 256:                                                                           \
+    LANUCH_ONLINE_SOFTMAX_F32X4_PACK_PER_TOKEN_KERNEL(256)                            \
+    break;                                                                            \
+  case 512:                                                                           \
+    LANUCH_ONLINE_SOFTMAX_F32X4_PACK_PER_TOKEN_KERNEL(512)                            \
+    break;                                                                            \
+  case 1024:                                                                          \
+    LANUCH_ONLINE_SOFTMAX_F32X4_PACK_PER_TOKEN_KERNEL(1024)                           \
+    break;                                                                            \
+  default:                                                                            \
+    throw std::runtime_error(                                                         \
+      "only support H: 128/256/512/1024; raise error if warp_num*4 > H");             \
+    break;                                                                            \
+  } 
+
 #define LANUCH_SAFE_SOFTMAX_F32x4_PER_TOKEN_KERNEL(H)   \
 safe_softmax_f32x4_per_token_kernel<(H)/4><<<           \
       grid, block>>>(                                   \
@@ -775,6 +850,16 @@ void online_safe_softmax_f32_per_token(torch::Tensor x, torch::Tensor y) {
   DISPATCH_ONLINE_SOFTMAX_F32_PER_TOKEN_KERNEL(S, H)
 }
 
+void online_safe_softmax_f32x4_pack_per_token(torch::Tensor x, torch::Tensor y) {
+  CHECK_TORCH_TENSOR_DTYPE(x, torch::kFloat32)                       
+  CHECK_TORCH_TENSOR_DTYPE(y, torch::kFloat32)
+  CHECK_TORCH_TENSOR_SHAPE(x, y)                                                                                                                              
+  const int S = x.size(0);  
+  const int H = x.size(1); 
+  const int N = S * H; 
+  DISPATCH_ONLINE_SOFTMAX_F32X4_PACK_PER_TOKEN_KERNEL(S, H)
+}
+
 // grid memory fence fp32
 TORCH_BINDING_SOFTMAX(f32,   torch::kFloat32, float, 1)
 TORCH_BINDING_SOFTMAX(f32x4, torch::kFloat32, float, 4)
@@ -790,4 +875,5 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(safe_softmax_f16x2_f32_per_token)
   TORCH_BINDING_COMMON_EXTENSION(safe_softmax_f16x8_pack_f32_per_token)
   TORCH_BINDING_COMMON_EXTENSION(online_safe_softmax_f32_per_token)
+  TORCH_BINDING_COMMON_EXTENSION(online_safe_softmax_f32x4_pack_per_token)
 }
