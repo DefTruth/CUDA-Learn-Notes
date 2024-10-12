@@ -123,7 +123,10 @@ for (M, N, K) in MNKs:
                   a, b, "f16wmma(mma4x2+warp2x4+async)",        c)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_async_offset,              
                   a, b, "f16wmma(mma4x2+warp2x4+async+offset)", c)
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_dbuf_async,              
+                  a, b, "f16wmma(mma4x2+warp2x4+dbuf)", c)
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_dbuf_async_offset,              
+                  a, b, "f16wmma(mma4x2+warp2x4+dbuf+offset)", c)
     run_benchmark(partial(torch.matmul, out=c),
                   a, b, "f16_th")
     print("-" * 110)
-
