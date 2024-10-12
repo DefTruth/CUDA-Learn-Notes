@@ -48,6 +48,13 @@
 | ✔️ [gelu_f16x2](./gelu/gelu.cu)|f16|/|[link](./gelu/)|⭐️|  
 | ✔️ [gelu_f16x8](./gelu/gelu.cu)|f16|/|[link](./gelu/)|⭐️|  
 | ✔️ [gelu_f16x8_pack](./gelu/gelu.cu)|f16|/|[link](./gelu/)|⭐️⭐️|  
+| ✔️ [embedding_f32](./embedding/embedding.cu)|f32|/|[link](./embedding/)|⭐️|  
+| ✔️ [embedding_f32x4](./embedding/embedding.cu)|f32|/|[link](./embedding/)|⭐️|  
+| ✔️ [embedding_f32x4_pack](./embedding/embedding.cu)|f32|/|[link](./embedding/)|⭐️|  
+| ✔️ [embedding_f16](./embedding/embedding.cu)|f16|/|[link](./embedding/)|⭐️|  
+| ✔️ [embedding_f16x2](./embedding/embedding.cu)|f16|/|[link](./embedding/)|⭐️|  
+| ✔️ [embedding_f16x8](./embedding/embedding.cu)|f16|/|[link](./embedding/)|⭐️|  
+| ✔️ [embedding_f16x8_pack](./embedding/embedding.cu)|f16|/|[link](./embedding/)|⭐️⭐️| 
 | ✔️ [warp_reduce_[all]](./reduce/reduce.cu)|all|all|[link](./reduce/)|⭐️⭐️|  
 | ✔️ [reduce_f32_f32](./reduce/reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  
 | ✔️ [reduce_f32x4_f32](./reduce/reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  
