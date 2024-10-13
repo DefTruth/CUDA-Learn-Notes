@@ -61,9 +61,9 @@ def run_benchmark(perf_func: callable,
 # Ms = [1024, 2048, 4096]
 # Ns = [1024, 2048, 4096]
 # Ks = [256,  512,  1024]
-Ms = [1024]
-Ns = [1024]
-Ks = [256]
+Ms = [4096]
+Ns = [4096]
+Ks = [1024]
 MNKs = [(M, N, K) for M in Ms for N in Ns for K in Ks]
 for (M, N, K) in MNKs:
     print("-" * 110)
