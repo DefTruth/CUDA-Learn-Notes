@@ -64,9 +64,9 @@ def run_benchmark(perf_func: callable,
     return out.clone(), mean_time
 
 
-Ms = [1024, 2048, 4096]
-Ns = [1024, 2048, 4096]
-Ks = [256,  512,  1024]
+Ms = [2048, 4096]
+Ns = [2048, 4096]
+Ks = [512,  1024]
 MNKs = [(M, N, K) for M in Ms for N in Ns for K in Ks]
 for (M, N, K) in MNKs:
     print("-" * 120)
@@ -115,7 +115,7 @@ for (M, N, K) in MNKs:
                   a, b, "f16x8pack(k32+dbuf+t16x8+async)",   c)
     print("-" * 58 + "WMMA" + "-" * 58)
     run_benchmark(lib.hgemm_wmma_m16n16k16_naive,              
-                  a, b, "f16wmma(+naive)",                               c)
+                  a, b, "f16wmma(naive)",                                c)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2,              
                   a, b, "f16wmma(mma4x2)",                               c)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4,              
@@ -160,7 +160,7 @@ for (M, N, K) in MNKs:
                   a, b, "f16wmma(mma4x2+warp2x4+stage2+offset)",         c)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stage3_offset,              
                   a, b, "f16wmma(mma4x2+warp2x4+stage3+offset)",         c)
-    run_benchmark(partial(torch.matmul, out=c),             a, b, "f16_th")
     run_benchmark(lib.hgemm_cublas_tensor_op, a, b, "f16(cublas)",       c)
+    run_benchmark(partial(torch.matmul, out=c),             a, b, "f16_th")
     print("-" * 120)
 
