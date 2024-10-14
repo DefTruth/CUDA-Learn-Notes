@@ -8,7 +8,8 @@ torch.set_grad_enabled(False)
 
 # Load the CUDA kernel as a python module
 lib = load(name='sgemm_lib', 
-           sources=['sgemm.cu', 'sgemm_async.cu', 'sgemm_wmma_tf32_stage.cu'], 
+           sources=['sgemm.cu', 'sgemm_async.cu', 
+                    'sgemm_wmma_tf32_stage.cu', 'sgemm_cublas.cu'], 
            extra_cuda_cflags=[
                "-O3",
                 "-U__CUDA_NO_HALF_OPERATORS__",
@@ -81,14 +82,13 @@ for (M, N, K) in MNKs:
                   a, b, "f32x4(t8x8bcf)",             c)
     run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf, 
                   a, b, "f32x4(t8x8dbuf)",            c)
-    print("-" * 52 + "Async" + "-" * 53)
-    run_benchmark(lib.sgemm_t_8x8_sliced_k16_f32x4_bcf_dbuf, 
-                  a, b, "f32x4(t8x8dbuf+k16)",        c)
-    run_benchmark(lib.sgemm_t_8x8_sliced_k16_f32x4_bcf_dbuf_async, 
-                  a, b, "f32x4(t8x8dbuf+k16+async)",  c)
     print("-" * 52 + "WMMA" + "-" * 54)
+    run_benchmark(lib.sgemm_cublas, 
+                  a, b, "f32(cublas)",                c)
     run_benchmark(lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage2, 
                   a, b, "tf32(m16n16k8+stage2)",      c)
+    run_benchmark(lib.sgemm_cublas_tf32, 
+                  a, b, "tf32(cublas+tf32)",          c)
     run_benchmark(partial(torch.matmul, out=c),            
                   a, b, "f32_th")
     torch.cuda.synchronize()

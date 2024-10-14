@@ -704,6 +704,9 @@ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage2(torch::Tensor a, torch::Tensor b,
 void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage2_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage3(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage3_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
+// from sgemm_cublas.cu
+void sgemm_cublas(torch::Tensor a, torch::Tensor b, torch::Tensor c);
+void sgemm_cublas_tf32(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
@@ -724,4 +727,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage2_offset)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage3)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage3_offset)
+  TORCH_BINDING_COMMON_EXTENSION(sgemm_cublas)
+  TORCH_BINDING_COMMON_EXTENSION(sgemm_cublas_tf32)
 }
