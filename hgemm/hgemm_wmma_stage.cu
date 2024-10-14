@@ -164,8 +164,10 @@ __global__ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_kernel(
   }
   
   // make sure all memory issues ready.
-  CP_ASYNC_WAIT_GROUP(0);
-  __syncthreads(); 
+  if ((K_STAGE - 2) > 0) {
+    CP_ASYNC_WAIT_GROUP(0);
+    __syncthreads(); 
+  }
   // processing last (K_STAGE-1) k iters.
   {
     #pragma unroll
@@ -345,8 +347,10 @@ __global__ void hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_kernel(
   }
   
   // make sure all memory issues ready.
-  CP_ASYNC_WAIT_GROUP(0);
-  __syncthreads(); 
+  if ((K_STAGE - 2) > 0) {
+    CP_ASYNC_WAIT_GROUP(0);
+    __syncthreads(); 
+  }
   // processing last (K_STAGE-1) k iters.
   {
     #pragma unroll
