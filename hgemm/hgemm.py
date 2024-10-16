@@ -29,7 +29,7 @@ def run_benchmark(perf_func: callable,
                   tag: str, out: Optional[torch.Tensor] = None, 
                   stages: int = -1, swizzle: bool = False,
                   swizzle_stride: int = 1,
-                  warmup: int = 5, iters: int = 50,
+                  warmup: int = 5, iters: int = 20,
                   show_all: bool = False):
     global MAX_TFLOPS
 
@@ -38,7 +38,7 @@ def run_benchmark(perf_func: callable,
     N = b.size(1)
     if (a.size(0) > 1024 or a.size(1) >= 1024 
         or b.size(1) > 1024):
-        iters = 20
+        iters = 10
     
     if swizzle:
         # make swizzle stride as N/4 and multiples of 256
@@ -95,12 +95,13 @@ def run_benchmark(perf_func: callable,
         else:
             improve = 0
         MAX_TFLOPS = TFLOPS
-        print(f"{out_info:>35}: {out_val}, time:{mean_time}ms, "
+        print(f"{out_info:>40}: {out_val}, time:{mean_time}ms, "
               f"swizzle: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}(+{improve:.2f}%)")
     else:
-        print(f"{out_info:>35}: {out_val}, time:{mean_time}ms, "
+        print(f"{out_info:>40}: {out_val}, time:{mean_time}ms, "
               f"swizzle: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}")
     if show_all: print(out)
+    time.sleep(0.05)
     return out, mean_time
 
 
@@ -125,29 +126,42 @@ for (M, N, K) in MNKs:
     torch.cuda.synchronize()
 
     # CUDA Cores FP16
-    run_benchmark(lib.hgemm_naive_f16, a, b, "f16(naive)",  c)
+    # run_benchmark(lib.hgemm_naive_f16, a, b, "f16(naive)",  c)
     run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf, a, b, "f16x8pack(t8x8+bcf)", c)
     run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf, a, b, "f16x8pack(t8x8+bcf+dbuf)", c)
     run_benchmark(lib.hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf, a, b, "f16x8pack(t8x8+k16+dbuf)", c)
 
     print("-" * 68 + "WMMA" + "-" * 58)
-    run_benchmark(lib.hgemm_wmma_m16n16k16_naive, a, b, "f16wmma(naive)", c)
+    # run_benchmark(lib.hgemm_wmma_m16n16k16_naive, a, b, "f16wmma(naive)", c)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2, a, b, "f16wmma(mma4x2)", c)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4, a, b, "f16wmma(mma4x2+warp2x4)", c)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_dbuf_async_offset, a, b, "f16wmma(mma2x4+warp2x4+dbuf)", c)
 
-    # stage, thread block swizzle, dsmem
+    # Stages, dsmem
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "f16wmma(mma2x4+warp2x4+stage4)", c, stages=4)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "f16wmma(mma2x4+warp2x4+stage3)", c, stages=3)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "f16wmma(mma2x4+warp2x4+stage2)", c, stages=2)
 
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "f16wmma(mma2x4+...+stage4+dsmem)", c, stages=4)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "f16wmma(mma2x4+...+stage3+dsmem)", c, stages=3)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "f16wmma(mma2x4+...+stage2+dsmem)", c, stages=2)
+
+    # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "f16wmma(mma4x4+...+stage4+dsmem)", c, stages=4)
+    # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "f16wmma(mma4x4+...+stage3+dsmem)", c, stages=3)
+    # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "f16wmma(mma4x4+...+stage2+dsmem)", c, stages=2)
     
+    # Thread block swizzle
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "f16wmma(mma2x4+...+stage4+swizzle)", c, stages=4, swizzle=True)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "f16wmma(mma2x4+...+stage3+swizzle)", c, stages=3, swizzle=True)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "f16wmma(mma2x4+...+stage2+swizzle)", c, stages=2, swizzle=True)
 
+    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "f16wmma(...+stage4+dsmem+swizzle)", c, stages=4, swizzle=True)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "f16wmma(...+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
     run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "f16wmma(...+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
+
+    # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "f16wmma(mma4x4+stage4+dsmem+swizzle)", c, stages=4, swizzle=True)
+    # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "f16wmma(mma4x4+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
+    # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "f16wmma(mma4x4+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
     
     run_benchmark(lib.hgemm_cublas_tensor_op, a, b, "f16(cublas)", c)
     run_benchmark(partial(torch.matmul, out=c), a, b, "f16_th")

@@ -36,6 +36,9 @@ void cublas_tensor_op(half *A, half *B, half *C,  size_t M,
                C, CUDA_R_16F, N, 
                CUBLAS_COMPUTE_16F,
                CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+
+  // why this line will make cublas slow down?  
+  // cublasDestroy(handle);
 }
 
 // --------------------- PyTorch bindings for custom kernel -----------------------

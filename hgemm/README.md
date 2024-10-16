@@ -14,19 +14,22 @@
 - [X] hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf_kernel(bank conflicts reduce, pack, double buffers)
 - [X] hgemm_t_8x8_sliced_k16/32_f16x8_pack_bcf_dbuf_kernel(pack, double buffers)
 - [X] hgemm_t_8x8_sliced_k16/32_f16x8_pack_bcf_dbuf_async_kernel(pack, double buffers, copy async)
-- [X] hgemm_wmma_m16n16k16_naive(WMMA API, Tensor Cores) 
-- [X] hgemm_wmma_m16n16k16_mma4x2(Tensor Cores, Tile MMA) 
-- [X] hgemm_wmma_m16n16k16_mma4x2_warp2x4(Tensor Cores, Tile MMA/Warp, pack) 
-- [X] hgemm_wmma_m16n16k16_mma4x2_warp2x4_async(Tensor Cores, Tile MMA/Warp, Copy Async) 
-- [X] hgemm_wmma_m16n16k16_mma4x2_warp2x4_async_offset(Tensor Cores, Tile MMA/Warp, Copy Async, Pad)
-- [X] hgemm_wmma_m16n16k16_mma4x2_warp2x4_dbuf_async(Tensor Cores, Tile MMA/Warp, Copy Async, Double Buffers, Pad)  
-- [X] hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_dbuf_async(Tensor Cores, Tile MMA/Warp, Copy Async, Double Buffers, Pad)  
-- [X] hgemm_wmma_m32n8k16_mma2x4_warp2x4_dbuf_async(Tensor Cores, Tile MMA/Warp, Copy Async, Double Buffers, Pad)
-- [X] hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_rbuf_async(Tensor Cores, Tile MMA/Warp, Copy Async, Double/Reg Buffers, Pad)
-- [X] hgemm_wmma_m16n16k16_mma4x2_warp2x4_stage2/3/4(Tensor Cores, Tile MMA/Warp, Copy Async, Stage, Pad, Thread block swizzle) 
+- [X] hgemm_wmma_m16n16k16_naive(WMMA) 
+- [X] hgemm_wmma_m16n16k16_mma4x2(WMMA, Tile MMA) 
+- [X] hgemm_wmma_m16n16k16_mma4x2_warp2x4(TWMMA, Tile MMA/Warp, pack) 
+- [X] hgemm_wmma_m16n16k16_mma4x2_warp2x4_async(WMMA, Tile MMA/Warp, Copy Async) 
+- [X] hgemm_wmma_m16n16k16_mma4x2_warp2x4_async_offset(WMMA, Tile MMA/Warp, Copy Async, Pad)
+- [X] hgemm_wmma_m16n16k16_mma4x2_warp2x4_dbuf_async(WMMA, Tile MMA/Warp, Copy Async, Double Buffers, Pad)  
+- [X] hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_dbuf_async(WMMA, Tile MMA/Warp, Copy Async, Double Buffers, Pad)  
+- [X] hgemm_wmma_m32n8k16_mma2x4_warp2x4_dbuf_async(WMMA, Tile MMA/Warp, Copy Async, Double Buffers, Pad)
+- [X] hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_rbuf_async(WMMA, Tile MMA/Warp, Copy Async, Double/Reg Buffers, Pad)
+- [X] hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages(WMMA, Tile MMA/Warp, Copy Async, Stages, Pad, Block swizzle) 
+- [X] hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages(WMMA, Tile MMA/Warp, Copy Async, Stages, Pad, Block swizzle) 
 - [X] PyTorch bindings
 
-目前最优的实现，在L20上，能达到cuBLAS大概93%~95%左右的性能(TFLOPS)，已知问题为bank conflicts没有完全消除，目前通过padding的方式缓解bank conflicts会导致shared memory浪费，也会影响SM occupancy。并且尚未手工实现Warp swizzle(受限于WMMA API的灵活性以及本人的能力)，后续将会尝试通过MMA PTX实现warp swizzle。
+## 目前性能  
+
+目前最优的实现，在L20上（理论Tensor Cores FP16算力为 119.5 TFLOPS），能达到cuBLAS大概95%~98%左右的性能(105-110 TFLOPS vs 105-115 TFLOPS)，部分case会超越cuBLAS。已知问题为bank conflicts没有完全消除，目前通过padding的方式缓解bank conflicts会导致shared memory浪费，也会影响SM occupancy。并且尚未手工实现Warp swizzle(受限于WMMA API的灵活性以及本人的能力)，后续将会尝试通过MMA PTX实现warp swizzle。
 
 ## 共享内存 Bank Conflicts
 
@@ -231,632 +234,654 @@ python3 hgemm.py
 
 输出:
 
-- RTX 3080
-
-```bash  
-------------------------------------------------------------------------------------------------------------------------
-                                                       M=4096, N=4096, K=256
-                                           out_f16: ['37.3125     ', '6.1015625   ', '-11.6484375 '], time:6.849790ms
-         out_f16wmma(mma4x2+warp2x4+stage4+offset): ['37.25       ', '6.078125    ', '-11.640625  '], time:0.268483ms
-         out_f16wmma(mma4x2+warp2x4+stage2+offset): ['37.25       ', '6.078125    ', '-11.640625  '], time:0.245142ms
-         out_f16wmma(mma4x2+warp2x4+stage3+offset): ['37.25       ', '6.078125    ', '-11.640625  '], time:0.239062ms
-                                        out_f16_th: ['37.25       ', '6.0703125   ', '-11.640625  '], time:0.302052ms
-                                   out_f16(cublas): ['37.25       ', '6.078125    ', '-11.640625  '], time:0.394297ms
-------------------------------------------------------------------------------------------------------------------------
-------------------------------------------------------------------------------------------------------------------------
-                                                       M=4096, N=4096, K=512
-                                           out_f16: ['2.56640625  ', '-3.1953125  ', '56.59375    '], time:16.299248ms
-         out_f16wmma(mma4x2+warp2x4+stage4+offset): ['2.5625      ', '-3.16601562 ', '56.625      '], time:0.394201ms
-         out_f16wmma(mma4x2+warp2x4+stage2+offset): ['2.5625      ', '-3.16601562 ', '56.625      '], time:0.384831ms
-         out_f16wmma(mma4x2+warp2x4+stage3+offset): ['2.5625      ', '-3.16601562 ', '56.625      '], time:0.367522ms
-                                        out_f16_th: ['2.56054688  ', '-3.171875   ', '56.53125    '], time:0.519037ms
-                                   out_f16(cublas): ['2.5625      ', '-3.16601562 ', '56.625      '], time:0.403666ms
-------------------------------------------------------------------------------------------------------------------------
-------------------------------------------------------------------------------------------------------------------------
-                                                       M=4096, N=4096, K=1024
-                                           out_f16: ['39.0625     ', '2.04101562  ', '-8.3046875  '], time:34.225392ms
-         out_f16wmma(mma4x2+warp2x4+stage4+offset): ['39.21875    ', '2.06640625  ', '-8.3203125  '], time:0.716949ms
-         out_f16wmma(mma4x2+warp2x4+stage2+offset): ['39.21875    ', '2.06640625  ', '-8.3203125  '], time:0.722528ms
-         out_f16wmma(mma4x2+warp2x4+stage3+offset): ['39.21875    ', '2.06640625  ', '-8.3203125  '], time:0.645280ms
-                                        out_f16_th: ['39.21875    ', '2.08398438  ', '-8.328125   '], time:0.852585ms
-                                   out_f16(cublas): ['39.21875    ', '2.06640625  ', '-8.3203125  '], time:0.554204ms
-------------------------------------------------------------------------------------------------------------------------
-```
-
 - NVIDIA L20  
 ```bash
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=4096, N=4096, K=2048
-                         f16(naive): ['30.0625   ', '-9.34375  '], time:18.87199ms, swizzle: NOOP, TFLOPS: 3.64  (+0.00%)
-                f16x8pack(t8x8+bcf): ['30.0625   ', '-9.34375  '], time:1.412582ms, swizzle: NOOP, TFLOPS: 48.65 (+1235.99%)
-           f16x8pack(t8x8+bcf+dbuf): ['30.0625   ', '-9.34375  '], time:1.398515ms, swizzle: NOOP, TFLOPS: 49.14 (+1.01%)
-           f16x8pack(t8x8+k16+dbuf): ['30.0625   ', '-9.34375  '], time:1.342988ms, swizzle: NOOP, TFLOPS: 51.17 (+4.13%)
+                     f16x8pack(t8x8+bcf): ['-48.625   ', '-19.59375 '], time:1.423811ms, swizzle: NOOP, TFLOPS: 48.26 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-48.625   ', '-19.59375 '], time:1.406931ms, swizzle: NOOP, TFLOPS: 48.84 (+1.20%)
+                f16x8pack(t8x8+k16+dbuf): ['-48.625   ', '-19.59375 '], time:1.330733ms, swizzle: NOOP, TFLOPS: 51.64 (+5.73%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['29.921875 ', '-9.5078125'], time:2.957487ms, swizzle: NOOP, TFLOPS: 23.24
-                    f16wmma(mma4x2): ['29.921875 ', '-9.5078125'], time:1.494514ms, swizzle: NOOP, TFLOPS: 45.98
-            f16wmma(mma4x2+warp2x4): ['29.921875 ', '-9.5078125'], time:0.936377ms, swizzle: NOOP, TFLOPS: 73.39 (+43.42%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['29.921875 ', '-9.5078125'], time:0.695562ms, swizzle: NOOP, TFLOPS: 98.80 (+34.62%)
-     f16wmma(mma2x4+warp2x4+stage3): ['29.921875 ', '-9.5078125'], time:0.687670ms, swizzle: NOOP, TFLOPS: 99.93 (+1.15%)
-     f16wmma(mma2x4+warp2x4+stage2): ['29.921875 ', '-9.5078125'], time:0.690507ms, swizzle: NOOP, TFLOPS: 99.52
-   f16wmma(mma2x4+...+stage3+dsmem): ['29.921875 ', '-9.5078125'], time:0.692045ms, swizzle: NOOP, TFLOPS: 99.30
-   f16wmma(mma2x4+...+stage2+dsmem): ['29.921875 ', '-9.5078125'], time:0.689327ms, swizzle: NOOP, TFLOPS: 99.69
- f16wmma(mma2x4+...+stage3+swizzle): ['29.921875 ', '-9.5078125'], time:0.686764ms, swizzle: 1024, TFLOPS: 100.06(+0.13%)
- f16wmma(mma2x4+...+stage2+swizzle): ['29.921875 ', '-9.5078125'], time:0.679647ms, swizzle: 1024, TFLOPS: 101.11(+1.05%)
-  f16wmma(...+stage3+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:0.686705ms, swizzle: 1024, TFLOPS: 100.07
-  f16wmma(...+stage2+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:0.678586ms, swizzle: 1024, TFLOPS: 101.27(+0.16%)
-                        f16(cublas): ['29.921875 ', '-9.5078125'], time:0.660037ms, swizzle: NOOP, TFLOPS: 104.11(+2.81%)
-                             f16_th: ['29.9375   ', '-9.5703125'], time:0.645995ms, swizzle: NOOP, TFLOPS: 106.38(+2.17%)
+                         f16wmma(mma4x2): ['-48.6875  ', '-19.71875 '], time:1.490950ms, swizzle: NOOP, TFLOPS: 46.09
+                 f16wmma(mma4x2+warp2x4): ['-48.6875  ', '-19.71875 '], time:0.942635ms, swizzle: NOOP, TFLOPS: 72.90 (+41.17%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-48.6875  ', '-19.71875 '], time:0.703215ms, swizzle: NOOP, TFLOPS: 97.72 (+34.05%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-48.6875  ', '-19.71875 '], time:0.705647ms, swizzle: NOOP, TFLOPS: 97.38
+          f16wmma(mma2x4+warp2x4+stage3): ['-48.6875  ', '-19.71875 '], time:0.695824ms, swizzle: NOOP, TFLOPS: 98.76 (+1.06%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-48.6875  ', '-19.71875 '], time:0.699400ms, swizzle: NOOP, TFLOPS: 98.25
+        f16wmma(mma2x4+...+stage4+dsmem): ['-48.6875  ', '-19.71875 '], time:0.707101ms, swizzle: NOOP, TFLOPS: 97.18
+        f16wmma(mma2x4+...+stage3+dsmem): ['-48.6875  ', '-19.71875 '], time:0.702190ms, swizzle: NOOP, TFLOPS: 97.86
+        f16wmma(mma2x4+...+stage2+dsmem): ['-48.6875  ', '-19.71875 '], time:0.697612ms, swizzle: NOOP, TFLOPS: 98.51
+      f16wmma(mma2x4+...+stage4+swizzle): ['-48.6875  ', '-19.71875 '], time:0.710916ms, swizzle: 1024, TFLOPS: 96.66
+      f16wmma(mma2x4+...+stage3+swizzle): ['-48.6875  ', '-19.71875 '], time:0.694918ms, swizzle: 1024, TFLOPS: 98.89 (+0.13%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-48.6875  ', '-19.71875 '], time:0.686240ms, swizzle: 1024, TFLOPS: 100.14(+1.26%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:0.713205ms, swizzle: 1024, TFLOPS: 96.35
+       f16wmma(...+stage3+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:0.702953ms, swizzle: 1024, TFLOPS: 97.76
+       f16wmma(...+stage2+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:0.686788ms, swizzle: 1024, TFLOPS: 100.06
+                             f16(cublas): ['-48.6875  ', '-19.71875 '], time:0.854802ms, swizzle: NOOP, TFLOPS: 80.39
+                                  f16_th: ['-48.75    ', '-19.765625'], time:0.660657ms, swizzle: NOOP, TFLOPS: 104.02(+3.87%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=4096, N=4096, K=4096
-                         f16(naive): ['18.078125 ', '32.90625  '], time:37.67147ms, swizzle: NOOP, TFLOPS: 3.65  (+0.00%)
-                f16x8pack(t8x8+bcf): ['18.078125 ', '32.90625  '], time:2.861094ms, swizzle: NOOP, TFLOPS: 48.04 (+1216.68%)
-           f16x8pack(t8x8+bcf+dbuf): ['18.078125 ', '32.90625  '], time:2.854299ms, swizzle: NOOP, TFLOPS: 48.15 (+0.24%)
-           f16x8pack(t8x8+k16+dbuf): ['18.078125 ', '32.90625  '], time:2.722513ms, swizzle: NOOP, TFLOPS: 50.48 (+4.84%)
+                     f16x8pack(t8x8+bcf): ['-7.390625 ', '-9.75     '], time:2.838373ms, swizzle: NOOP, TFLOPS: 48.42 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-7.390625 ', '-9.75     '], time:2.812886ms, swizzle: NOOP, TFLOPS: 48.86 (+0.91%)
+                f16x8pack(t8x8+k16+dbuf): ['-7.390625 ', '-9.75     '], time:2.657032ms, swizzle: NOOP, TFLOPS: 51.73 (+5.87%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['17.953125 ', '32.8125   '], time:5.859076ms, swizzle: NOOP, TFLOPS: 23.46
-                    f16wmma(mma4x2): ['17.953125 ', '32.8125   '], time:2.957177ms, swizzle: NOOP, TFLOPS: 46.48
-            f16wmma(mma4x2+warp2x4): ['17.953125 ', '32.8125   '], time:1.826405ms, swizzle: NOOP, TFLOPS: 75.25 (+49.06%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['17.953125 ', '32.8125   '], time:1.359379ms, swizzle: NOOP, TFLOPS: 101.10(+34.36%)
-     f16wmma(mma2x4+warp2x4+stage3): ['17.953125 ', '32.8125   '], time:1.346862ms, swizzle: NOOP, TFLOPS: 102.04(+0.93%)
-     f16wmma(mma2x4+warp2x4+stage2): ['17.953125 ', '32.8125   '], time:1.348721ms, swizzle: NOOP, TFLOPS: 101.90
-   f16wmma(mma2x4+...+stage3+dsmem): ['17.953125 ', '32.8125   '], time:1.348102ms, swizzle: NOOP, TFLOPS: 101.95
-   f16wmma(mma2x4+...+stage2+dsmem): ['17.953125 ', '32.8125   '], time:1.341021ms, swizzle: NOOP, TFLOPS: 102.49(+0.44%)
- f16wmma(mma2x4+...+stage3+swizzle): ['17.953125 ', '32.8125   '], time:1.335406ms, swizzle: 1024, TFLOPS: 102.92(+0.42%)
- f16wmma(mma2x4+...+stage2+swizzle): ['17.953125 ', '32.8125   '], time:1.322257ms, swizzle: 1024, TFLOPS: 103.94(+0.99%)
-  f16wmma(...+stage3+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:1.335537ms, swizzle: 1024, TFLOPS: 102.91
-  f16wmma(...+stage2+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:1.322436ms, swizzle: 1024, TFLOPS: 103.93
-                        f16(cublas): ['17.953125 ', '32.8125   '], time:1.282560ms, swizzle: NOOP, TFLOPS: 107.16(+3.10%)
-                             f16_th: ['17.96875  ', '32.75     '], time:1.272284ms, swizzle: NOOP, TFLOPS: 108.03(+0.81%)
+                         f16wmma(mma4x2): ['-7.765625 ', '-9.59375  '], time:2.967953ms, swizzle: NOOP, TFLOPS: 46.31
+                 f16wmma(mma4x2+warp2x4): ['-7.765625 ', '-9.59375  '], time:1.837468ms, swizzle: NOOP, TFLOPS: 74.80 (+44.60%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-7.765625 ', '-9.59375  '], time:1.372146ms, swizzle: NOOP, TFLOPS: 100.16(+33.91%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-7.765625 ', '-9.59375  '], time:1.376533ms, swizzle: NOOP, TFLOPS: 99.84
+          f16wmma(mma2x4+warp2x4+stage3): ['-7.765625 ', '-9.59375  '], time:1.353287ms, swizzle: NOOP, TFLOPS: 101.56(+1.39%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-7.765625 ', '-9.59375  '], time:1.358866ms, swizzle: NOOP, TFLOPS: 101.14
+        f16wmma(mma2x4+...+stage4+dsmem): ['-7.765625 ', '-9.59375  '], time:1.368713ms, swizzle: NOOP, TFLOPS: 100.41
+        f16wmma(mma2x4+...+stage3+dsmem): ['-7.765625 ', '-9.59375  '], time:1.362800ms, swizzle: NOOP, TFLOPS: 100.85
+        f16wmma(mma2x4+...+stage2+dsmem): ['-7.765625 ', '-9.59375  '], time:1.357173ms, swizzle: NOOP, TFLOPS: 101.27
+      f16wmma(mma2x4+...+stage4+swizzle): ['-7.765625 ', '-9.59375  '], time:1.377367ms, swizzle: 1024, TFLOPS: 99.78
+      f16wmma(mma2x4+...+stage3+swizzle): ['-7.765625 ', '-9.59375  '], time:1.351928ms, swizzle: 1024, TFLOPS: 101.66(+0.10%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-7.765625 ', '-9.59375  '], time:1.335167ms, swizzle: 1024, TFLOPS: 102.94(+1.26%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:1.376914ms, swizzle: 1024, TFLOPS: 99.82
+       f16wmma(...+stage3+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:1.368808ms, swizzle: 1024, TFLOPS: 100.41
+       f16wmma(...+stage2+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:1.335954ms, swizzle: 1024, TFLOPS: 102.88
+                             f16(cublas): ['-7.765625 ', '-9.59375  '], time:1.504993ms, swizzle: NOOP, TFLOPS: 91.32
+                                  f16_th: ['-7.9101562', '-9.703125 '], time:1.287364ms, swizzle: NOOP, TFLOPS: 106.76(+3.71%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=4096, N=4096, K=8192
-                         f16(naive): ['69.5      ', '17.9375   '], time:75.29305ms, swizzle: NOOP, TFLOPS: 3.65  (+0.00%)
-                f16x8pack(t8x8+bcf): ['69.5      ', '17.9375   '], time:5.882036ms, swizzle: NOOP, TFLOPS: 46.73 (+1180.05%)
-           f16x8pack(t8x8+bcf+dbuf): ['69.5      ', '17.9375   '], time:5.787312ms, swizzle: NOOP, TFLOPS: 47.50 (+1.64%)
-           f16x8pack(t8x8+k16+dbuf): ['69.5      ', '17.9375   '], time:5.527842ms, swizzle: NOOP, TFLOPS: 49.73 (+4.69%)
+                     f16x8pack(t8x8+bcf): ['-34.6875  ', '109.75    '], time:5.812764ms, swizzle: NOOP, TFLOPS: 47.29 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-34.6875  ', '109.75    '], time:5.647635ms, swizzle: NOOP, TFLOPS: 48.67 (+2.92%)
+                f16x8pack(t8x8+k16+dbuf): ['-34.6875  ', '109.75    '], time:5.406832ms, swizzle: NOOP, TFLOPS: 50.84 (+4.45%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['69.25     ', '18.078125 '], time:11.61112ms, swizzle: NOOP, TFLOPS: 23.67
-                    f16wmma(mma4x2): ['69.25     ', '18.078125 '], time:5.882251ms, swizzle: NOOP, TFLOPS: 46.73
-            f16wmma(mma4x2+warp2x4): ['69.25     ', '18.078125 '], time:3.625464ms, swizzle: NOOP, TFLOPS: 75.82 (+52.47%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['69.25     ', '18.078125 '], time:2.672624ms, swizzle: NOOP, TFLOPS: 102.85(+35.65%)
-     f16wmma(mma2x4+warp2x4+stage3): ['69.25     ', '18.078125 '], time:2.649033ms, swizzle: NOOP, TFLOPS: 103.77(+0.89%)
-     f16wmma(mma2x4+warp2x4+stage2): ['69.25     ', '18.078125 '], time:2.655041ms, swizzle: NOOP, TFLOPS: 103.53
-   f16wmma(mma2x4+...+stage3+dsmem): ['69.25     ', '18.078125 '], time:2.666223ms, swizzle: NOOP, TFLOPS: 103.10
-   f16wmma(mma2x4+...+stage2+dsmem): ['69.25     ', '18.078125 '], time:2.652776ms, swizzle: NOOP, TFLOPS: 103.62
- f16wmma(mma2x4+...+stage3+swizzle): ['69.25     ', '18.078125 '], time:2.658081ms, swizzle: 1024, TFLOPS: 103.41
- f16wmma(mma2x4+...+stage2+swizzle): ['69.25     ', '18.078125 '], time:2.636897ms, swizzle: 1024, TFLOPS: 104.24(+0.46%)
-  f16wmma(...+stage3+dsmem+swizzle): ['69.25     ', '18.078125 '], time:2.662909ms, swizzle: 1024, TFLOPS: 103.22
-  f16wmma(...+stage2+dsmem+swizzle): ['69.25     ', '18.078125 '], time:2.649581ms, swizzle: 1024, TFLOPS: 103.74
-                        f16(cublas): ['69.3125   ', '18.0625   '], time:2.444374ms, swizzle: NOOP, TFLOPS: 112.45(+7.88%)
-                             f16_th: ['69.3125   ', '18.109375 '], time:2.403986ms, swizzle: NOOP, TFLOPS: 114.34(+1.68%)
+                         f16wmma(mma4x2): ['-34.6875  ', '108.625   '], time:5.936312ms, swizzle: NOOP, TFLOPS: 46.30
+                 f16wmma(mma4x2+warp2x4): ['-34.6875  ', '108.625   '], time:3.657937ms, swizzle: NOOP, TFLOPS: 75.15 (+47.81%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-34.6875  ', '108.625   '], time:2.697873ms, swizzle: NOOP, TFLOPS: 101.89(+35.59%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-34.6875  ', '108.625   '], time:2.692198ms, swizzle: NOOP, TFLOPS: 102.10(+0.21%)
+          f16wmma(mma2x4+warp2x4+stage3): ['-34.6875  ', '108.625   '], time:2.661299ms, swizzle: NOOP, TFLOPS: 103.29(+1.16%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-34.6875  ', '108.625   '], time:2.675151ms, swizzle: NOOP, TFLOPS: 102.75
+        f16wmma(mma2x4+...+stage4+dsmem): ['-34.6875  ', '108.625   '], time:2.687406ms, swizzle: NOOP, TFLOPS: 102.28
+        f16wmma(mma2x4+...+stage3+dsmem): ['-34.6875  ', '108.625   '], time:2.682614ms, swizzle: NOOP, TFLOPS: 102.47
+        f16wmma(mma2x4+...+stage2+dsmem): ['-34.6875  ', '108.625   '], time:2.671098ms, swizzle: NOOP, TFLOPS: 102.91
+      f16wmma(mma2x4+...+stage4+swizzle): ['-34.6875  ', '108.625   '], time:2.708673ms, swizzle: 1024, TFLOPS: 101.48
+      f16wmma(mma2x4+...+stage3+swizzle): ['-34.6875  ', '108.625   '], time:2.665734ms, swizzle: 1024, TFLOPS: 103.12
+      f16wmma(mma2x4+...+stage2+swizzle): ['-34.6875  ', '108.625   '], time:2.629923ms, swizzle: 1024, TFLOPS: 104.52(+1.19%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:2.705121ms, swizzle: 1024, TFLOPS: 101.61
+       f16wmma(...+stage3+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:2.694535ms, swizzle: 1024, TFLOPS: 102.01
+       f16wmma(...+stage2+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:2.630662ms, swizzle: 1024, TFLOPS: 104.49
+                             f16(cublas): ['-34.625   ', '109.0     '], time:2.632546ms, swizzle: NOOP, TFLOPS: 104.42
+                                  f16_th: ['-34.90625 ', '108.5625  '], time:2.402138ms, swizzle: NOOP, TFLOPS: 114.43(+9.48%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=4096, N=8192, K=2048
-                         f16(naive): ['30.0625   ', '-9.34375  '], time:37.68898ms, swizzle: NOOP, TFLOPS: 3.65  (+0.00%)
-                f16x8pack(t8x8+bcf): ['30.0625   ', '-9.34375  '], time:2.739918ms, swizzle: NOOP, TFLOPS: 50.16 (+1275.55%)
-           f16x8pack(t8x8+bcf+dbuf): ['30.0625   ', '-9.34375  '], time:2.786326ms, swizzle: NOOP, TFLOPS: 49.33
-           f16x8pack(t8x8+k16+dbuf): ['30.0625   ', '-9.34375  '], time:2.674496ms, swizzle: NOOP, TFLOPS: 51.39 (+2.45%)
+                     f16x8pack(t8x8+bcf): ['-48.625   ', '-19.59375 '], time:2.712392ms, swizzle: NOOP, TFLOPS: 50.67 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-48.625   ', '-19.59375 '], time:2.710318ms, swizzle: NOOP, TFLOPS: 50.71 (+0.08%)
+                f16x8pack(t8x8+k16+dbuf): ['-48.625   ', '-19.59375 '], time:2.539610ms, swizzle: NOOP, TFLOPS: 54.12 (+6.72%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['29.921875 ', '-9.5078125'], time:5.887448ms, swizzle: NOOP, TFLOPS: 23.34
-                    f16wmma(mma4x2): ['29.921875 ', '-9.5078125'], time:2.955126ms, swizzle: NOOP, TFLOPS: 46.51
-            f16wmma(mma4x2+warp2x4): ['29.921875 ', '-9.5078125'], time:1.840353ms, swizzle: NOOP, TFLOPS: 74.68 (+45.33%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['29.921875 ', '-9.5078125'], time:1.328313ms, swizzle: NOOP, TFLOPS: 103.47(+38.55%)
-     f16wmma(mma2x4+warp2x4+stage3): ['29.921875 ', '-9.5078125'], time:1.306402ms, swizzle: NOOP, TFLOPS: 105.20(+1.68%)
-     f16wmma(mma2x4+warp2x4+stage2): ['29.921875 ', '-9.5078125'], time:1.311874ms, swizzle: NOOP, TFLOPS: 104.77
-   f16wmma(mma2x4+...+stage3+dsmem): ['29.921875 ', '-9.5078125'], time:1.308524ms, swizzle: NOOP, TFLOPS: 105.03
-   f16wmma(mma2x4+...+stage2+dsmem): ['29.921875 ', '-9.5078125'], time:1.304471ms, swizzle: NOOP, TFLOPS: 105.36(+0.15%)
- f16wmma(mma2x4+...+stage3+swizzle): ['29.921875 ', '-9.5078125'], time:1.298165ms, swizzle: 2048, TFLOPS: 105.87(+0.49%)
- f16wmma(mma2x4+...+stage2+swizzle): ['29.921875 ', '-9.5078125'], time:1.286089ms, swizzle: 2048, TFLOPS: 106.87(+0.94%)
-  f16wmma(...+stage3+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:1.297760ms, swizzle: 2048, TFLOPS: 105.90
-  f16wmma(...+stage2+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:1.293647ms, swizzle: 2048, TFLOPS: 106.24
-                        f16(cublas): ['29.921875 ', '-9.5078125'], time:1.235735ms, swizzle: NOOP, TFLOPS: 111.22(+4.07%)
-                             f16_th: ['29.9375   ', '-9.5703125'], time:1.295924ms, swizzle: NOOP, TFLOPS: 106.05
+                         f16wmma(mma4x2): ['-48.6875  ', '-19.71875 '], time:2.962994ms, swizzle: NOOP, TFLOPS: 46.39
+                 f16wmma(mma4x2+warp2x4): ['-48.6875  ', '-19.71875 '], time:1.867127ms, swizzle: NOOP, TFLOPS: 73.61 (+36.02%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-48.6875  ', '-19.71875 '], time:1.337242ms, swizzle: NOOP, TFLOPS: 102.78(+39.63%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-48.6875  ', '-19.71875 '], time:1.343107ms, swizzle: NOOP, TFLOPS: 102.33
+          f16wmma(mma2x4+warp2x4+stage3): ['-48.6875  ', '-19.71875 '], time:1.310682ms, swizzle: NOOP, TFLOPS: 104.86(+2.03%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-48.6875  ', '-19.71875 '], time:1.316022ms, swizzle: NOOP, TFLOPS: 104.44
+        f16wmma(mma2x4+...+stage4+dsmem): ['-48.6875  ', '-19.71875 '], time:1.335048ms, swizzle: NOOP, TFLOPS: 102.95
+        f16wmma(mma2x4+...+stage3+dsmem): ['-48.6875  ', '-19.71875 '], time:1.320838ms, swizzle: NOOP, TFLOPS: 104.05
+        f16wmma(mma2x4+...+stage2+dsmem): ['-48.6875  ', '-19.71875 '], time:1.315379ms, swizzle: NOOP, TFLOPS: 104.49
+      f16wmma(mma2x4+...+stage4+swizzle): ['-48.6875  ', '-19.71875 '], time:1.343488ms, swizzle: 2048, TFLOPS: 102.30
+      f16wmma(mma2x4+...+stage3+swizzle): ['-48.6875  ', '-19.71875 '], time:1.307892ms, swizzle: 2048, TFLOPS: 105.08(+0.21%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-48.6875  ', '-19.71875 '], time:1.296949ms, swizzle: 2048, TFLOPS: 105.97(+0.84%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:1.345443ms, swizzle: 2048, TFLOPS: 102.15
+       f16wmma(...+stage3+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:1.321220ms, swizzle: 2048, TFLOPS: 104.02
+       f16wmma(...+stage2+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:1.297736ms, swizzle: 2048, TFLOPS: 105.91
+                             f16(cublas): ['-48.6875  ', '-19.71875 '], time:1.421713ms, swizzle: NOOP, TFLOPS: 96.67
+                                  f16_th: ['-48.75    ', '-19.765625'], time:1.302385ms, swizzle: NOOP, TFLOPS: 105.53
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=4096, N=8192, K=4096
-                         f16(naive): ['18.078125 ', '32.90625  '], time:75.22808ms, swizzle: NOOP, TFLOPS: 3.65  (+0.00%)
-                f16x8pack(t8x8+bcf): ['18.078125 ', '32.90625  '], time:5.625784ms, swizzle: NOOP, TFLOPS: 48.86 (+1237.20%)
-           f16x8pack(t8x8+bcf+dbuf): ['18.078125 ', '32.90625  '], time:5.564570ms, swizzle: NOOP, TFLOPS: 49.40 (+1.10%)
-           f16x8pack(t8x8+k16+dbuf): ['18.078125 ', '32.90625  '], time:5.350506ms, swizzle: NOOP, TFLOPS: 51.37 (+4.00%)
+                     f16x8pack(t8x8+bcf): ['-7.390625 ', '-9.75     '], time:5.503845ms, swizzle: NOOP, TFLOPS: 49.94 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-7.390625 ', '-9.75     '], time:5.462884ms, swizzle: NOOP, TFLOPS: 50.32 (+0.75%)
+                f16x8pack(t8x8+k16+dbuf): ['-7.390625 ', '-9.75     '], time:5.190730ms, swizzle: NOOP, TFLOPS: 52.96 (+5.24%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['17.953125 ', '32.8125   '], time:11.64093ms, swizzle: NOOP, TFLOPS: 23.61
-                    f16wmma(mma4x2): ['17.953125 ', '32.8125   '], time:5.853724ms, swizzle: NOOP, TFLOPS: 46.96
-            f16wmma(mma4x2+warp2x4): ['17.953125 ', '32.8125   '], time:3.614306ms, swizzle: NOOP, TFLOPS: 76.05 (+48.04%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['17.953125 ', '32.8125   '], time:2.582406ms, swizzle: NOOP, TFLOPS: 106.44(+39.96%)
-     f16wmma(mma2x4+warp2x4+stage3): ['17.953125 ', '32.8125   '], time:2.549886ms, swizzle: NOOP, TFLOPS: 107.80(+1.28%)
-     f16wmma(mma2x4+warp2x4+stage2): ['17.953125 ', '32.8125   '], time:2.571272ms, swizzle: NOOP, TFLOPS: 106.90
-   f16wmma(mma2x4+...+stage3+dsmem): ['17.953125 ', '32.8125   '], time:2.576792ms, swizzle: NOOP, TFLOPS: 106.67
-   f16wmma(mma2x4+...+stage2+dsmem): ['17.953125 ', '32.8125   '], time:2.569878ms, swizzle: NOOP, TFLOPS: 106.96
- f16wmma(mma2x4+...+stage3+swizzle): ['17.953125 ', '32.8125   '], time:2.562510ms, swizzle: 2048, TFLOPS: 107.27
- f16wmma(mma2x4+...+stage2+swizzle): ['17.953125 ', '32.8125   '], time:2.551829ms, swizzle: 2048, TFLOPS: 107.72
-  f16wmma(...+stage3+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:2.570784ms, swizzle: 2048, TFLOPS: 106.92
-  f16wmma(...+stage2+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:2.554595ms, swizzle: 2048, TFLOPS: 107.60
-                        f16(cublas): ['17.953125 ', '32.8125   '], time:2.444684ms, swizzle: NOOP, TFLOPS: 112.44(+4.30%)
-                             f16_th: ['17.96875  ', '32.75     '], time:2.553021ms, swizzle: NOOP, TFLOPS: 107.67
+                         f16wmma(mma4x2): ['-7.765625 ', '-9.59375  '], time:5.923151ms, swizzle: NOOP, TFLOPS: 46.41
+                 f16wmma(mma4x2+warp2x4): ['-7.765625 ', '-9.59375  '], time:3.649044ms, swizzle: NOOP, TFLOPS: 75.33 (+42.25%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-7.765625 ', '-9.59375  '], time:2.605748ms, swizzle: NOOP, TFLOPS: 105.49(+40.04%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-7.765625 ', '-9.59375  '], time:2.599406ms, swizzle: NOOP, TFLOPS: 105.75(+0.24%)
+          f16wmma(mma2x4+warp2x4+stage3): ['-7.765625 ', '-9.59375  '], time:2.583003ms, swizzle: NOOP, TFLOPS: 106.42(+0.64%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-7.765625 ', '-9.59375  '], time:2.571964ms, swizzle: NOOP, TFLOPS: 106.87(+0.43%)
+        f16wmma(mma2x4+...+stage4+dsmem): ['-7.765625 ', '-9.59375  '], time:2.590227ms, swizzle: NOOP, TFLOPS: 106.12
+        f16wmma(mma2x4+...+stage3+dsmem): ['-7.765625 ', '-9.59375  '], time:2.579307ms, swizzle: NOOP, TFLOPS: 106.57
+        f16wmma(mma2x4+...+stage2+dsmem): ['-7.765625 ', '-9.59375  '], time:2.568602ms, swizzle: NOOP, TFLOPS: 107.01(+0.13%)
+      f16wmma(mma2x4+...+stage4+swizzle): ['-7.765625 ', '-9.59375  '], time:2.613925ms, swizzle: 2048, TFLOPS: 105.16
+      f16wmma(mma2x4+...+stage3+swizzle): ['-7.765625 ', '-9.59375  '], time:2.559590ms, swizzle: 2048, TFLOPS: 107.39(+0.35%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-7.765625 ', '-9.59375  '], time:2.534532ms, swizzle: 2048, TFLOPS: 108.45(+0.99%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:2.610015ms, swizzle: 2048, TFLOPS: 105.32
+       f16wmma(...+stage3+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:2.585339ms, swizzle: 2048, TFLOPS: 106.32
+       f16wmma(...+stage2+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:2.534747ms, swizzle: 2048, TFLOPS: 108.44
+                             f16(cublas): ['-7.765625 ', '-9.59375  '], time:2.619481ms, swizzle: NOOP, TFLOPS: 104.94
+                                  f16_th: ['-7.9101562', '-9.703125 '], time:2.551317ms, swizzle: NOOP, TFLOPS: 107.74
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=4096, N=8192, K=8192
-                         f16(naive): ['69.5      ', '17.9375   '], time:221.6357ms, swizzle: NOOP, TFLOPS: 2.48  (+0.00%)
-                f16x8pack(t8x8+bcf): ['69.5      ', '17.9375   '], time:12.29833ms, swizzle: NOOP, TFLOPS: 44.70 (+1702.16%)
-           f16x8pack(t8x8+bcf+dbuf): ['69.5      ', '17.9375   '], time:12.03058ms, swizzle: NOOP, TFLOPS: 45.70 (+2.23%)
-           f16x8pack(t8x8+k16+dbuf): ['69.5      ', '17.9375   '], time:12.48524ms, swizzle: NOOP, TFLOPS: 44.03
+                     f16x8pack(t8x8+bcf): ['-34.6875  ', '109.75    '], time:12.21077ms, swizzle: NOOP, TFLOPS: 45.02 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-34.6875  ', '109.75    '], time:11.94691ms, swizzle: NOOP, TFLOPS: 46.02 (+2.21%)
+                f16x8pack(t8x8+k16+dbuf): ['-34.6875  ', '109.75    '], time:11.40398ms, swizzle: NOOP, TFLOPS: 48.21 (+4.76%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['69.25     ', '18.078125 '], time:24.38898ms, swizzle: NOOP, TFLOPS: 22.54
-                    f16wmma(mma4x2): ['69.25     ', '18.078125 '], time:12.68216ms, swizzle: NOOP, TFLOPS: 43.35
-            f16wmma(mma4x2+warp2x4): ['69.25     ', '18.078125 '], time:7.341659ms, swizzle: NOOP, TFLOPS: 74.88 (+63.87%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['69.25     ', '18.078125 '], time:5.549454ms, swizzle: NOOP, TFLOPS: 99.06 (+32.30%)
-     f16wmma(mma2x4+warp2x4+stage3): ['69.25     ', '18.078125 '], time:5.570328ms, swizzle: NOOP, TFLOPS: 98.69
-     f16wmma(mma2x4+warp2x4+stage2): ['69.25     ', '18.078125 '], time:5.587530ms, swizzle: NOOP, TFLOPS: 98.39
-   f16wmma(mma2x4+...+stage3+dsmem): ['69.25     ', '18.078125 '], time:5.602407ms, swizzle: NOOP, TFLOPS: 98.13
-   f16wmma(mma2x4+...+stage2+dsmem): ['69.25     ', '18.078125 '], time:5.590212ms, swizzle: NOOP, TFLOPS: 98.34
- f16wmma(mma2x4+...+stage3+swizzle): ['69.25     ', '18.078125 '], time:5.302071ms, swizzle: 2048, TFLOPS: 103.69(+4.67%)
- f16wmma(mma2x4+...+stage2+swizzle): ['69.25     ', '18.078125 '], time:5.218410ms, swizzle: 2048, TFLOPS: 105.35(+1.60%)
-  f16wmma(...+stage3+dsmem+swizzle): ['69.25     ', '18.078125 '], time:5.235731ms, swizzle: 2048, TFLOPS: 105.00
-  f16wmma(...+stage2+dsmem+swizzle): ['69.25     ', '18.078125 '], time:5.117344ms, swizzle: 2048, TFLOPS: 107.43(+1.97%)
-                        f16(cublas): ['69.25     ', '18.078125 '], time:4.885363ms, swizzle: NOOP, TFLOPS: 112.53(+4.75%)
-                             f16_th: ['69.3125   ', '18.09375  '], time:4.924082ms, swizzle: NOOP, TFLOPS: 111.65
+                         f16wmma(mma4x2): ['-34.6875  ', '108.625   '], time:12.47351ms, swizzle: NOOP, TFLOPS: 44.07
+                 f16wmma(mma4x2+warp2x4): ['-34.6875  ', '108.625   '], time:7.357668ms, swizzle: NOOP, TFLOPS: 74.72 (+54.99%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-34.6875  ', '108.625   '], time:5.378651ms, swizzle: NOOP, TFLOPS: 102.21(+36.79%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-34.6875  ', '108.625   '], time:5.387425ms, swizzle: NOOP, TFLOPS: 102.04
+          f16wmma(mma2x4+warp2x4+stage3): ['-34.6875  ', '108.625   '], time:5.188965ms, swizzle: NOOP, TFLOPS: 105.95(+3.66%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-34.6875  ', '108.625   '], time:5.350542ms, swizzle: NOOP, TFLOPS: 102.75
+        f16wmma(mma2x4+...+stage4+dsmem): ['-34.6875  ', '108.625   '], time:5.344128ms, swizzle: NOOP, TFLOPS: 102.87
+        f16wmma(mma2x4+...+stage3+dsmem): ['-34.6875  ', '108.625   '], time:5.347514ms, swizzle: NOOP, TFLOPS: 102.81
+        f16wmma(mma2x4+...+stage2+dsmem): ['-34.6875  ', '108.625   '], time:5.389356ms, swizzle: NOOP, TFLOPS: 102.01
+      f16wmma(mma2x4+...+stage4+swizzle): ['-34.6875  ', '108.625   '], time:5.190229ms, swizzle: 2048, TFLOPS: 105.92
+      f16wmma(mma2x4+...+stage3+swizzle): ['-34.6875  ', '108.625   '], time:5.091047ms, swizzle: 2048, TFLOPS: 107.98(+1.92%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-34.6875  ', '108.625   '], time:5.043625ms, swizzle: 2048, TFLOPS: 109.00(+0.94%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:5.185484ms, swizzle: 2048, TFLOPS: 106.02
+       f16wmma(...+stage3+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:5.150270ms, swizzle: 2048, TFLOPS: 106.74
+       f16wmma(...+stage2+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:5.045652ms, swizzle: 2048, TFLOPS: 108.96
+                             f16(cublas): ['-34.6875  ', '108.625   '], time:5.080008ms, swizzle: NOOP, TFLOPS: 108.22
+                                  f16_th: ['-34.9375  ', '108.625   '], time:4.943799ms, swizzle: NOOP, TFLOPS: 111.20(+2.02%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=4096, N=16384, K=2048
-                         f16(naive): ['30.0625   ', '-9.34375  '], time:75.27105ms, swizzle: NOOP, TFLOPS: 3.65  (+0.00%)
-                f16x8pack(t8x8+bcf): ['30.0625   ', '-9.34375  '], time:5.562174ms, swizzle: NOOP, TFLOPS: 49.42 (+1253.27%)
-           f16x8pack(t8x8+bcf+dbuf): ['30.0625   ', '-9.34375  '], time:5.530333ms, swizzle: NOOP, TFLOPS: 49.70 (+0.58%)
-           f16x8pack(t8x8+k16+dbuf): ['30.0625   ', '-9.34375  '], time:5.303525ms, swizzle: NOOP, TFLOPS: 51.83 (+4.28%)
+                     f16x8pack(t8x8+bcf): ['-48.625   ', '-19.59375 '], time:5.394196ms, swizzle: NOOP, TFLOPS: 50.96 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-48.625   ', '-19.59375 '], time:5.343627ms, swizzle: NOOP, TFLOPS: 51.44 (+0.95%)
+                f16x8pack(t8x8+k16+dbuf): ['-48.625   ', '-19.59375 '], time:5.101990ms, swizzle: NOOP, TFLOPS: 53.88 (+4.74%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['29.921875 ', '-9.5078125'], time:11.68239ms, swizzle: NOOP, TFLOPS: 23.53
-                    f16wmma(mma4x2): ['29.921875 ', '-9.5078125'], time:5.863881ms, swizzle: NOOP, TFLOPS: 46.88
-            f16wmma(mma4x2+warp2x4): ['29.921875 ', '-9.5078125'], time:3.521573ms, swizzle: NOOP, TFLOPS: 78.06 (+50.60%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['29.921875 ', '-9.5078125'], time:2.580308ms, swizzle: NOOP, TFLOPS: 106.53(+36.48%)
-     f16wmma(mma2x4+warp2x4+stage3): ['29.921875 ', '-9.5078125'], time:2.565371ms, swizzle: NOOP, TFLOPS: 107.15(+0.58%)
-     f16wmma(mma2x4+warp2x4+stage2): ['29.921875 ', '-9.5078125'], time:2.597820ms, swizzle: NOOP, TFLOPS: 105.81
-   f16wmma(mma2x4+...+stage3+dsmem): ['29.921875 ', '-9.5078125'], time:2.602386ms, swizzle: NOOP, TFLOPS: 105.63
-   f16wmma(mma2x4+...+stage2+dsmem): ['29.921875 ', '-9.5078125'], time:2.596187ms, swizzle: NOOP, TFLOPS: 105.88
- f16wmma(mma2x4+...+stage3+swizzle): ['29.921875 ', '-9.5078125'], time:2.584767ms, swizzle: 4096, TFLOPS: 106.35
- f16wmma(mma2x4+...+stage2+swizzle): ['29.921875 ', '-9.5078125'], time:2.563869ms, swizzle: 4096, TFLOPS: 107.21(+0.06%)
-  f16wmma(...+stage3+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:2.592587ms, swizzle: 4096, TFLOPS: 106.02
-  f16wmma(...+stage2+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:2.574265ms, swizzle: 4096, TFLOPS: 106.78
-                        f16(cublas): ['29.921875 ', '-9.5078125'], time:2.438402ms, swizzle: NOOP, TFLOPS: 112.73(+5.15%)
-                             f16_th: ['29.9375   ', '-9.5703125'], time:2.436280ms, swizzle: NOOP, TFLOPS: 112.83(+0.09%)
+                         f16wmma(mma4x2): ['-48.6875  ', '-19.71875 '], time:5.898356ms, swizzle: NOOP, TFLOPS: 46.60
+                 f16wmma(mma4x2+warp2x4): ['-48.6875  ', '-19.71875 '], time:3.552985ms, swizzle: NOOP, TFLOPS: 77.37 (+43.60%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-48.6875  ', '-19.71875 '], time:2.599167ms, swizzle: NOOP, TFLOPS: 105.76(+36.70%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-48.6875  ', '-19.71875 '], time:2.602124ms, swizzle: NOOP, TFLOPS: 105.64
+          f16wmma(mma2x4+warp2x4+stage3): ['-48.6875  ', '-19.71875 '], time:2.547097ms, swizzle: NOOP, TFLOPS: 107.92(+2.04%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-48.6875  ', '-19.71875 '], time:2.559137ms, swizzle: NOOP, TFLOPS: 107.41
+        f16wmma(mma2x4+...+stage4+dsmem): ['-48.6875  ', '-19.71875 '], time:2.596354ms, swizzle: NOOP, TFLOPS: 105.87
+        f16wmma(mma2x4+...+stage3+dsmem): ['-48.6875  ', '-19.71875 '], time:2.562403ms, swizzle: NOOP, TFLOPS: 107.27
+        f16wmma(mma2x4+...+stage2+dsmem): ['-48.6875  ', '-19.71875 '], time:2.556300ms, swizzle: NOOP, TFLOPS: 107.53
+      f16wmma(mma2x4+...+stage4+swizzle): ['-48.6875  ', '-19.71875 '], time:2.617216ms, swizzle: 4096, TFLOPS: 105.03
+      f16wmma(mma2x4+...+stage3+swizzle): ['-48.6875  ', '-19.71875 '], time:2.541565ms, swizzle: 4096, TFLOPS: 108.15(+0.22%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-48.6875  ', '-19.71875 '], time:2.533459ms, swizzle: 4096, TFLOPS: 108.50(+0.32%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:2.629590ms, swizzle: 4096, TFLOPS: 104.53
+       f16wmma(...+stage3+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:2.574324ms, swizzle: 4096, TFLOPS: 106.78
+       f16wmma(...+stage2+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:2.524018ms, swizzle: 4096, TFLOPS: 108.90(+0.37%)
+                             f16(cublas): ['-48.6875  ', '-19.71875 '], time:2.599477ms, swizzle: NOOP, TFLOPS: 105.74
+                                  f16_th: ['-48.75    ', '-19.765625'], time:2.402782ms, swizzle: NOOP, TFLOPS: 114.40(+5.05%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=4096, N=16384, K=4096
-                         f16(naive): ['18.078125 ', '32.90625  '], time:229.3893ms, swizzle: NOOP, TFLOPS: 2.40  (+0.00%)
-                f16x8pack(t8x8+bcf): ['18.078125 ', '32.90625  '], time:12.10900ms, swizzle: NOOP, TFLOPS: 45.40 (+1794.37%)
-           f16x8pack(t8x8+bcf+dbuf): ['18.078125 ', '32.90625  '], time:12.12658ms, swizzle: NOOP, TFLOPS: 45.33
-           f16x8pack(t8x8+k16+dbuf): ['18.078125 ', '32.90625  '], time:12.65550ms, swizzle: NOOP, TFLOPS: 43.44
+                     f16x8pack(t8x8+bcf): ['-7.390625 ', '-9.75     '], time:12.03119ms, swizzle: NOOP, TFLOPS: 45.69 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-7.390625 ', '-9.75     '], time:11.66582ms, swizzle: NOOP, TFLOPS: 47.13 (+3.13%)
+                f16x8pack(t8x8+k16+dbuf): ['-7.390625 ', '-9.75     '], time:11.37144ms, swizzle: NOOP, TFLOPS: 48.35 (+2.59%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['17.953125 ', '32.8125   '], time:37.73040ms, swizzle: NOOP, TFLOPS: 14.57
-                    f16wmma(mma4x2): ['17.953125 ', '32.8125   '], time:15.56271ms, swizzle: NOOP, TFLOPS: 35.33
-            f16wmma(mma4x2+warp2x4): ['17.953125 ', '32.8125   '], time:7.286703ms, swizzle: NOOP, TFLOPS: 75.45 (+66.18%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['17.953125 ', '32.8125   '], time:5.685663ms, swizzle: NOOP, TFLOPS: 96.69 (+28.16%)
-     f16wmma(mma2x4+warp2x4+stage3): ['17.953125 ', '32.8125   '], time:6.107950ms, swizzle: NOOP, TFLOPS: 90.01
-     f16wmma(mma2x4+warp2x4+stage2): ['17.953125 ', '32.8125   '], time:5.713760ms, swizzle: NOOP, TFLOPS: 96.22
-   f16wmma(mma2x4+...+stage3+dsmem): ['17.953125 ', '32.8125   '], time:5.680024ms, swizzle: NOOP, TFLOPS: 96.79 (+0.10%)
-   f16wmma(mma2x4+...+stage2+dsmem): ['17.953125 ', '32.8125   '], time:5.583977ms, swizzle: NOOP, TFLOPS: 98.45 (+1.72%)
- f16wmma(mma2x4+...+stage3+swizzle): ['17.953125 ', '32.8125   '], time:5.171418ms, swizzle: 4096, TFLOPS: 106.31(+7.98%)
- f16wmma(mma2x4+...+stage2+swizzle): ['17.953125 ', '32.8125   '], time:5.069971ms, swizzle: 4096, TFLOPS: 108.43(+2.00%)
-  f16wmma(...+stage3+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:5.108344ms, swizzle: 4096, TFLOPS: 107.62
-  f16wmma(...+stage2+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:5.106234ms, swizzle: 4096, TFLOPS: 107.66
-                        f16(cublas): ['17.953125 ', '32.8125   '], time:4.881918ms, swizzle: NOOP, TFLOPS: 112.61(+3.85%)
-                             f16_th: ['17.96875  ', '32.75     '], time:4.905498ms, swizzle: NOOP, TFLOPS: 112.07
+                         f16wmma(mma4x2): ['-7.765625 ', '-9.59375  '], time:15.57343ms, swizzle: NOOP, TFLOPS: 35.30
+                 f16wmma(mma4x2+warp2x4): ['-7.765625 ', '-9.59375  '], time:7.270383ms, swizzle: NOOP, TFLOPS: 75.62 (+56.41%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-7.765625 ', '-9.59375  '], time:5.333232ms, swizzle: NOOP, TFLOPS: 103.08(+36.32%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-7.765625 ', '-9.59375  '], time:5.406975ms, swizzle: NOOP, TFLOPS: 101.68
+          f16wmma(mma2x4+warp2x4+stage3): ['-7.765625 ', '-9.59375  '], time:5.376362ms, swizzle: NOOP, TFLOPS: 102.25
+          f16wmma(mma2x4+warp2x4+stage2): ['-7.765625 ', '-9.59375  '], time:5.213570ms, swizzle: NOOP, TFLOPS: 105.45(+2.30%)
+        f16wmma(mma2x4+...+stage4+dsmem): ['-7.765625 ', '-9.59375  '], time:5.353713ms, swizzle: NOOP, TFLOPS: 102.69
+        f16wmma(mma2x4+...+stage3+dsmem): ['-7.765625 ', '-9.59375  '], time:5.388331ms, swizzle: NOOP, TFLOPS: 102.03
+        f16wmma(mma2x4+...+stage2+dsmem): ['-7.765625 ', '-9.59375  '], time:5.367493ms, swizzle: NOOP, TFLOPS: 102.42
+      f16wmma(mma2x4+...+stage4+swizzle): ['-7.765625 ', '-9.59375  '], time:5.185770ms, swizzle: 4096, TFLOPS: 106.01(+0.54%)
+      f16wmma(mma2x4+...+stage3+swizzle): ['-7.765625 ', '-9.59375  '], time:5.021572ms, swizzle: 4096, TFLOPS: 109.48(+3.27%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-7.765625 ', '-9.59375  '], time:4.987549ms, swizzle: 4096, TFLOPS: 110.23(+0.68%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:5.108428ms, swizzle: 4096, TFLOPS: 107.62
+       f16wmma(...+stage3+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:5.049347ms, swizzle: 4096, TFLOPS: 108.88
+       f16wmma(...+stage2+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:4.974079ms, swizzle: 4096, TFLOPS: 110.52(+0.27%)
+                             f16(cublas): ['-7.765625 ', '-9.59375  '], time:4.976677ms, swizzle: NOOP, TFLOPS: 110.47
+                                  f16_th: ['-7.9101562', '-9.703125 '], time:4.902982ms, swizzle: NOOP, TFLOPS: 112.13(+1.45%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=4096, N=16384, K=8192
-                         f16(naive): ['69.5      ', '17.9375   '], time:458.1406ms, swizzle: NOOP, TFLOPS: 2.40  (+0.00%)
-                f16x8pack(t8x8+bcf): ['69.5      ', '17.9375   '], time:25.22308ms, swizzle: NOOP, TFLOPS: 43.59 (+1716.35%)
-           f16x8pack(t8x8+bcf+dbuf): ['69.5      ', '17.9375   '], time:27.05860ms, swizzle: NOOP, TFLOPS: 40.63
-           f16x8pack(t8x8+k16+dbuf): ['69.5      ', '17.9375   '], time:25.67851ms, swizzle: NOOP, TFLOPS: 42.82
+                     f16x8pack(t8x8+bcf): ['-34.6875  ', '109.75    '], time:24.99871ms, swizzle: NOOP, TFLOPS: 43.98 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-34.6875  ', '109.75    '], time:25.10454ms, swizzle: NOOP, TFLOPS: 43.80
+                f16x8pack(t8x8+k16+dbuf): ['-34.6875  ', '109.75    '], time:24.46808ms, swizzle: NOOP, TFLOPS: 44.94 (+2.17%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['69.25     ', '18.078125 '], time:198.8110ms, swizzle: NOOP, TFLOPS: 5.53
-                    f16wmma(mma4x2): ['69.25     ', '18.078125 '], time:30.96374ms, swizzle: NOOP, TFLOPS: 35.51
-            f16wmma(mma4x2+warp2x4): ['69.25     ', '18.078125 '], time:14.41694ms, swizzle: NOOP, TFLOPS: 76.27 (+74.95%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['69.25     ', '18.078125 '], time:12.65356ms, swizzle: NOOP, TFLOPS: 86.89 (+13.94%)
-     f16wmma(mma2x4+warp2x4+stage3): ['69.25     ', '18.078125 '], time:12.48985ms, swizzle: NOOP, TFLOPS: 88.03 (+1.31%)
-     f16wmma(mma2x4+warp2x4+stage2): ['69.25     ', '18.078125 '], time:12.57493ms, swizzle: NOOP, TFLOPS: 87.44
-   f16wmma(mma2x4+...+stage3+dsmem): ['69.25     ', '18.078125 '], time:12.49730ms, swizzle: NOOP, TFLOPS: 87.98
-   f16wmma(mma2x4+...+stage2+dsmem): ['69.25     ', '18.078125 '], time:12.41034ms, swizzle: NOOP, TFLOPS: 88.60 (+0.64%)
- f16wmma(mma2x4+...+stage3+swizzle): ['69.25     ', '18.078125 '], time:10.31826ms, swizzle: 4096, TFLOPS: 106.56(+20.28%)
- f16wmma(mma2x4+...+stage2+swizzle): ['69.25     ', '18.078125 '], time:10.17751ms, swizzle: 4096, TFLOPS: 108.03(+1.38%)
-  f16wmma(...+stage3+dsmem+swizzle): ['69.25     ', '18.078125 '], time:10.34779ms, swizzle: 4096, TFLOPS: 106.26
-  f16wmma(...+stage2+dsmem+swizzle): ['69.25     ', '18.078125 '], time:10.15803ms, swizzle: 4096, TFLOPS: 108.24(+0.19%)
-                        f16(cublas): ['69.25     ', '18.078125 '], time:9.691882ms, swizzle: NOOP, TFLOPS: 113.45(+4.81%)
-                             f16_th: ['69.3125   ', '18.09375  '], time:9.703350ms, swizzle: NOOP, TFLOPS: 113.31
+                         f16wmma(mma4x2): ['-34.6875  ', '108.625   '], time:31.00190ms, swizzle: NOOP, TFLOPS: 35.47
+                 f16wmma(mma4x2+warp2x4): ['-34.6875  ', '108.625   '], time:14.35732ms, swizzle: NOOP, TFLOPS: 76.58 (+70.42%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-34.6875  ', '108.625   '], time:12.56091ms, swizzle: NOOP, TFLOPS: 87.53 (+14.30%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-34.6875  ', '108.625   '], time:12.45114ms, swizzle: NOOP, TFLOPS: 88.31 (+0.88%)
+          f16wmma(mma2x4+warp2x4+stage3): ['-34.6875  ', '108.625   '], time:12.46438ms, swizzle: NOOP, TFLOPS: 88.21
+          f16wmma(mma2x4+warp2x4+stage2): ['-34.6875  ', '108.625   '], time:12.39051ms, swizzle: NOOP, TFLOPS: 88.74 (+0.49%)
+        f16wmma(mma2x4+...+stage4+dsmem): ['-34.6875  ', '108.625   '], time:12.44428ms, swizzle: NOOP, TFLOPS: 88.35
+        f16wmma(mma2x4+...+stage3+dsmem): ['-34.6875  ', '108.625   '], time:12.48049ms, swizzle: NOOP, TFLOPS: 88.10
+        f16wmma(mma2x4+...+stage2+dsmem): ['-34.6875  ', '108.625   '], time:12.36248ms, swizzle: NOOP, TFLOPS: 88.94 (+0.23%)
+      f16wmma(mma2x4+...+stage4+swizzle): ['-34.6875  ', '108.625   '], time:10.31520ms, swizzle: 4096, TFLOPS: 106.59(+19.85%)
+      f16wmma(mma2x4+...+stage3+swizzle): ['-34.6875  ', '108.625   '], time:10.19382ms, swizzle: 4096, TFLOPS: 107.86(+1.19%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-34.6875  ', '108.625   '], time:10.03310ms, swizzle: 4096, TFLOPS: 109.59(+1.60%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:10.31091ms, swizzle: 4096, TFLOPS: 106.64
+       f16wmma(...+stage3+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:10.25998ms, swizzle: 4096, TFLOPS: 107.17
+       f16wmma(...+stage2+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:9.964489ms, swizzle: 4096, TFLOPS: 110.34(+0.69%)
+                             f16(cublas): ['-34.6875  ', '108.625   '], time:9.730339ms, swizzle: NOOP, TFLOPS: 113.00(+2.41%)
+                                  f16_th: ['-34.9375  ', '108.625   '], time:9.733605ms, swizzle: NOOP, TFLOPS: 112.96
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=8192, N=4096, K=2048
-                         f16(naive): ['30.0625   ', '-9.34375  '], time:37.67192ms, swizzle: NOOP, TFLOPS: 3.65  (+0.00%)
-                f16x8pack(t8x8+bcf): ['30.0625   ', '-9.34375  '], time:2.825665ms, swizzle: NOOP, TFLOPS: 48.64 (+1233.21%)
-           f16x8pack(t8x8+bcf+dbuf): ['30.0625   ', '-9.34375  '], time:2.841365ms, swizzle: NOOP, TFLOPS: 48.37
-           f16x8pack(t8x8+k16+dbuf): ['30.0625   ', '-9.34375  '], time:2.718400ms, swizzle: NOOP, TFLOPS: 50.56 (+3.95%)
+                     f16x8pack(t8x8+bcf): ['-48.625   ', '-19.59375 '], time:2.748227ms, swizzle: NOOP, TFLOPS: 50.01 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-48.625   ', '-19.59375 '], time:2.679944ms, swizzle: NOOP, TFLOPS: 51.28 (+2.55%)
+                f16x8pack(t8x8+k16+dbuf): ['-48.625   ', '-19.59375 '], time:2.553391ms, swizzle: NOOP, TFLOPS: 53.83 (+4.96%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['29.921875 ', '-9.5078125'], time:5.906438ms, swizzle: NOOP, TFLOPS: 23.27
-                    f16wmma(mma4x2): ['29.921875 ', '-9.5078125'], time:2.955245ms, swizzle: NOOP, TFLOPS: 46.51
-            f16wmma(mma4x2+warp2x4): ['29.921875 ', '-9.5078125'], time:1.827824ms, swizzle: NOOP, TFLOPS: 75.19 (+48.72%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['29.921875 ', '-9.5078125'], time:1.327943ms, swizzle: NOOP, TFLOPS: 103.50(+37.64%)
-     f16wmma(mma2x4+warp2x4+stage3): ['29.921875 ', '-9.5078125'], time:1.307272ms, swizzle: NOOP, TFLOPS: 105.13(+1.58%)
-     f16wmma(mma2x4+warp2x4+stage2): ['29.921875 ', '-9.5078125'], time:1.329267ms, swizzle: NOOP, TFLOPS: 103.39
-   f16wmma(mma2x4+...+stage3+dsmem): ['29.921875 ', '-9.5078125'], time:1.331329ms, swizzle: NOOP, TFLOPS: 103.23
-   f16wmma(mma2x4+...+stage2+dsmem): ['29.921875 ', '-9.5078125'], time:1.328444ms, swizzle: NOOP, TFLOPS: 103.46
- f16wmma(mma2x4+...+stage3+swizzle): ['29.921875 ', '-9.5078125'], time:1.320767ms, swizzle: 1024, TFLOPS: 104.06
- f16wmma(mma2x4+...+stage2+swizzle): ['29.921875 ', '-9.5078125'], time:1.308536ms, swizzle: 1024, TFLOPS: 105.03
-  f16wmma(...+stage3+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:1.320600ms, swizzle: 1024, TFLOPS: 104.07
-  f16wmma(...+stage2+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:1.309466ms, swizzle: 1024, TFLOPS: 104.96
-                        f16(cublas): ['29.921875 ', '-9.5078125'], time:1.241862ms, swizzle: NOOP, TFLOPS: 110.67(+5.27%)
-                             f16_th: ['29.9375   ', '-9.5703125'], time:1.296436ms, swizzle: NOOP, TFLOPS: 106.01
+                         f16wmma(mma4x2): ['-48.6875  ', '-19.71875 '], time:2.964806ms, swizzle: NOOP, TFLOPS: 46.36
+                 f16wmma(mma4x2+warp2x4): ['-48.6875  ', '-19.71875 '], time:1.839733ms, swizzle: NOOP, TFLOPS: 74.71 (+38.79%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-48.6875  ', '-19.71875 '], time:1.338410ms, swizzle: NOOP, TFLOPS: 102.69(+37.46%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-48.6875  ', '-19.71875 '], time:1.342177ms, swizzle: NOOP, TFLOPS: 102.40
+          f16wmma(mma2x4+warp2x4+stage3): ['-48.6875  ', '-19.71875 '], time:1.316523ms, swizzle: NOOP, TFLOPS: 104.40(+1.66%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-48.6875  ', '-19.71875 '], time:1.317405ms, swizzle: NOOP, TFLOPS: 104.33
+        f16wmma(mma2x4+...+stage4+dsmem): ['-48.6875  ', '-19.71875 '], time:1.334977ms, swizzle: NOOP, TFLOPS: 102.95
+        f16wmma(mma2x4+...+stage3+dsmem): ['-48.6875  ', '-19.71875 '], time:1.319456ms, swizzle: NOOP, TFLOPS: 104.16
+        f16wmma(mma2x4+...+stage2+dsmem): ['-48.6875  ', '-19.71875 '], time:1.315546ms, swizzle: NOOP, TFLOPS: 104.47(+0.07%)
+      f16wmma(mma2x4+...+stage4+swizzle): ['-48.6875  ', '-19.71875 '], time:1.343369ms, swizzle: 1024, TFLOPS: 102.31
+      f16wmma(mma2x4+...+stage3+swizzle): ['-48.6875  ', '-19.71875 '], time:1.307725ms, swizzle: 1024, TFLOPS: 105.10(+0.60%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-48.6875  ', '-19.71875 '], time:1.297426ms, swizzle: 1024, TFLOPS: 105.93(+0.79%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:1.345181ms, swizzle: 1024, TFLOPS: 102.17
+       f16wmma(...+stage3+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:1.321530ms, swizzle: 1024, TFLOPS: 104.00
+       f16wmma(...+stage2+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:1.297283ms, swizzle: 1024, TFLOPS: 105.94(+0.01%)
+                             f16(cublas): ['-48.6875  ', '-19.71875 '], time:1.478171ms, swizzle: NOOP, TFLOPS: 92.98
+                                  f16_th: ['-48.75    ', '-19.765625'], time:1.302719ms, swizzle: NOOP, TFLOPS: 105.50
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=8192, N=4096, K=4096
-                         f16(naive): ['18.078125 ', '32.90625  '], time:75.24089ms, swizzle: NOOP, TFLOPS: 3.65  (+0.00%)
-                f16x8pack(t8x8+bcf): ['18.078125 ', '32.90625  '], time:5.732536ms, swizzle: NOOP, TFLOPS: 47.95 (+1212.52%)
-           f16x8pack(t8x8+bcf+dbuf): ['18.078125 ', '32.90625  '], time:5.681359ms, swizzle: NOOP, TFLOPS: 48.38 (+0.90%)
-           f16x8pack(t8x8+k16+dbuf): ['18.078125 ', '32.90625  '], time:5.430412ms, swizzle: NOOP, TFLOPS: 50.62 (+4.62%)
+                     f16x8pack(t8x8+bcf): ['-7.390625 ', '-9.75     '], time:5.530977ms, swizzle: NOOP, TFLOPS: 49.70 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-7.390625 ', '-9.75     '], time:5.496430ms, swizzle: NOOP, TFLOPS: 50.01 (+0.63%)
+                f16x8pack(t8x8+k16+dbuf): ['-7.390625 ', '-9.75     '], time:5.250906ms, swizzle: NOOP, TFLOPS: 52.35 (+4.68%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['17.953125 ', '32.8125   '], time:11.64469ms, swizzle: NOOP, TFLOPS: 23.61
-                    f16wmma(mma4x2): ['17.953125 ', '32.8125   '], time:5.856013ms, swizzle: NOOP, TFLOPS: 46.94
-            f16wmma(mma4x2+warp2x4): ['17.953125 ', '32.8125   '], time:3.582108ms, swizzle: NOOP, TFLOPS: 76.74 (+51.60%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['17.953125 ', '32.8125   '], time:2.590525ms, swizzle: NOOP, TFLOPS: 106.11(+38.28%)
-     f16wmma(mma2x4+warp2x4+stage3): ['17.953125 ', '32.8125   '], time:2.588713ms, swizzle: NOOP, TFLOPS: 106.18(+0.07%)
-     f16wmma(mma2x4+warp2x4+stage2): ['17.953125 ', '32.8125   '], time:2.610671ms, swizzle: NOOP, TFLOPS: 105.29
-   f16wmma(mma2x4+...+stage3+dsmem): ['17.953125 ', '32.8125   '], time:2.617657ms, swizzle: NOOP, TFLOPS: 105.01
-   f16wmma(mma2x4+...+stage2+dsmem): ['17.953125 ', '32.8125   '], time:2.610099ms, swizzle: NOOP, TFLOPS: 105.31
- f16wmma(mma2x4+...+stage3+swizzle): ['17.953125 ', '32.8125   '], time:2.601087ms, swizzle: 1024, TFLOPS: 105.68
- f16wmma(mma2x4+...+stage2+swizzle): ['17.953125 ', '32.8125   '], time:2.591907ms, swizzle: 1024, TFLOPS: 106.05
-  f16wmma(...+stage3+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:2.608931ms, swizzle: 1024, TFLOPS: 105.36
-  f16wmma(...+stage2+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:2.586269ms, swizzle: 1024, TFLOPS: 106.28(+0.09%)
-                        f16(cublas): ['17.953125 ', '32.8125   '], time:2.462971ms, swizzle: NOOP, TFLOPS: 111.60(+5.01%)
-                             f16_th: ['17.96875  ', '32.75     '], time:2.555072ms, swizzle: NOOP, TFLOPS: 107.58
+                         f16wmma(mma4x2): ['-7.765625 ', '-9.59375  '], time:5.908870ms, swizzle: NOOP, TFLOPS: 46.52
+                 f16wmma(mma4x2+warp2x4): ['-7.765625 ', '-9.59375  '], time:3.609466ms, swizzle: NOOP, TFLOPS: 76.15 (+45.48%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-7.765625 ', '-9.59375  '], time:2.606987ms, swizzle: NOOP, TFLOPS: 105.44(+38.45%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-7.765625 ', '-9.59375  '], time:2.613306ms, swizzle: NOOP, TFLOPS: 105.18
+          f16wmma(mma2x4+warp2x4+stage3): ['-7.765625 ', '-9.59375  '], time:2.563500ms, swizzle: NOOP, TFLOPS: 107.23(+1.70%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-7.765625 ', '-9.59375  '], time:2.575325ms, swizzle: NOOP, TFLOPS: 106.74
+        f16wmma(mma2x4+...+stage4+dsmem): ['-7.765625 ', '-9.59375  '], time:2.595806ms, swizzle: NOOP, TFLOPS: 105.89
+        f16wmma(mma2x4+...+stage3+dsmem): ['-7.765625 ', '-9.59375  '], time:2.583646ms, swizzle: NOOP, TFLOPS: 106.39
+        f16wmma(mma2x4+...+stage2+dsmem): ['-7.765625 ', '-9.59375  '], time:2.573943ms, swizzle: NOOP, TFLOPS: 106.79
+      f16wmma(mma2x4+...+stage4+swizzle): ['-7.765625 ', '-9.59375  '], time:2.617716ms, swizzle: 1024, TFLOPS: 105.01
+      f16wmma(mma2x4+...+stage3+swizzle): ['-7.765625 ', '-9.59375  '], time:2.564501ms, swizzle: 1024, TFLOPS: 107.19
+      f16wmma(mma2x4+...+stage2+swizzle): ['-7.765625 ', '-9.59375  '], time:2.539563ms, swizzle: 1024, TFLOPS: 108.24(+0.94%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:2.615571ms, swizzle: 1024, TFLOPS: 105.09
+       f16wmma(...+stage3+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:2.590703ms, swizzle: 1024, TFLOPS: 106.10
+       f16wmma(...+stage2+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:2.539587ms, swizzle: 1024, TFLOPS: 108.24
+                             f16(cublas): ['-7.765625 ', '-9.59375  '], time:2.676177ms, swizzle: NOOP, TFLOPS: 102.71
+                                  f16_th: ['-7.9101562', '-9.703125 '], time:2.554368ms, swizzle: NOOP, TFLOPS: 107.61
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=8192, N=4096, K=8192
-                         f16(naive): ['69.5      ', '17.9375   '], time:150.3833ms, swizzle: NOOP, TFLOPS: 3.66  (+0.00%)
-                f16x8pack(t8x8+bcf): ['69.5      ', '17.9375   '], time:11.42700ms, swizzle: NOOP, TFLOPS: 48.11 (+1216.03%)
-           f16x8pack(t8x8+bcf+dbuf): ['69.5      ', '17.9375   '], time:11.32282ms, swizzle: NOOP, TFLOPS: 48.55 (+0.92%)
-           f16x8pack(t8x8+k16+dbuf): ['69.5      ', '17.9375   '], time:11.10188ms, swizzle: NOOP, TFLOPS: 49.52 (+1.99%)
+                     f16x8pack(t8x8+bcf): ['-34.6875  ', '109.75    '], time:11.29407ms, swizzle: NOOP, TFLOPS: 48.68 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-34.6875  ', '109.75    '], time:11.21764ms, swizzle: NOOP, TFLOPS: 49.01 (+0.68%)
+                f16x8pack(t8x8+k16+dbuf): ['-34.6875  ', '109.75    '], time:10.83180ms, swizzle: NOOP, TFLOPS: 50.75 (+3.56%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['69.25     ', '18.078125 '], time:23.05684ms, swizzle: NOOP, TFLOPS: 23.84
-                    f16wmma(mma4x2): ['69.25     ', '18.078125 '], time:11.64009ms, swizzle: NOOP, TFLOPS: 47.23
-            f16wmma(mma4x2+warp2x4): ['69.25     ', '18.078125 '], time:7.079064ms, swizzle: NOOP, TFLOPS: 77.66 (+56.83%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['69.25     ', '18.078125 '], time:5.142569ms, swizzle: NOOP, TFLOPS: 106.90(+37.66%)
-     f16wmma(mma2x4+warp2x4+stage3): ['69.25     ', '18.078125 '], time:5.137395ms, swizzle: NOOP, TFLOPS: 107.01(+0.10%)
-     f16wmma(mma2x4+warp2x4+stage2): ['69.25     ', '18.078125 '], time:5.153763ms, swizzle: NOOP, TFLOPS: 106.67
-   f16wmma(mma2x4+...+stage3+dsmem): ['69.25     ', '18.078125 '], time:5.166745ms, swizzle: NOOP, TFLOPS: 106.40
-   f16wmma(mma2x4+...+stage2+dsmem): ['69.25     ', '18.078125 '], time:5.151641ms, swizzle: NOOP, TFLOPS: 106.71
- f16wmma(mma2x4+...+stage3+swizzle): ['69.25     ', '18.078125 '], time:5.244612ms, swizzle: 1024, TFLOPS: 104.82
- f16wmma(mma2x4+...+stage2+swizzle): ['69.25     ', '18.078125 '], time:5.279600ms, swizzle: 1024, TFLOPS: 104.13
-  f16wmma(...+stage3+dsmem+swizzle): ['69.25     ', '18.078125 '], time:5.390441ms, swizzle: 1024, TFLOPS: 101.99
-  f16wmma(...+stage2+dsmem+swizzle): ['69.25     ', '18.078125 '], time:5.245709ms, swizzle: 1024, TFLOPS: 104.80
-                        f16(cublas): ['69.25     ', '18.078125 '], time:4.908752ms, swizzle: NOOP, TFLOPS: 112.00(+4.66%)
-                             f16_th: ['69.3125   ', '18.109375 '], time:5.001747ms, swizzle: NOOP, TFLOPS: 109.91
+                         f16wmma(mma4x2): ['-34.6875  ', '108.625   '], time:11.73310ms, swizzle: NOOP, TFLOPS: 46.86
+                 f16wmma(mma4x2+warp2x4): ['-34.6875  ', '108.625   '], time:7.149004ms, swizzle: NOOP, TFLOPS: 76.90 (+51.51%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-34.6875  ', '108.625   '], time:5.116224ms, swizzle: NOOP, TFLOPS: 107.45(+39.73%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-34.6875  ', '108.625   '], time:5.128741ms, swizzle: NOOP, TFLOPS: 107.19
+          f16wmma(mma2x4+warp2x4+stage3): ['-34.6875  ', '108.625   '], time:5.057311ms, swizzle: NOOP, TFLOPS: 108.71(+1.16%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-34.6875  ', '108.625   '], time:5.109739ms, swizzle: NOOP, TFLOPS: 107.59
+        f16wmma(mma2x4+...+stage4+dsmem): ['-34.6875  ', '108.625   '], time:5.136680ms, swizzle: NOOP, TFLOPS: 107.03
+        f16wmma(mma2x4+...+stage3+dsmem): ['-34.6875  ', '108.625   '], time:5.097627ms, swizzle: NOOP, TFLOPS: 107.85
+        f16wmma(mma2x4+...+stage2+dsmem): ['-34.6875  ', '108.625   '], time:5.075955ms, swizzle: NOOP, TFLOPS: 108.31
+      f16wmma(mma2x4+...+stage4+swizzle): ['-34.6875  ', '108.625   '], time:5.198264ms, swizzle: 1024, TFLOPS: 105.76
+      f16wmma(mma2x4+...+stage3+swizzle): ['-34.6875  ', '108.625   '], time:5.154633ms, swizzle: 1024, TFLOPS: 106.65
+      f16wmma(mma2x4+...+stage2+swizzle): ['-34.6875  ', '108.625   '], time:5.041408ms, swizzle: 1024, TFLOPS: 109.05(+0.32%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:5.199956ms, swizzle: 1024, TFLOPS: 105.72
+       f16wmma(...+stage3+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:5.206274ms, swizzle: 1024, TFLOPS: 105.59
+       f16wmma(...+stage2+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:5.060267ms, swizzle: 1024, TFLOPS: 108.64
+                             f16(cublas): ['-34.6875  ', '108.625   '], time:5.067610ms, swizzle: NOOP, TFLOPS: 108.48
+                                  f16_th: ['-34.90625 ', '108.5625  '], time:4.848861ms, swizzle: NOOP, TFLOPS: 113.38(+3.97%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=8192, N=8192, K=2048
-                         f16(naive): ['30.0625   ', '-9.34375  '], time:75.26348ms, swizzle: NOOP, TFLOPS: 3.65  (+0.00%)
-                f16x8pack(t8x8+bcf): ['30.0625   ', '-9.34375  '], time:5.520558ms, swizzle: NOOP, TFLOPS: 49.79 (+1263.33%)
-           f16x8pack(t8x8+bcf+dbuf): ['30.0625   ', '-9.34375  '], time:5.567967ms, swizzle: NOOP, TFLOPS: 49.37
-           f16x8pack(t8x8+k16+dbuf): ['30.0625   ', '-9.34375  '], time:5.330693ms, swizzle: NOOP, TFLOPS: 51.57 (+3.56%)
+                     f16x8pack(t8x8+bcf): ['-48.625   ', '-19.59375 '], time:5.350041ms, swizzle: NOOP, TFLOPS: 51.38 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-48.625   ', '-19.59375 '], time:5.371356ms, swizzle: NOOP, TFLOPS: 51.17
+                f16x8pack(t8x8+k16+dbuf): ['-48.625   ', '-19.59375 '], time:5.128169ms, swizzle: NOOP, TFLOPS: 53.60 (+4.33%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['29.921875 ', '-9.5078125'], time:11.68832ms, swizzle: NOOP, TFLOPS: 23.52
-                    f16wmma(mma4x2): ['29.921875 ', '-9.5078125'], time:5.869758ms, swizzle: NOOP, TFLOPS: 46.83
-            f16wmma(mma4x2+warp2x4): ['29.921875 ', '-9.5078125'], time:3.541529ms, swizzle: NOOP, TFLOPS: 77.62 (+50.52%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['29.921875 ', '-9.5078125'], time:2.588903ms, swizzle: NOOP, TFLOPS: 106.18(+36.80%)
-     f16wmma(mma2x4+warp2x4+stage3): ['29.921875 ', '-9.5078125'], time:2.589297ms, swizzle: NOOP, TFLOPS: 106.16
-     f16wmma(mma2x4+warp2x4+stage2): ['29.921875 ', '-9.5078125'], time:2.600646ms, swizzle: NOOP, TFLOPS: 105.70
-   f16wmma(mma2x4+...+stage3+dsmem): ['29.921875 ', '-9.5078125'], time:2.604603ms, swizzle: NOOP, TFLOPS: 105.54
-   f16wmma(mma2x4+...+stage2+dsmem): ['29.921875 ', '-9.5078125'], time:2.599084ms, swizzle: NOOP, TFLOPS: 105.76
- f16wmma(mma2x4+...+stage3+swizzle): ['29.921875 ', '-9.5078125'], time:2.595067ms, swizzle: 2048, TFLOPS: 105.92
- f16wmma(mma2x4+...+stage2+swizzle): ['29.921875 ', '-9.5078125'], time:2.574205ms, swizzle: 2048, TFLOPS: 106.78(+0.57%)
-  f16wmma(...+stage3+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:2.599978ms, swizzle: 2048, TFLOPS: 105.72
-  f16wmma(...+stage2+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:2.580559ms, swizzle: 2048, TFLOPS: 106.52
-                        f16(cublas): ['29.921875 ', '-9.5078125'], time:2.448010ms, swizzle: NOOP, TFLOPS: 112.29(+5.16%)
-                             f16_th: ['29.9375   ', '-9.5703125'], time:2.432334ms, swizzle: NOOP, TFLOPS: 113.01(+0.64%)
+                         f16wmma(mma4x2): ['-48.6875  ', '-19.71875 '], time:5.927252ms, swizzle: NOOP, TFLOPS: 46.38
+                 f16wmma(mma4x2+warp2x4): ['-48.6875  ', '-19.71875 '], time:3.571295ms, swizzle: NOOP, TFLOPS: 76.97 (+43.59%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-48.6875  ', '-19.71875 '], time:2.595305ms, swizzle: NOOP, TFLOPS: 105.91(+37.61%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-48.6875  ', '-19.71875 '], time:2.612948ms, swizzle: NOOP, TFLOPS: 105.20
+          f16wmma(mma2x4+warp2x4+stage3): ['-48.6875  ', '-19.71875 '], time:2.542471ms, swizzle: NOOP, TFLOPS: 108.11(+2.08%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-48.6875  ', '-19.71875 '], time:2.558398ms, swizzle: NOOP, TFLOPS: 107.44
+        f16wmma(mma2x4+...+stage4+dsmem): ['-48.6875  ', '-19.71875 '], time:2.595710ms, swizzle: NOOP, TFLOPS: 105.90
+        f16wmma(mma2x4+...+stage3+dsmem): ['-48.6875  ', '-19.71875 '], time:2.560544ms, swizzle: NOOP, TFLOPS: 107.35
+        f16wmma(mma2x4+...+stage2+dsmem): ['-48.6875  ', '-19.71875 '], time:2.550745ms, swizzle: NOOP, TFLOPS: 107.76
+      f16wmma(mma2x4+...+stage4+swizzle): ['-48.6875  ', '-19.71875 '], time:2.618861ms, swizzle: 2048, TFLOPS: 104.96
+      f16wmma(mma2x4+...+stage3+swizzle): ['-48.6875  ', '-19.71875 '], time:2.540159ms, swizzle: 2048, TFLOPS: 108.21(+0.09%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-48.6875  ', '-19.71875 '], time:2.523684ms, swizzle: 2048, TFLOPS: 108.92(+0.65%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:2.618551ms, swizzle: 2048, TFLOPS: 104.97
+       f16wmma(...+stage3+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:2.562999ms, swizzle: 2048, TFLOPS: 107.25
+       f16wmma(...+stage2+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:2.522230ms, swizzle: 2048, TFLOPS: 108.98(+0.06%)
+                             f16(cublas): ['-48.6875  ', '-19.71875 '], time:2.600812ms, swizzle: NOOP, TFLOPS: 105.69
+                                  f16_th: ['-48.75    ', '-19.765625'], time:2.399682ms, swizzle: NOOP, TFLOPS: 114.55(+5.11%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=8192, N=8192, K=4096
-                         f16(naive): ['18.078125 ', '32.90625  '], time:150.3454ms, swizzle: NOOP, TFLOPS: 3.66  (+0.00%)
-                f16x8pack(t8x8+bcf): ['18.078125 ', '32.90625  '], time:11.15337ms, swizzle: NOOP, TFLOPS: 49.29 (+1247.98%)
-           f16x8pack(t8x8+bcf+dbuf): ['18.078125 ', '32.90625  '], time:11.13945ms, swizzle: NOOP, TFLOPS: 49.35 (+0.12%)
-           f16x8pack(t8x8+k16+dbuf): ['18.078125 ', '32.90625  '], time:10.81538ms, swizzle: NOOP, TFLOPS: 50.83 (+3.00%)
+                     f16x8pack(t8x8+bcf): ['-7.390625 ', '-9.75     '], time:10.91930ms, swizzle: NOOP, TFLOPS: 50.35 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-7.390625 ', '-9.75     '], time:10.92619ms, swizzle: NOOP, TFLOPS: 50.32
+                f16x8pack(t8x8+k16+dbuf): ['-7.390625 ', '-9.75     '], time:10.35106ms, swizzle: NOOP, TFLOPS: 53.11 (+5.49%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['17.953125 ', '32.8125   '], time:23.15959ms, swizzle: NOOP, TFLOPS: 23.74
-                    f16wmma(mma4x2): ['17.953125 ', '32.8125   '], time:11.63694ms, swizzle: NOOP, TFLOPS: 47.24
-            f16wmma(mma4x2+warp2x4): ['17.953125 ', '32.8125   '], time:6.961476ms, swizzle: NOOP, TFLOPS: 78.97 (+55.36%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['17.953125 ', '32.8125   '], time:5.086100ms, swizzle: NOOP, TFLOPS: 108.09(+36.87%)
-     f16wmma(mma2x4+warp2x4+stage3): ['17.953125 ', '32.8125   '], time:5.071794ms, swizzle: NOOP, TFLOPS: 108.39(+0.28%)
-     f16wmma(mma2x4+warp2x4+stage2): ['17.953125 ', '32.8125   '], time:5.084371ms, swizzle: NOOP, TFLOPS: 108.13
-   f16wmma(mma2x4+...+stage3+dsmem): ['17.953125 ', '32.8125   '], time:5.083274ms, swizzle: NOOP, TFLOPS: 108.15
-   f16wmma(mma2x4+...+stage2+dsmem): ['17.953125 ', '32.8125   '], time:5.072879ms, swizzle: NOOP, TFLOPS: 108.37
- f16wmma(mma2x4+...+stage3+swizzle): ['17.953125 ', '32.8125   '], time:5.158448ms, swizzle: 2048, TFLOPS: 106.57
- f16wmma(mma2x4+...+stage2+swizzle): ['17.953125 ', '32.8125   '], time:5.199003ms, swizzle: 2048, TFLOPS: 105.74
-  f16wmma(...+stage3+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:5.281746ms, swizzle: 2048, TFLOPS: 104.09
-  f16wmma(...+stage2+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:5.193662ms, swizzle: 2048, TFLOPS: 105.85
-                        f16(cublas): ['17.953125 ', '32.8125   '], time:4.811286ms, swizzle: NOOP, TFLOPS: 114.26(+5.41%)
-                             f16_th: ['17.96875  ', '32.75     '], time:4.888451ms, swizzle: NOOP, TFLOPS: 112.46
+                         f16wmma(mma4x2): ['-7.765625 ', '-9.59375  '], time:11.71412ms, swizzle: NOOP, TFLOPS: 46.93
+                 f16wmma(mma4x2+warp2x4): ['-7.765625 ', '-9.59375  '], time:7.003331ms, swizzle: NOOP, TFLOPS: 78.50 (+47.80%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-7.765625 ', '-9.59375  '], time:5.050349ms, swizzle: NOOP, TFLOPS: 108.86(+38.67%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-7.765625 ', '-9.59375  '], time:5.069613ms, swizzle: NOOP, TFLOPS: 108.44
+          f16wmma(mma2x4+warp2x4+stage3): ['-7.765625 ', '-9.59375  '], time:5.004692ms, swizzle: NOOP, TFLOPS: 109.85(+0.91%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-7.765625 ', '-9.59375  '], time:5.027818ms, swizzle: NOOP, TFLOPS: 109.34
+        f16wmma(mma2x4+...+stage4+dsmem): ['-7.765625 ', '-9.59375  '], time:5.068135ms, swizzle: NOOP, TFLOPS: 108.47
+        f16wmma(mma2x4+...+stage3+dsmem): ['-7.765625 ', '-9.59375  '], time:5.042505ms, swizzle: NOOP, TFLOPS: 109.02
+        f16wmma(mma2x4+...+stage2+dsmem): ['-7.765625 ', '-9.59375  '], time:5.024003ms, swizzle: NOOP, TFLOPS: 109.43
+      f16wmma(mma2x4+...+stage4+swizzle): ['-7.765625 ', '-9.59375  '], time:5.120134ms, swizzle: 2048, TFLOPS: 107.37
+      f16wmma(mma2x4+...+stage3+swizzle): ['-7.765625 ', '-9.59375  '], time:5.047202ms, swizzle: 2048, TFLOPS: 108.92
+      f16wmma(mma2x4+...+stage2+swizzle): ['-7.765625 ', '-9.59375  '], time:5.019378ms, swizzle: 2048, TFLOPS: 109.53
+       f16wmma(...+stage4+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:5.148577ms, swizzle: 2048, TFLOPS: 106.78
+       f16wmma(...+stage3+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:5.109333ms, swizzle: 2048, TFLOPS: 107.60
+       f16wmma(...+stage2+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:4.964089ms, swizzle: 2048, TFLOPS: 110.75(+0.82%)
+                             f16(cublas): ['-7.765625 ', '-9.59375  '], time:5.002450ms, swizzle: NOOP, TFLOPS: 109.90
+                                  f16_th: ['-7.9101562', '-9.703125 '], time:4.903984ms, swizzle: NOOP, TFLOPS: 112.10(+1.23%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=8192, N=8192, K=8192
-                         f16(naive): ['69.5      ', '17.9375   '], time:443.4183ms, swizzle: NOOP, TFLOPS: 2.48  (+0.00%)
-                f16x8pack(t8x8+bcf): ['69.5      ', '17.9375   '], time:24.40258ms, swizzle: NOOP, TFLOPS: 45.06 (+1717.10%)
-           f16x8pack(t8x8+bcf+dbuf): ['69.5      ', '17.9375   '], time:26.13687ms, swizzle: NOOP, TFLOPS: 42.07
-           f16x8pack(t8x8+k16+dbuf): ['69.5      ', '17.9375   '], time:24.38509ms, swizzle: NOOP, TFLOPS: 45.09 (+0.07%)
+                     f16x8pack(t8x8+bcf): ['-34.6875  ', '109.75    '], time:24.32680ms, swizzle: NOOP, TFLOPS: 45.20 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-34.6875  ', '109.75    '], time:24.22029ms, swizzle: NOOP, TFLOPS: 45.40 (+0.44%)
+                f16x8pack(t8x8+k16+dbuf): ['-34.6875  ', '109.75    '], time:23.78268ms, swizzle: NOOP, TFLOPS: 46.23 (+1.84%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['69.25     ', '18.078125 '], time:49.62843ms, swizzle: NOOP, TFLOPS: 22.15
-                    f16wmma(mma4x2): ['69.25     ', '18.078125 '], time:25.53668ms, swizzle: NOOP, TFLOPS: 43.06
-            f16wmma(mma4x2+warp2x4): ['69.25     ', '18.078125 '], time:14.22798ms, swizzle: NOOP, TFLOPS: 77.28 (+71.39%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['69.25     ', '18.078125 '], time:11.14211ms, swizzle: NOOP, TFLOPS: 98.68 (+27.70%)
-     f16wmma(mma2x4+warp2x4+stage3): ['69.25     ', '18.078125 '], time:11.10615ms, swizzle: NOOP, TFLOPS: 99.00 (+0.32%)
-     f16wmma(mma2x4+warp2x4+stage2): ['69.25     ', '18.078125 '], time:11.75935ms, swizzle: NOOP, TFLOPS: 93.50
-   f16wmma(mma2x4+...+stage3+dsmem): ['69.25     ', '18.078125 '], time:11.71027ms, swizzle: NOOP, TFLOPS: 93.89
-   f16wmma(mma2x4+...+stage2+dsmem): ['69.25     ', '18.078125 '], time:11.13451ms, swizzle: NOOP, TFLOPS: 98.75
- f16wmma(mma2x4+...+stage3+swizzle): ['69.25     ', '18.078125 '], time:10.18273ms, swizzle: 2048, TFLOPS: 107.98(+9.07%)
- f16wmma(mma2x4+...+stage2+swizzle): ['69.25     ', '18.078125 '], time:10.16882ms, swizzle: 2048, TFLOPS: 108.13(+0.14%)
-  f16wmma(...+stage3+dsmem+swizzle): ['69.25     ', '18.078125 '], time:10.23535ms, swizzle: 2048, TFLOPS: 107.42
-  f16wmma(...+stage2+dsmem+swizzle): ['69.25     ', '18.078125 '], time:10.11298ms, swizzle: 2048, TFLOPS: 108.72(+0.55%)
-                        f16(cublas): ['69.25     ', '18.078125 '], time:9.575200ms, swizzle: NOOP, TFLOPS: 114.83(+5.62%)
-                             f16_th: ['69.3125   ', '18.09375  '], time:9.703755ms, swizzle: NOOP, TFLOPS: 113.31
+                         f16wmma(mma4x2): ['-34.6875  ', '108.625   '], time:25.18262ms, swizzle: NOOP, TFLOPS: 43.66
+                 f16wmma(mma4x2+warp2x4): ['-34.6875  ', '108.625   '], time:14.21759ms, swizzle: NOOP, TFLOPS: 77.33 (+67.28%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-34.6875  ', '108.625   '], time:10.99987ms, swizzle: NOOP, TFLOPS: 99.96 (+29.25%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-34.6875  ', '108.625   '], time:11.02399ms, swizzle: NOOP, TFLOPS: 99.74
+          f16wmma(mma2x4+warp2x4+stage3): ['-34.6875  ', '108.625   '], time:11.08629ms, swizzle: NOOP, TFLOPS: 99.18
+          f16wmma(mma2x4+warp2x4+stage2): ['-34.6875  ', '108.625   '], time:10.86187ms, swizzle: NOOP, TFLOPS: 101.23(+1.27%)
+        f16wmma(mma2x4+...+stage4+dsmem): ['-34.6875  ', '108.625   '], time:11.01264ms, swizzle: NOOP, TFLOPS: 99.84
+        f16wmma(mma2x4+...+stage3+dsmem): ['-34.6875  ', '108.625   '], time:10.96932ms, swizzle: NOOP, TFLOPS: 100.24
+        f16wmma(mma2x4+...+stage2+dsmem): ['-34.6875  ', '108.625   '], time:10.93618ms, swizzle: NOOP, TFLOPS: 100.54
+      f16wmma(mma2x4+...+stage4+swizzle): ['-34.6875  ', '108.625   '], time:10.27595ms, swizzle: 2048, TFLOPS: 107.00(+5.70%)
+      f16wmma(mma2x4+...+stage3+swizzle): ['-34.6875  ', '108.625   '], time:10.13357ms, swizzle: 2048, TFLOPS: 108.50(+1.41%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-34.6875  ', '108.625   '], time:9.931540ms, swizzle: 2048, TFLOPS: 110.71(+2.03%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:10.26072ms, swizzle: 2048, TFLOPS: 107.16
+       f16wmma(...+stage3+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:10.19623ms, swizzle: 2048, TFLOPS: 107.84
+       f16wmma(...+stage2+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:10.00247ms, swizzle: 2048, TFLOPS: 109.92
+                             f16(cublas): ['-34.6875  ', '108.625   '], time:9.718918ms, swizzle: NOOP, TFLOPS: 113.13(+2.19%)
+                                  f16_th: ['-34.9375  ', '108.625   '], time:9.733724ms, swizzle: NOOP, TFLOPS: 112.96
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=8192, N=16384, K=2048
-                         f16(naive): ['30.0625   ', '-9.34375  '], time:150.4965ms, swizzle: NOOP, TFLOPS: 3.65  (+0.00%)
-                f16x8pack(t8x8+bcf): ['30.0625   ', '-9.34375  '], time:11.25679ms, swizzle: NOOP, TFLOPS: 48.84 (+1236.94%)
-           f16x8pack(t8x8+bcf+dbuf): ['30.0625   ', '-9.34375  '], time:11.15907ms, swizzle: NOOP, TFLOPS: 49.27 (+0.88%)
-           f16x8pack(t8x8+k16+dbuf): ['30.0625   ', '-9.34375  '], time:10.77163ms, swizzle: NOOP, TFLOPS: 51.04 (+3.60%)
+                     f16x8pack(t8x8+bcf): ['-48.625   ', '-19.59375 '], time:11.07859ms, swizzle: NOOP, TFLOPS: 49.62 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-48.625   ', '-19.59375 '], time:10.94355ms, swizzle: NOOP, TFLOPS: 50.24 (+1.23%)
+                f16x8pack(t8x8+k16+dbuf): ['-48.625   ', '-19.59375 '], time:10.53507ms, swizzle: NOOP, TFLOPS: 52.18 (+3.88%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['29.921875 ', '-9.5078125'], time:23.21388ms, swizzle: NOOP, TFLOPS: 23.68
-                    f16wmma(mma4x2): ['29.921875 ', '-9.5078125'], time:11.69066ms, swizzle: NOOP, TFLOPS: 47.03
-            f16wmma(mma4x2+warp2x4): ['29.921875 ', '-9.5078125'], time:6.881964ms, swizzle: NOOP, TFLOPS: 79.88 (+56.52%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['29.921875 ', '-9.5078125'], time:5.192875ms, swizzle: NOOP, TFLOPS: 105.87(+32.53%)
-     f16wmma(mma2x4+warp2x4+stage3): ['29.921875 ', '-9.5078125'], time:5.165994ms, swizzle: NOOP, TFLOPS: 106.42(+0.52%)
-     f16wmma(mma2x4+warp2x4+stage2): ['29.921875 ', '-9.5078125'], time:5.184519ms, swizzle: NOOP, TFLOPS: 106.04
-   f16wmma(mma2x4+...+stage3+dsmem): ['29.921875 ', '-9.5078125'], time:5.191397ms, swizzle: NOOP, TFLOPS: 105.90
-   f16wmma(mma2x4+...+stage2+dsmem): ['29.921875 ', '-9.5078125'], time:5.183148ms, swizzle: NOOP, TFLOPS: 106.07
- f16wmma(mma2x4+...+stage3+swizzle): ['29.921875 ', '-9.5078125'], time:5.240654ms, swizzle: 4096, TFLOPS: 104.90
- f16wmma(mma2x4+...+stage2+swizzle): ['29.921875 ', '-9.5078125'], time:5.309236ms, swizzle: 4096, TFLOPS: 103.55
-  f16wmma(...+stage3+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:5.356001ms, swizzle: 4096, TFLOPS: 102.64
-  f16wmma(...+stage2+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:5.244457ms, swizzle: 4096, TFLOPS: 104.83
-                        f16(cublas): ['29.921875 ', '-9.5078125'], time:4.865396ms, swizzle: NOOP, TFLOPS: 112.99(+6.18%)
-                             f16_th: ['29.9375   ', '-9.5703125'], time:4.924583ms, swizzle: NOOP, TFLOPS: 111.63
+                         f16wmma(mma4x2): ['-48.6875  ', '-19.71875 '], time:11.76457ms, swizzle: NOOP, TFLOPS: 46.73
+                 f16wmma(mma4x2+warp2x4): ['-48.6875  ', '-19.71875 '], time:6.933164ms, swizzle: NOOP, TFLOPS: 79.29 (+51.95%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-48.6875  ', '-19.71875 '], time:5.144977ms, swizzle: NOOP, TFLOPS: 106.85(+34.76%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-48.6875  ', '-19.71875 '], time:5.183672ms, swizzle: NOOP, TFLOPS: 106.06
+          f16wmma(mma2x4+warp2x4+stage3): ['-48.6875  ', '-19.71875 '], time:5.052256ms, swizzle: NOOP, TFLOPS: 108.81(+1.84%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-48.6875  ', '-19.71875 '], time:5.082416ms, swizzle: NOOP, TFLOPS: 108.17
+        f16wmma(mma2x4+...+stage4+dsmem): ['-48.6875  ', '-19.71875 '], time:5.201864ms, swizzle: NOOP, TFLOPS: 105.68
+        f16wmma(mma2x4+...+stage3+dsmem): ['-48.6875  ', '-19.71875 '], time:5.106210ms, swizzle: NOOP, TFLOPS: 107.66
+        f16wmma(mma2x4+...+stage2+dsmem): ['-48.6875  ', '-19.71875 '], time:5.088162ms, swizzle: NOOP, TFLOPS: 108.05
+      f16wmma(mma2x4+...+stage4+swizzle): ['-48.6875  ', '-19.71875 '], time:5.184173ms, swizzle: 4096, TFLOPS: 106.05
+      f16wmma(mma2x4+...+stage3+swizzle): ['-48.6875  ', '-19.71875 '], time:5.041408ms, swizzle: 4096, TFLOPS: 109.05(+0.22%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-48.6875  ', '-19.71875 '], time:5.055046ms, swizzle: 4096, TFLOPS: 108.75
+       f16wmma(...+stage4+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:5.221557ms, swizzle: 4096, TFLOPS: 105.29
+       f16wmma(...+stage3+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:5.159568ms, swizzle: 4096, TFLOPS: 106.55
+       f16wmma(...+stage2+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:5.045223ms, swizzle: 4096, TFLOPS: 108.97
+                             f16(cublas): ['-48.6875  ', '-19.71875 '], time:5.022454ms, swizzle: NOOP, TFLOPS: 109.46(+0.38%)
+                                  f16_th: ['-48.75    ', '-19.765625'], time:4.814910ms, swizzle: NOOP, TFLOPS: 114.18(+4.31%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=8192, N=16384, K=4096
-                         f16(naive): ['18.078125 ', '32.90625  '], time:458.6103ms, swizzle: NOOP, TFLOPS: 2.40  (+0.00%)
-                f16x8pack(t8x8+bcf): ['18.078125 ', '32.90625  '], time:24.35351ms, swizzle: NOOP, TFLOPS: 45.15 (+1783.14%)
-           f16x8pack(t8x8+bcf+dbuf): ['18.078125 ', '32.90625  '], time:26.28115ms, swizzle: NOOP, TFLOPS: 41.84
-           f16x8pack(t8x8+k16+dbuf): ['18.078125 ', '32.90625  '], time:24.56663ms, swizzle: NOOP, TFLOPS: 44.76
+                     f16x8pack(t8x8+bcf): ['-7.390625 ', '-9.75     '], time:24.28481ms, swizzle: NOOP, TFLOPS: 45.28 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-7.390625 ', '-9.75     '], time:24.54431ms, swizzle: NOOP, TFLOPS: 44.80
+                f16x8pack(t8x8+k16+dbuf): ['-7.390625 ', '-9.75     '], time:23.84874ms, swizzle: NOOP, TFLOPS: 46.10 (+1.83%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['17.953125 ', '32.8125   '], time:75.99920ms, swizzle: NOOP, TFLOPS: 14.47
-                    f16wmma(mma4x2): ['17.953125 ', '32.8125   '], time:31.42518ms, swizzle: NOOP, TFLOPS: 34.99
-            f16wmma(mma4x2+warp2x4): ['17.953125 ', '32.8125   '], time:14.28223ms, swizzle: NOOP, TFLOPS: 76.98 (+70.52%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['17.953125 ', '32.8125   '], time:11.23386ms, swizzle: NOOP, TFLOPS: 97.87 (+27.14%)
-     f16wmma(mma2x4+warp2x4+stage3): ['17.953125 ', '32.8125   '], time:12.16307ms, swizzle: NOOP, TFLOPS: 90.40
-     f16wmma(mma2x4+warp2x4+stage2): ['17.953125 ', '32.8125   '], time:11.72069ms, swizzle: NOOP, TFLOPS: 93.81
-   f16wmma(mma2x4+...+stage3+dsmem): ['17.953125 ', '32.8125   '], time:11.45683ms, swizzle: NOOP, TFLOPS: 95.97
-   f16wmma(mma2x4+...+stage2+dsmem): ['17.953125 ', '32.8125   '], time:11.26756ms, swizzle: NOOP, TFLOPS: 97.58
- f16wmma(mma2x4+...+stage3+swizzle): ['17.953125 ', '32.8125   '], time:10.29720ms, swizzle: 4096, TFLOPS: 106.78(+9.10%)
- f16wmma(mma2x4+...+stage2+swizzle): ['17.953125 ', '32.8125   '], time:10.10987ms, swizzle: 4096, TFLOPS: 108.76(+1.85%)
-  f16wmma(...+stage3+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:10.21662ms, swizzle: 4096, TFLOPS: 107.62
-  f16wmma(...+stage2+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:10.23129ms, swizzle: 4096, TFLOPS: 107.47
-                        f16(cublas): ['17.953125 ', '32.8125   '], time:9.730219ms, swizzle: NOOP, TFLOPS: 113.00(+3.90%)
-                             f16_th: ['17.96875  ', '32.75     '], time:9.567761ms, swizzle: NOOP, TFLOPS: 114.92(+1.70%)
+                         f16wmma(mma4x2): ['-7.765625 ', '-9.59375  '], time:31.31301ms, swizzle: NOOP, TFLOPS: 35.11
+                 f16wmma(mma4x2+warp2x4): ['-7.765625 ', '-9.59375  '], time:14.29131ms, swizzle: NOOP, TFLOPS: 76.94 (+66.88%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-7.765625 ', '-9.59375  '], time:11.20250ms, swizzle: NOOP, TFLOPS: 98.15 (+27.57%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-7.765625 ', '-9.59375  '], time:11.39490ms, swizzle: NOOP, TFLOPS: 96.49
+          f16wmma(mma2x4+warp2x4+stage3): ['-7.765625 ', '-9.59375  '], time:11.49122ms, swizzle: NOOP, TFLOPS: 95.68
+          f16wmma(mma2x4+warp2x4+stage2): ['-7.765625 ', '-9.59375  '], time:11.13839ms, swizzle: NOOP, TFLOPS: 98.71 (+0.58%)
+        f16wmma(mma2x4+...+stage4+dsmem): ['-7.765625 ', '-9.59375  '], time:11.54367ms, swizzle: NOOP, TFLOPS: 95.25
+        f16wmma(mma2x4+...+stage3+dsmem): ['-7.765625 ', '-9.59375  '], time:11.50746ms, swizzle: NOOP, TFLOPS: 95.55
+        f16wmma(mma2x4+...+stage2+dsmem): ['-7.765625 ', '-9.59375  '], time:11.11392ms, swizzle: NOOP, TFLOPS: 98.93 (+0.22%)
+      f16wmma(mma2x4+...+stage4+swizzle): ['-7.765625 ', '-9.59375  '], time:10.30538ms, swizzle: 4096, TFLOPS: 106.69(+7.85%)
+      f16wmma(mma2x4+...+stage3+swizzle): ['-7.765625 ', '-9.59375  '], time:10.13453ms, swizzle: 4096, TFLOPS: 108.49(+1.69%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-7.765625 ', '-9.59375  '], time:10.02380ms, swizzle: 4096, TFLOPS: 109.69(+1.10%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:10.28742ms, swizzle: 4096, TFLOPS: 106.88
+       f16wmma(...+stage3+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:10.25483ms, swizzle: 4096, TFLOPS: 107.22
+       f16wmma(...+stage2+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:10.08176ms, swizzle: 4096, TFLOPS: 109.06
+                             f16(cublas): ['-7.765625 ', '-9.59375  '], time:9.751081ms, swizzle: NOOP, TFLOPS: 112.76(+2.80%)
+                                  f16_th: ['-7.9101562', '-9.703125 '], time:9.577250ms, swizzle: NOOP, TFLOPS: 114.80(+1.82%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=8192, N=16384, K=8192
-                         f16(naive): ['69.5      ', '17.9375   '], time:915.9307ms, swizzle: NOOP, TFLOPS: 2.40  (+0.00%)
-                f16x8pack(t8x8+bcf): ['69.5      ', '17.9375   '], time:52.36693ms, swizzle: NOOP, TFLOPS: 41.99 (+1649.06%)
-           f16x8pack(t8x8+bcf+dbuf): ['69.5      ', '17.9375   '], time:52.84373ms, swizzle: NOOP, TFLOPS: 41.61
-           f16x8pack(t8x8+k16+dbuf): ['69.5      ', '17.9375   '], time:51.87792ms, swizzle: NOOP, TFLOPS: 42.39 (+0.94%)
+                     f16x8pack(t8x8+bcf): ['-34.6875  ', '109.75    '], time:50.14533ms, swizzle: NOOP, TFLOPS: 43.85 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-34.6875  ', '109.75    '], time:50.38545ms, swizzle: NOOP, TFLOPS: 43.64
+                f16x8pack(t8x8+k16+dbuf): ['-34.6875  ', '109.75    '], time:49.45671ms, swizzle: NOOP, TFLOPS: 44.46 (+1.39%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['69.25     ', '18.078125 '], time:407.3698ms, swizzle: NOOP, TFLOPS: 5.40
-                    f16wmma(mma4x2): ['69.25     ', '18.078125 '], time:62.13268ms, swizzle: NOOP, TFLOPS: 35.39
-            f16wmma(mma4x2+warp2x4): ['69.25     ', '18.078125 '], time:28.18557ms, swizzle: NOOP, TFLOPS: 78.02 (+84.06%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['69.25     ', '18.078125 '], time:25.32980ms, swizzle: NOOP, TFLOPS: 86.82 (+11.27%)
-     f16wmma(mma2x4+warp2x4+stage3): ['69.25     ', '18.078125 '], time:25.23270ms, swizzle: NOOP, TFLOPS: 87.15 (+0.38%)
-     f16wmma(mma2x4+warp2x4+stage2): ['69.25     ', '18.078125 '], time:25.03691ms, swizzle: NOOP, TFLOPS: 87.83 (+0.78%)
-   f16wmma(mma2x4+...+stage3+dsmem): ['69.25     ', '18.078125 '], time:25.10446ms, swizzle: NOOP, TFLOPS: 87.59
-   f16wmma(mma2x4+...+stage2+dsmem): ['69.25     ', '18.078125 '], time:25.04101ms, swizzle: NOOP, TFLOPS: 87.82
- f16wmma(mma2x4+...+stage3+swizzle): ['69.25     ', '18.078125 '], time:20.55739ms, swizzle: 4096, TFLOPS: 106.97(+21.79%)
- f16wmma(mma2x4+...+stage2+swizzle): ['69.25     ', '18.078125 '], time:20.30926ms, swizzle: 4096, TFLOPS: 108.28(+1.22%)
-  f16wmma(...+stage3+dsmem+swizzle): ['69.25     ', '18.078125 '], time:20.56778ms, swizzle: 4096, TFLOPS: 106.92
-  f16wmma(...+stage2+dsmem+swizzle): ['69.25     ', '18.078125 '], time:20.31245ms, swizzle: 4096, TFLOPS: 108.26
-                        f16(cublas): ['69.25     ', '18.078125 '], time:19.35142ms, swizzle: NOOP, TFLOPS: 113.64(+4.95%)
-                             f16_th: ['69.3125   ', '18.09375  '], time:19.31538ms, swizzle: NOOP, TFLOPS: 113.85(+0.19%)
+                         f16wmma(mma4x2): ['-34.6875  ', '108.625   '], time:61.91453ms, swizzle: NOOP, TFLOPS: 35.52
+                 f16wmma(mma4x2+warp2x4): ['-34.6875  ', '108.625   '], time:28.20057ms, swizzle: NOOP, TFLOPS: 77.98 (+75.37%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-34.6875  ', '108.625   '], time:25.29430ms, swizzle: NOOP, TFLOPS: 86.94 (+11.49%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-34.6875  ', '108.625   '], time:24.86543ms, swizzle: NOOP, TFLOPS: 88.44 (+1.72%)
+          f16wmma(mma2x4+warp2x4+stage3): ['-34.6875  ', '108.625   '], time:24.93984ms, swizzle: NOOP, TFLOPS: 88.17
+          f16wmma(mma2x4+warp2x4+stage2): ['-34.6875  ', '108.625   '], time:24.97000ms, swizzle: NOOP, TFLOPS: 88.07
+        f16wmma(mma2x4+...+stage4+dsmem): ['-34.6875  ', '108.625   '], time:24.86479ms, swizzle: NOOP, TFLOPS: 88.44 (+0.00%)
+        f16wmma(mma2x4+...+stage3+dsmem): ['-34.6875  ', '108.625   '], time:24.94227ms, swizzle: NOOP, TFLOPS: 88.16
+        f16wmma(mma2x4+...+stage2+dsmem): ['-34.6875  ', '108.625   '], time:24.95753ms, swizzle: NOOP, TFLOPS: 88.11
+      f16wmma(mma2x4+...+stage4+swizzle): ['-34.6875  ', '108.625   '], time:20.66848ms, swizzle: 4096, TFLOPS: 106.40(+20.30%)
+      f16wmma(mma2x4+...+stage3+swizzle): ['-34.6875  ', '108.625   '], time:20.48211ms, swizzle: 4096, TFLOPS: 107.36(+0.91%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-34.6875  ', '108.625   '], time:20.18594ms, swizzle: 4096, TFLOPS: 108.94(+1.47%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:20.59302ms, swizzle: 4096, TFLOPS: 106.78
+       f16wmma(...+stage3+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:20.59633ms, swizzle: 4096, TFLOPS: 106.77
+       f16wmma(...+stage2+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:20.18511ms, swizzle: 4096, TFLOPS: 108.94(+0.00%)
+                             f16(cublas): ['-34.6875  ', '108.625   '], time:19.39537ms, swizzle: NOOP, TFLOPS: 113.38(+4.07%)
+                                  f16_th: ['-34.9375  ', '108.625   '], time:19.39315ms, swizzle: NOOP, TFLOPS: 113.39(+0.01%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=16384, N=4096, K=2048
-                         f16(naive): ['30.0625   ', '-9.34375  '], time:75.27084ms, swizzle: NOOP, TFLOPS: 3.65  (+0.00%)
-                f16x8pack(t8x8+bcf): ['30.0625   ', '-9.34375  '], time:5.641674ms, swizzle: NOOP, TFLOPS: 48.72 (+1234.19%)
-           f16x8pack(t8x8+bcf+dbuf): ['30.0625   ', '-9.34375  '], time:5.619812ms, swizzle: NOOP, TFLOPS: 48.91 (+0.39%)
-           f16x8pack(t8x8+k16+dbuf): ['30.0625   ', '-9.34375  '], time:5.412900ms, swizzle: NOOP, TFLOPS: 50.78 (+3.82%)
+                     f16x8pack(t8x8+bcf): ['-48.625   ', '-19.59375 '], time:5.363512ms, swizzle: NOOP, TFLOPS: 51.25 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-48.625   ', '-19.59375 '], time:5.482912ms, swizzle: NOOP, TFLOPS: 50.13
+                f16x8pack(t8x8+k16+dbuf): ['-48.625   ', '-19.59375 '], time:5.202841ms, swizzle: NOOP, TFLOPS: 52.83 (+3.09%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['29.921875 ', '-9.5078125'], time:11.67960ms, swizzle: NOOP, TFLOPS: 23.53
-                    f16wmma(mma4x2): ['29.921875 ', '-9.5078125'], time:5.873727ms, swizzle: NOOP, TFLOPS: 46.80
-            f16wmma(mma4x2+warp2x4): ['29.921875 ', '-9.5078125'], time:3.539693ms, swizzle: NOOP, TFLOPS: 77.66 (+52.92%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['29.921875 ', '-9.5078125'], time:2.593779ms, swizzle: NOOP, TFLOPS: 105.98(+36.47%)
-     f16wmma(mma2x4+warp2x4+stage3): ['29.921875 ', '-9.5078125'], time:2.594280ms, swizzle: NOOP, TFLOPS: 105.96
-     f16wmma(mma2x4+warp2x4+stage2): ['29.921875 ', '-9.5078125'], time:2.603912ms, swizzle: NOOP, TFLOPS: 105.56
-   f16wmma(mma2x4+...+stage3+dsmem): ['29.921875 ', '-9.5078125'], time:2.603149ms, swizzle: NOOP, TFLOPS: 105.59
-   f16wmma(mma2x4+...+stage2+dsmem): ['29.921875 ', '-9.5078125'], time:2.597057ms, swizzle: NOOP, TFLOPS: 105.84
- f16wmma(mma2x4+...+stage3+swizzle): ['29.921875 ', '-9.5078125'], time:2.637946ms, swizzle: 1024, TFLOPS: 104.20
- f16wmma(mma2x4+...+stage2+swizzle): ['29.921875 ', '-9.5078125'], time:2.631723ms, swizzle: 1024, TFLOPS: 104.45
-  f16wmma(...+stage3+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:2.651989ms, swizzle: 1024, TFLOPS: 103.65
-  f16wmma(...+stage2+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:2.653670ms, swizzle: 1024, TFLOPS: 103.58
-                        f16(cublas): ['29.921875 ', '-9.5078125'], time:2.528202ms, swizzle: NOOP, TFLOPS: 108.72(+2.59%)
-                             f16_th: ['29.9375   ', '-9.5703125'], time:2.461636ms, swizzle: NOOP, TFLOPS: 111.66(+2.70%)
+                         f16wmma(mma4x2): ['-48.6875  ', '-19.71875 '], time:5.953073ms, swizzle: NOOP, TFLOPS: 46.17
+                 f16wmma(mma4x2+warp2x4): ['-48.6875  ', '-19.71875 '], time:3.572988ms, swizzle: NOOP, TFLOPS: 76.93 (+45.62%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-48.6875  ', '-19.71875 '], time:2.598595ms, swizzle: NOOP, TFLOPS: 105.78(+37.50%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-48.6875  ', '-19.71875 '], time:2.609777ms, swizzle: NOOP, TFLOPS: 105.33
+          f16wmma(mma2x4+warp2x4+stage3): ['-48.6875  ', '-19.71875 '], time:2.544808ms, swizzle: NOOP, TFLOPS: 108.02(+2.11%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-48.6875  ', '-19.71875 '], time:2.558016ms, swizzle: NOOP, TFLOPS: 107.46
+        f16wmma(mma2x4+...+stage4+dsmem): ['-48.6875  ', '-19.71875 '], time:2.594542ms, swizzle: NOOP, TFLOPS: 105.94
+        f16wmma(mma2x4+...+stage3+dsmem): ['-48.6875  ', '-19.71875 '], time:2.561473ms, swizzle: NOOP, TFLOPS: 107.31
+        f16wmma(mma2x4+...+stage2+dsmem): ['-48.6875  ', '-19.71875 '], time:2.553391ms, swizzle: NOOP, TFLOPS: 107.65
+      f16wmma(mma2x4+...+stage4+swizzle): ['-48.6875  ', '-19.71875 '], time:2.616786ms, swizzle: 1024, TFLOPS: 105.04
+      f16wmma(mma2x4+...+stage3+swizzle): ['-48.6875  ', '-19.71875 '], time:2.541470ms, swizzle: 1024, TFLOPS: 108.16(+0.13%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-48.6875  ', '-19.71875 '], time:2.533721ms, swizzle: 1024, TFLOPS: 108.49(+0.31%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:2.628636ms, swizzle: 1024, TFLOPS: 104.57
+       f16wmma(...+stage3+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:2.572536ms, swizzle: 1024, TFLOPS: 106.85
+       f16wmma(...+stage2+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:2.531862ms, swizzle: 1024, TFLOPS: 108.57(+0.07%)
+                             f16(cublas): ['-48.6875  ', '-19.71875 '], time:2.625203ms, swizzle: NOOP, TFLOPS: 104.71
+                                  f16_th: ['-48.75    ', '-19.765625'], time:2.406597ms, swizzle: NOOP, TFLOPS: 114.22(+5.21%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=16384, N=4096, K=4096
-                         f16(naive): ['18.078125 ', '32.90625  '], time:150.3604ms, swizzle: NOOP, TFLOPS: 3.66  (+0.00%)
-                f16x8pack(t8x8+bcf): ['18.078125 ', '32.90625  '], time:11.28156ms, swizzle: NOOP, TFLOPS: 48.73 (+1232.80%)
-           f16x8pack(t8x8+bcf+dbuf): ['18.078125 ', '32.90625  '], time:11.18837ms, swizzle: NOOP, TFLOPS: 49.14 (+0.83%)
-           f16x8pack(t8x8+k16+dbuf): ['18.078125 ', '32.90625  '], time:10.94454ms, swizzle: NOOP, TFLOPS: 50.23 (+2.23%)
+                     f16x8pack(t8x8+bcf): ['-7.390625 ', '-9.75     '], time:11.23223ms, swizzle: NOOP, TFLOPS: 48.94 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-7.390625 ', '-9.75     '], time:11.18514ms, swizzle: NOOP, TFLOPS: 49.15 (+0.42%)
+                f16x8pack(t8x8+k16+dbuf): ['-7.390625 ', '-9.75     '], time:10.72626ms, swizzle: NOOP, TFLOPS: 51.25 (+4.28%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['17.953125 ', '32.8125   '], time:23.15819ms, swizzle: NOOP, TFLOPS: 23.74
-                    f16wmma(mma4x2): ['17.953125 ', '32.8125   '], time:11.64075ms, swizzle: NOOP, TFLOPS: 47.23
-            f16wmma(mma4x2+warp2x4): ['17.953125 ', '32.8125   '], time:6.959927ms, swizzle: NOOP, TFLOPS: 78.99 (+57.25%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['17.953125 ', '32.8125   '], time:5.114102ms, swizzle: NOOP, TFLOPS: 107.50(+36.09%)
-     f16wmma(mma2x4+warp2x4+stage3): ['17.953125 ', '32.8125   '], time:5.091762ms, swizzle: NOOP, TFLOPS: 107.97(+0.44%)
-     f16wmma(mma2x4+warp2x4+stage2): ['17.953125 ', '32.8125   '], time:5.101358ms, swizzle: NOOP, TFLOPS: 107.77
-   f16wmma(mma2x4+...+stage3+dsmem): ['17.953125 ', '32.8125   '], time:5.129981ms, swizzle: NOOP, TFLOPS: 107.17
-   f16wmma(mma2x4+...+stage2+dsmem): ['17.953125 ', '32.8125   '], time:5.100822ms, swizzle: NOOP, TFLOPS: 107.78
- f16wmma(mma2x4+...+stage3+swizzle): ['17.953125 ', '32.8125   '], time:5.289304ms, swizzle: 1024, TFLOPS: 103.94
- f16wmma(mma2x4+...+stage2+swizzle): ['17.953125 ', '32.8125   '], time:5.343866ms, swizzle: 1024, TFLOPS: 102.88
-  f16wmma(...+stage3+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:5.399477ms, swizzle: 1024, TFLOPS: 101.82
-  f16wmma(...+stage2+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:5.260670ms, swizzle: 1024, TFLOPS: 104.50
-                        f16(cublas): ['17.953125 ', '32.8125   '], time:4.835724ms, swizzle: NOOP, TFLOPS: 113.69(+5.29%)
-                             f16_th: ['17.96875  ', '32.75     '], time:4.891443ms, swizzle: NOOP, TFLOPS: 112.39
+                         f16wmma(mma4x2): ['-7.765625 ', '-9.59375  '], time:11.72261ms, swizzle: NOOP, TFLOPS: 46.90
+                 f16wmma(mma4x2+warp2x4): ['-7.765625 ', '-9.59375  '], time:7.008528ms, swizzle: NOOP, TFLOPS: 78.44 (+53.05%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-7.765625 ', '-9.59375  '], time:5.050563ms, swizzle: NOOP, TFLOPS: 108.85(+38.77%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-7.765625 ', '-9.59375  '], time:5.105209ms, swizzle: NOOP, TFLOPS: 107.69
+          f16wmma(mma2x4+warp2x4+stage3): ['-7.765625 ', '-9.59375  '], time:5.026364ms, swizzle: NOOP, TFLOPS: 109.37(+0.48%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-7.765625 ', '-9.59375  '], time:5.057692ms, swizzle: NOOP, TFLOPS: 108.70
+        f16wmma(mma2x4+...+stage4+dsmem): ['-7.765625 ', '-9.59375  '], time:5.067157ms, swizzle: NOOP, TFLOPS: 108.49
+        f16wmma(mma2x4+...+stage3+dsmem): ['-7.765625 ', '-9.59375  '], time:5.055761ms, swizzle: NOOP, TFLOPS: 108.74
+        f16wmma(mma2x4+...+stage2+dsmem): ['-7.765625 ', '-9.59375  '], time:5.043077ms, swizzle: NOOP, TFLOPS: 109.01
+      f16wmma(mma2x4+...+stage4+swizzle): ['-7.765625 ', '-9.59375  '], time:5.160617ms, swizzle: 1024, TFLOPS: 106.53
+      f16wmma(mma2x4+...+stage3+swizzle): ['-7.765625 ', '-9.59375  '], time:5.114912ms, swizzle: 1024, TFLOPS: 107.48
+      f16wmma(mma2x4+...+stage2+swizzle): ['-7.765625 ', '-9.59375  '], time:4.990029ms, swizzle: 1024, TFLOPS: 110.17(+0.73%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:5.138397ms, swizzle: 1024, TFLOPS: 106.99
+       f16wmma(...+stage3+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:5.164527ms, swizzle: 1024, TFLOPS: 106.45
+       f16wmma(...+stage2+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:5.023026ms, swizzle: 1024, TFLOPS: 109.45
+                             f16(cublas): ['-7.765625 ', '-9.59375  '], time:4.999256ms, swizzle: NOOP, TFLOPS: 109.97
+                                  f16_th: ['-7.9101562', '-9.703125 '], time:4.903054ms, swizzle: NOOP, TFLOPS: 112.13(+1.77%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=16384, N=4096, K=8192
-                         f16(naive): ['69.5      ', '17.9375   '], time:300.5170ms, swizzle: NOOP, TFLOPS: 3.66  (+0.00%)
-                f16x8pack(t8x8+bcf): ['69.5      ', '17.9375   '], time:22.59441ms, swizzle: NOOP, TFLOPS: 48.66 (+1230.05%)
-           f16x8pack(t8x8+bcf+dbuf): ['69.5      ', '17.9375   '], time:22.84268ms, swizzle: NOOP, TFLOPS: 48.13
-           f16x8pack(t8x8+k16+dbuf): ['69.5      ', '17.9375   '], time:21.51962ms, swizzle: NOOP, TFLOPS: 51.09 (+4.99%)
+                     f16x8pack(t8x8+bcf): ['-34.6875  ', '109.75    '], time:22.49085ms, swizzle: NOOP, TFLOPS: 48.89 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-34.6875  ', '109.75    '], time:22.22628ms, swizzle: NOOP, TFLOPS: 49.47 (+1.19%)
+                f16x8pack(t8x8+k16+dbuf): ['-34.6875  ', '109.75    '], time:21.41447ms, swizzle: NOOP, TFLOPS: 51.34 (+3.79%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['69.25     ', '18.078125 '], time:45.93516ms, swizzle: NOOP, TFLOPS: 23.94
-                    f16wmma(mma4x2): ['69.25     ', '18.078125 '], time:23.20855ms, swizzle: NOOP, TFLOPS: 47.38
-            f16wmma(mma4x2+warp2x4): ['69.25     ', '18.078125 '], time:13.75201ms, swizzle: NOOP, TFLOPS: 79.95 (+56.48%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['69.25     ', '18.078125 '], time:10.15893ms, swizzle: NOOP, TFLOPS: 108.23(+35.37%)
-     f16wmma(mma2x4+warp2x4+stage3): ['69.25     ', '18.078125 '], time:10.07235ms, swizzle: NOOP, TFLOPS: 109.16(+0.86%)
-     f16wmma(mma2x4+warp2x4+stage2): ['69.25     ', '18.078125 '], time:10.10667ms, swizzle: NOOP, TFLOPS: 108.79
-   f16wmma(mma2x4+...+stage3+dsmem): ['69.25     ', '18.078125 '], time:10.37973ms, swizzle: NOOP, TFLOPS: 105.93
-   f16wmma(mma2x4+...+stage2+dsmem): ['69.25     ', '18.078125 '], time:10.14732ms, swizzle: NOOP, TFLOPS: 108.35
- f16wmma(mma2x4+...+stage3+swizzle): ['69.25     ', '18.078125 '], time:10.42317ms, swizzle: 1024, TFLOPS: 105.49
- f16wmma(mma2x4+...+stage2+swizzle): ['69.25     ', '18.078125 '], time:10.29515ms, swizzle: 1024, TFLOPS: 106.80
-  f16wmma(...+stage3+dsmem+swizzle): ['69.25     ', '18.078125 '], time:10.66128ms, swizzle: 1024, TFLOPS: 103.13
-  f16wmma(...+stage2+dsmem+swizzle): ['69.25     ', '18.078125 '], time:10.28729ms, swizzle: 1024, TFLOPS: 106.88
-                        f16(cublas): ['69.25     ', '18.078125 '], time:9.605360ms, swizzle: NOOP, TFLOPS: 114.47(+4.86%)
-                             f16_th: ['69.3125   ', '18.109375 '], time:9.978485ms, swizzle: NOOP, TFLOPS: 110.19
+                         f16wmma(mma4x2): ['-34.6875  ', '108.625   '], time:23.33004ms, swizzle: NOOP, TFLOPS: 47.13
+                 f16wmma(mma4x2+warp2x4): ['-34.6875  ', '108.625   '], time:13.85409ms, swizzle: NOOP, TFLOPS: 79.36 (+54.57%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-34.6875  ', '108.625   '], time:10.07294ms, swizzle: NOOP, TFLOPS: 109.15(+37.54%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-34.6875  ', '108.625   '], time:10.17265ms, swizzle: NOOP, TFLOPS: 108.09
+          f16wmma(mma2x4+warp2x4+stage3): ['-34.6875  ', '108.625   '], time:10.06150ms, swizzle: NOOP, TFLOPS: 109.28(+0.11%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-34.6875  ', '108.625   '], time:10.08632ms, swizzle: NOOP, TFLOPS: 109.01
+        f16wmma(mma2x4+...+stage4+dsmem): ['-34.6875  ', '108.625   '], time:10.11593ms, swizzle: NOOP, TFLOPS: 108.69
+        f16wmma(mma2x4+...+stage3+dsmem): ['-34.6875  ', '108.625   '], time:10.08446ms, swizzle: NOOP, TFLOPS: 109.03
+        f16wmma(mma2x4+...+stage2+dsmem): ['-34.6875  ', '108.625   '], time:9.997367ms, swizzle: NOOP, TFLOPS: 109.98(+0.64%)
+      f16wmma(mma2x4+...+stage4+swizzle): ['-34.6875  ', '108.625   '], time:10.45885ms, swizzle: 1024, TFLOPS: 105.13
+      f16wmma(mma2x4+...+stage3+swizzle): ['-34.6875  ', '108.625   '], time:10.32109ms, swizzle: 1024, TFLOPS: 106.53
+      f16wmma(mma2x4+...+stage2+swizzle): ['-34.6875  ', '108.625   '], time:10.17162ms, swizzle: 1024, TFLOPS: 108.10
+       f16wmma(...+stage4+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:10.50686ms, swizzle: 1024, TFLOPS: 104.65
+       f16wmma(...+stage3+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:10.45265ms, swizzle: 1024, TFLOPS: 105.19
+       f16wmma(...+stage2+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:10.19203ms, swizzle: 1024, TFLOPS: 107.88
+                             f16(cublas): ['-34.6875  ', '108.625   '], time:9.719204ms, swizzle: NOOP, TFLOPS: 113.13(+2.86%)
+                                  f16_th: ['-34.90625 ', '108.5625  '], time:9.800958ms, swizzle: NOOP, TFLOPS: 112.18
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=16384, N=8192, K=2048
-                         f16(naive): ['30.0625   ', '-9.34375  '], time:150.4853ms, swizzle: NOOP, TFLOPS: 3.65  (+0.00%)
-                f16x8pack(t8x8+bcf): ['30.0625   ', '-9.34375  '], time:11.20852ms, swizzle: NOOP, TFLOPS: 49.05 (+1242.60%)
-           f16x8pack(t8x8+bcf+dbuf): ['30.0625   ', '-9.34375  '], time:11.20126ms, swizzle: NOOP, TFLOPS: 49.08 (+0.06%)
-           f16x8pack(t8x8+k16+dbuf): ['30.0625   ', '-9.34375  '], time:11.05253ms, swizzle: NOOP, TFLOPS: 49.74 (+1.35%)
+                     f16x8pack(t8x8+bcf): ['-48.625   ', '-19.59375 '], time:11.08081ms, swizzle: NOOP, TFLOPS: 49.61 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-48.625   ', '-19.59375 '], time:11.19740ms, swizzle: NOOP, TFLOPS: 49.10
+                f16x8pack(t8x8+k16+dbuf): ['-48.625   ', '-19.59375 '], time:10.52210ms, swizzle: NOOP, TFLOPS: 52.25 (+5.31%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['29.921875 ', '-9.5078125'], time:23.23106ms, swizzle: NOOP, TFLOPS: 23.66
-                    f16wmma(mma4x2): ['29.921875 ', '-9.5078125'], time:11.69289ms, swizzle: NOOP, TFLOPS: 47.02
-            f16wmma(mma4x2+warp2x4): ['29.921875 ', '-9.5078125'], time:6.919693ms, swizzle: NOOP, TFLOPS: 79.45 (+59.73%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['29.921875 ', '-9.5078125'], time:5.214202ms, swizzle: NOOP, TFLOPS: 105.43(+32.71%)
-     f16wmma(mma2x4+warp2x4+stage3): ['29.921875 ', '-9.5078125'], time:5.194151ms, swizzle: NOOP, TFLOPS: 105.84(+0.39%)
-     f16wmma(mma2x4+warp2x4+stage2): ['29.921875 ', '-9.5078125'], time:5.186319ms, swizzle: NOOP, TFLOPS: 106.00(+0.15%)
-   f16wmma(mma2x4+...+stage3+dsmem): ['29.921875 ', '-9.5078125'], time:5.222153ms, swizzle: NOOP, TFLOPS: 105.27
-   f16wmma(mma2x4+...+stage2+dsmem): ['29.921875 ', '-9.5078125'], time:5.189323ms, swizzle: NOOP, TFLOPS: 105.94
- f16wmma(mma2x4+...+stage3+swizzle): ['29.921875 ', '-9.5078125'], time:5.349266ms, swizzle: 2048, TFLOPS: 102.77
- f16wmma(mma2x4+...+stage2+swizzle): ['29.921875 ', '-9.5078125'], time:5.379891ms, swizzle: 2048, TFLOPS: 102.19
-  f16wmma(...+stage3+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:5.450582ms, swizzle: 2048, TFLOPS: 100.86
-  f16wmma(...+stage2+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:5.306792ms, swizzle: 2048, TFLOPS: 103.59
-                        f16(cublas): ['29.921875 ', '-9.5078125'], time:4.886972ms, swizzle: NOOP, TFLOPS: 112.49(+6.13%)
-                             f16_th: ['29.9375   ', '-9.5703125'], time:4.879462ms, swizzle: NOOP, TFLOPS: 112.67(+0.15%)
+                         f16wmma(mma4x2): ['-48.6875  ', '-19.71875 '], time:11.76390ms, swizzle: NOOP, TFLOPS: 46.73
+                 f16wmma(mma4x2+warp2x4): ['-48.6875  ', '-19.71875 '], time:6.968641ms, swizzle: NOOP, TFLOPS: 78.89 (+50.99%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-48.6875  ', '-19.71875 '], time:5.157113ms, swizzle: NOOP, TFLOPS: 106.60(+35.13%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-48.6875  ', '-19.71875 '], time:5.204582ms, swizzle: NOOP, TFLOPS: 105.63
+          f16wmma(mma2x4+warp2x4+stage3): ['-48.6875  ', '-19.71875 '], time:5.057024ms, swizzle: NOOP, TFLOPS: 108.71(+1.98%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-48.6875  ', '-19.71875 '], time:5.080699ms, swizzle: NOOP, TFLOPS: 108.20
+        f16wmma(mma2x4+...+stage4+dsmem): ['-48.6875  ', '-19.71875 '], time:5.175352ms, swizzle: NOOP, TFLOPS: 106.23
+        f16wmma(mma2x4+...+stage3+dsmem): ['-48.6875  ', '-19.71875 '], time:5.136537ms, swizzle: NOOP, TFLOPS: 107.03
+        f16wmma(mma2x4+...+stage2+dsmem): ['-48.6875  ', '-19.71875 '], time:5.098414ms, swizzle: NOOP, TFLOPS: 107.83
+      f16wmma(mma2x4+...+stage4+swizzle): ['-48.6875  ', '-19.71875 '], time:5.205440ms, swizzle: 2048, TFLOPS: 105.61
+      f16wmma(mma2x4+...+stage3+swizzle): ['-48.6875  ', '-19.71875 '], time:5.152535ms, swizzle: 2048, TFLOPS: 106.70
+      f16wmma(mma2x4+...+stage2+swizzle): ['-48.6875  ', '-19.71875 '], time:5.108690ms, swizzle: 2048, TFLOPS: 107.61
+       f16wmma(...+stage4+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:5.251216ms, swizzle: 2048, TFLOPS: 104.69
+       f16wmma(...+stage3+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:5.198860ms, swizzle: 2048, TFLOPS: 105.75
+       f16wmma(...+stage2+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:5.095887ms, swizzle: 2048, TFLOPS: 107.88
+                             f16(cublas): ['-48.6875  ', '-19.71875 '], time:4.987215ms, swizzle: NOOP, TFLOPS: 110.23(+1.40%)
+                                  f16_th: ['-48.75    ', '-19.765625'], time:4.788064ms, swizzle: NOOP, TFLOPS: 114.82(+4.16%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=16384, N=8192, K=4096
-                         f16(naive): ['18.078125 ', '32.90625  '], time:300.5843ms, swizzle: NOOP, TFLOPS: 3.66  (+0.00%)
-                f16x8pack(t8x8+bcf): ['18.078125 ', '32.90625  '], time:22.31094ms, swizzle: NOOP, TFLOPS: 49.28 (+1247.25%)
-           f16x8pack(t8x8+bcf+dbuf): ['18.078125 ', '32.90625  '], time:22.74484ms, swizzle: NOOP, TFLOPS: 48.34
-           f16x8pack(t8x8+k16+dbuf): ['18.078125 ', '32.90625  '], time:21.43429ms, swizzle: NOOP, TFLOPS: 51.30 (+4.09%)
+                     f16x8pack(t8x8+bcf): ['-7.390625 ', '-9.75     '], time:22.30019ms, swizzle: NOOP, TFLOPS: 49.31 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-7.390625 ', '-9.75     '], time:22.29042ms, swizzle: NOOP, TFLOPS: 49.33 (+0.04%)
+                f16x8pack(t8x8+k16+dbuf): ['-7.390625 ', '-9.75     '], time:21.34160ms, swizzle: NOOP, TFLOPS: 51.52 (+4.45%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['17.953125 ', '32.8125   '], time:46.16487ms, swizzle: NOOP, TFLOPS: 23.82
-                    f16wmma(mma4x2): ['17.953125 ', '32.8125   '], time:23.24142ms, swizzle: NOOP, TFLOPS: 47.31
-            f16wmma(mma4x2+warp2x4): ['17.953125 ', '32.8125   '], time:13.62026ms, swizzle: NOOP, TFLOPS: 80.73 (+57.37%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['17.953125 ', '32.8125   '], time:10.22562ms, swizzle: NOOP, TFLOPS: 107.53(+33.20%)
-     f16wmma(mma2x4+warp2x4+stage3): ['17.953125 ', '32.8125   '], time:10.17456ms, swizzle: NOOP, TFLOPS: 108.06(+0.50%)
-     f16wmma(mma2x4+warp2x4+stage2): ['17.953125 ', '32.8125   '], time:10.15427ms, swizzle: NOOP, TFLOPS: 108.28(+0.20%)
-   f16wmma(mma2x4+...+stage3+dsmem): ['17.953125 ', '32.8125   '], time:10.42321ms, swizzle: NOOP, TFLOPS: 105.49
-   f16wmma(mma2x4+...+stage2+dsmem): ['17.953125 ', '32.8125   '], time:10.21900ms, swizzle: NOOP, TFLOPS: 107.59
- f16wmma(mma2x4+...+stage3+swizzle): ['17.953125 ', '32.8125   '], time:10.34308ms, swizzle: 2048, TFLOPS: 106.30
- f16wmma(mma2x4+...+stage2+swizzle): ['17.953125 ', '32.8125   '], time:10.24296ms, swizzle: 2048, TFLOPS: 107.34
-  f16wmma(...+stage3+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:10.60774ms, swizzle: 2048, TFLOPS: 103.65
-  f16wmma(...+stage2+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:10.28887ms, swizzle: 2048, TFLOPS: 106.86
-                        f16(cublas): ['17.953125 ', '32.8125   '], time:9.570908ms, swizzle: NOOP, TFLOPS: 114.88(+6.10%)
-                             f16_th: ['17.96875  ', '32.75     '], time:9.563028ms, swizzle: NOOP, TFLOPS: 114.98(+0.08%)
+                         f16wmma(mma4x2): ['-7.765625 ', '-9.59375  '], time:23.37560ms, swizzle: NOOP, TFLOPS: 47.04
+                 f16wmma(mma4x2+warp2x4): ['-7.765625 ', '-9.59375  '], time:13.63310ms, swizzle: NOOP, TFLOPS: 80.65 (+56.54%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-7.765625 ', '-9.59375  '], time:10.17763ms, swizzle: NOOP, TFLOPS: 108.03(+33.95%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-7.765625 ', '-9.59375  '], time:10.21945ms, swizzle: NOOP, TFLOPS: 107.59
+          f16wmma(mma2x4+warp2x4+stage3): ['-7.765625 ', '-9.59375  '], time:10.08067ms, swizzle: NOOP, TFLOPS: 109.07(+0.96%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-7.765625 ', '-9.59375  '], time:10.05825ms, swizzle: NOOP, TFLOPS: 109.31(+0.22%)
+        f16wmma(mma2x4+...+stage4+dsmem): ['-7.765625 ', '-9.59375  '], time:10.17577ms, swizzle: NOOP, TFLOPS: 108.05
+        f16wmma(mma2x4+...+stage3+dsmem): ['-7.765625 ', '-9.59375  '], time:10.16266ms, swizzle: NOOP, TFLOPS: 108.19
+        f16wmma(mma2x4+...+stage2+dsmem): ['-7.765625 ', '-9.59375  '], time:10.10549ms, swizzle: NOOP, TFLOPS: 108.80
+      f16wmma(mma2x4+...+stage4+swizzle): ['-7.765625 ', '-9.59375  '], time:10.47282ms, swizzle: 2048, TFLOPS: 104.99
+      f16wmma(mma2x4+...+stage3+swizzle): ['-7.765625 ', '-9.59375  '], time:10.33661ms, swizzle: 2048, TFLOPS: 106.37
+      f16wmma(mma2x4+...+stage2+swizzle): ['-7.765625 ', '-9.59375  '], time:10.15996ms, swizzle: 2048, TFLOPS: 108.22
+       f16wmma(...+stage4+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:10.34319ms, swizzle: 2048, TFLOPS: 106.30
+       f16wmma(...+stage3+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:10.33718ms, swizzle: 2048, TFLOPS: 106.36
+       f16wmma(...+stage2+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:10.03918ms, swizzle: 2048, TFLOPS: 109.52(+0.19%)
+                             f16(cublas): ['-7.765625 ', '-9.59375  '], time:9.697818ms, swizzle: NOOP, TFLOPS: 113.38(+3.52%)
+                                  f16_th: ['-7.9101562', '-9.703125 '], time:9.570813ms, swizzle: NOOP, TFLOPS: 114.88(+1.33%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=16384, N=8192, K=8192
-                         f16(naive): ['69.5      ', '17.9375   '], time:887.2872ms, swizzle: NOOP, TFLOPS: 2.48  (+0.00%)
-                f16x8pack(t8x8+bcf): ['69.5      ', '17.9375   '], time:50.07082ms, swizzle: NOOP, TFLOPS: 43.92 (+1672.06%)
-           f16x8pack(t8x8+bcf+dbuf): ['69.5      ', '17.9375   '], time:51.13327ms, swizzle: NOOP, TFLOPS: 43.01
-           f16x8pack(t8x8+k16+dbuf): ['69.5      ', '17.9375   '], time:50.14414ms, swizzle: NOOP, TFLOPS: 43.85
+                     f16x8pack(t8x8+bcf): ['-34.6875  ', '109.75    '], time:48.86844ms, swizzle: NOOP, TFLOPS: 45.00 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-34.6875  ', '109.75    '], time:49.11093ms, swizzle: NOOP, TFLOPS: 44.78
+                f16x8pack(t8x8+k16+dbuf): ['-34.6875  ', '109.75    '], time:47.70295ms, swizzle: NOOP, TFLOPS: 46.10 (+2.44%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['69.25     ', '18.078125 '], time:99.65944ms, swizzle: NOOP, TFLOPS: 22.07
-                    f16wmma(mma4x2): ['69.25     ', '18.078125 '], time:51.41550ms, swizzle: NOOP, TFLOPS: 42.77
-            f16wmma(mma4x2+warp2x4): ['69.25     ', '18.078125 '], time:28.02135ms, swizzle: NOOP, TFLOPS: 78.48 (+78.69%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['69.25     ', '18.078125 '], time:22.39497ms, swizzle: NOOP, TFLOPS: 98.19 (+25.12%)
-     f16wmma(mma2x4+warp2x4+stage3): ['69.25     ', '18.078125 '], time:23.69903ms, swizzle: NOOP, TFLOPS: 92.79
-     f16wmma(mma2x4+warp2x4+stage2): ['69.25     ', '18.078125 '], time:22.66047ms, swizzle: NOOP, TFLOPS: 97.04
-   f16wmma(mma2x4+...+stage3+dsmem): ['69.25     ', '18.078125 '], time:23.20532ms, swizzle: NOOP, TFLOPS: 94.76
-   f16wmma(mma2x4+...+stage2+dsmem): ['69.25     ', '18.078125 '], time:23.02054ms, swizzle: NOOP, TFLOPS: 95.52
- f16wmma(mma2x4+...+stage3+swizzle): ['69.25     ', '18.078125 '], time:20.40696ms, swizzle: 2048, TFLOPS: 107.76(+9.74%)
- f16wmma(mma2x4+...+stage2+swizzle): ['69.25     ', '18.078125 '], time:20.46033ms, swizzle: 2048, TFLOPS: 107.48
-  f16wmma(...+stage3+dsmem+swizzle): ['69.25     ', '18.078125 '], time:20.46492ms, swizzle: 2048, TFLOPS: 107.45
-  f16wmma(...+stage2+dsmem+swizzle): ['69.25     ', '18.078125 '], time:20.42322ms, swizzle: 2048, TFLOPS: 107.67
-                        f16(cublas): ['69.25     ', '18.078125 '], time:19.28085ms, swizzle: NOOP, TFLOPS: 114.05(+5.84%)
-                             f16_th: ['69.3125   ', '18.09375  '], time:19.37738ms, swizzle: NOOP, TFLOPS: 113.48
+                         f16wmma(mma4x2): ['-34.6875  ', '108.625   '], time:50.71811ms, swizzle: NOOP, TFLOPS: 43.36
+                 f16wmma(mma4x2+warp2x4): ['-34.6875  ', '108.625   '], time:28.04534ms, swizzle: NOOP, TFLOPS: 78.41 (+70.09%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-34.6875  ', '108.625   '], time:22.36926ms, swizzle: NOOP, TFLOPS: 98.31 (+25.37%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-34.6875  ', '108.625   '], time:22.50823ms, swizzle: NOOP, TFLOPS: 97.70
+          f16wmma(mma2x4+warp2x4+stage3): ['-34.6875  ', '108.625   '], time:22.26257ms, swizzle: NOOP, TFLOPS: 98.78 (+0.48%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-34.6875  ', '108.625   '], time:22.15859ms, swizzle: NOOP, TFLOPS: 99.24 (+0.47%)
+        f16wmma(mma2x4+...+stage4+dsmem): ['-34.6875  ', '108.625   '], time:22.39511ms, swizzle: NOOP, TFLOPS: 98.19
+        f16wmma(mma2x4+...+stage3+dsmem): ['-34.6875  ', '108.625   '], time:22.29902ms, swizzle: NOOP, TFLOPS: 98.62
+        f16wmma(mma2x4+...+stage2+dsmem): ['-34.6875  ', '108.625   '], time:22.10431ms, swizzle: NOOP, TFLOPS: 99.48 (+0.25%)
+      f16wmma(mma2x4+...+stage4+swizzle): ['-34.6875  ', '108.625   '], time:20.68877ms, swizzle: 2048, TFLOPS: 106.29(+6.84%)
+      f16wmma(mma2x4+...+stage3+swizzle): ['-34.6875  ', '108.625   '], time:20.35188ms, swizzle: 2048, TFLOPS: 108.05(+1.66%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-34.6875  ', '108.625   '], time:20.17860ms, swizzle: 2048, TFLOPS: 108.98(+0.86%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:20.66051ms, swizzle: 2048, TFLOPS: 106.44
+       f16wmma(...+stage3+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:20.54803ms, swizzle: 2048, TFLOPS: 107.02
+       f16wmma(...+stage2+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:20.05717ms, swizzle: 2048, TFLOPS: 109.64(+0.61%)
+                             f16(cublas): ['-34.6875  ', '108.625   '], time:19.39449ms, swizzle: NOOP, TFLOPS: 113.38(+3.42%)
+                                  f16_th: ['-34.9375  ', '108.625   '], time:19.38049ms, swizzle: NOOP, TFLOPS: 113.47(+0.07%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=16384, N=16384, K=2048
-                         f16(naive): ['30.0625   ', '-9.34375  '], time:300.9566ms, swizzle: NOOP, TFLOPS: 3.65  (+0.00%)
-                f16x8pack(t8x8+bcf): ['30.0625   ', '-9.34375  '], time:22.56891ms, swizzle: NOOP, TFLOPS: 48.72 (+1233.50%)
-           f16x8pack(t8x8+bcf+dbuf): ['30.0625   ', '-9.34375  '], time:22.75469ms, swizzle: NOOP, TFLOPS: 48.32
-           f16x8pack(t8x8+k16+dbuf): ['30.0625   ', '-9.34375  '], time:21.56084ms, swizzle: NOOP, TFLOPS: 51.00 (+4.68%)
+                     f16x8pack(t8x8+bcf): ['-48.625   ', '-19.59375 '], time:22.51811ms, swizzle: NOOP, TFLOPS: 48.83 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-48.625   ', '-19.59375 '], time:22.31686ms, swizzle: NOOP, TFLOPS: 49.27 (+0.90%)
+                f16x8pack(t8x8+k16+dbuf): ['-48.625   ', '-19.59375 '], time:21.36774ms, swizzle: NOOP, TFLOPS: 51.46 (+4.44%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['29.921875 ', '-9.5078125'], time:46.28647ms, swizzle: NOOP, TFLOPS: 23.75
-                    f16wmma(mma4x2): ['29.921875 ', '-9.5078125'], time:23.49380ms, swizzle: NOOP, TFLOPS: 46.80
-            f16wmma(mma4x2+warp2x4): ['29.921875 ', '-9.5078125'], time:13.70358ms, swizzle: NOOP, TFLOPS: 80.24 (+57.34%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['29.921875 ', '-9.5078125'], time:10.52159ms, swizzle: NOOP, TFLOPS: 104.50(+30.24%)
-     f16wmma(mma2x4+warp2x4+stage3): ['29.921875 ', '-9.5078125'], time:10.39229ms, swizzle: NOOP, TFLOPS: 105.80(+1.24%)
-     f16wmma(mma2x4+warp2x4+stage2): ['29.921875 ', '-9.5078125'], time:10.39220ms, swizzle: NOOP, TFLOPS: 105.80(+0.00%)
-   f16wmma(mma2x4+...+stage3+dsmem): ['29.921875 ', '-9.5078125'], time:10.70573ms, swizzle: NOOP, TFLOPS: 102.70
-   f16wmma(mma2x4+...+stage2+dsmem): ['29.921875 ', '-9.5078125'], time:10.50692ms, swizzle: NOOP, TFLOPS: 104.65
- f16wmma(mma2x4+...+stage3+swizzle): ['29.921875 ', '-9.5078125'], time:10.52926ms, swizzle: 4096, TFLOPS: 104.42
- f16wmma(mma2x4+...+stage2+swizzle): ['29.921875 ', '-9.5078125'], time:10.44615ms, swizzle: 4096, TFLOPS: 105.26
-  f16wmma(...+stage3+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:10.70200ms, swizzle: 4096, TFLOPS: 102.74
-  f16wmma(...+stage2+dsmem+swizzle): ['29.921875 ', '-9.5078125'], time:10.43186ms, swizzle: 4096, TFLOPS: 105.40
-                        f16(cublas): ['29.921875 ', '-9.5078125'], time:9.740543ms, swizzle: NOOP, TFLOPS: 112.88(+6.69%)
-                             f16_th: ['29.9375   ', '-9.5703125'], time:9.693014ms, swizzle: NOOP, TFLOPS: 113.43(+0.49%)
+                         f16wmma(mma4x2): ['-48.6875  ', '-19.71875 '], time:23.49147ms, swizzle: NOOP, TFLOPS: 46.80
+                 f16wmma(mma4x2+warp2x4): ['-48.6875  ', '-19.71875 '], time:13.65840ms, swizzle: NOOP, TFLOPS: 80.50 (+56.44%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-48.6875  ', '-19.71875 '], time:10.41624ms, swizzle: NOOP, TFLOPS: 105.56(+31.13%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-48.6875  ', '-19.71875 '], time:10.48259ms, swizzle: NOOP, TFLOPS: 104.89
+          f16wmma(mma2x4+warp2x4+stage3): ['-48.6875  ', '-19.71875 '], time:10.30383ms, swizzle: NOOP, TFLOPS: 106.71(+1.09%)
+          f16wmma(mma2x4+warp2x4+stage2): ['-48.6875  ', '-19.71875 '], time:10.32066ms, swizzle: NOOP, TFLOPS: 106.53
+        f16wmma(mma2x4+...+stage4+dsmem): ['-48.6875  ', '-19.71875 '], time:10.49389ms, swizzle: NOOP, TFLOPS: 104.78
+        f16wmma(mma2x4+...+stage3+dsmem): ['-48.6875  ', '-19.71875 '], time:10.38987ms, swizzle: NOOP, TFLOPS: 105.83
+        f16wmma(mma2x4+...+stage2+dsmem): ['-48.6875  ', '-19.71875 '], time:10.30273ms, swizzle: NOOP, TFLOPS: 106.72(+0.01%)
+      f16wmma(mma2x4+...+stage4+swizzle): ['-48.6875  ', '-19.71875 '], time:10.61742ms, swizzle: 4096, TFLOPS: 103.56
+      f16wmma(mma2x4+...+stage3+swizzle): ['-48.6875  ', '-19.71875 '], time:10.35964ms, swizzle: 4096, TFLOPS: 106.13
+      f16wmma(mma2x4+...+stage2+swizzle): ['-48.6875  ', '-19.71875 '], time:10.20922ms, swizzle: 4096, TFLOPS: 107.70(+0.92%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:10.56325ms, swizzle: 4096, TFLOPS: 104.09
+       f16wmma(...+stage3+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:10.32545ms, swizzle: 4096, TFLOPS: 106.49
+       f16wmma(...+stage2+dsmem+swizzle): ['-48.6875  ', '-19.71875 '], time:10.25662ms, swizzle: 4096, TFLOPS: 107.20
+                             f16(cublas): ['-48.6875  ', '-19.71875 '], time:9.752964ms, swizzle: NOOP, TFLOPS: 112.74(+4.68%)
+                                  f16_th: ['-48.75    ', '-19.765625'], time:9.698748ms, swizzle: NOOP, TFLOPS: 113.37(+0.56%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=16384, N=16384, K=4096
-                         f16(naive): ['18.078125 ', '32.90625  '], time:917.0645ms, swizzle: NOOP, TFLOPS: 2.40  (+0.00%)
-                f16x8pack(t8x8+bcf): ['18.078125 ', '32.90625  '], time:50.57306ms, swizzle: NOOP, TFLOPS: 43.48 (+1713.35%)
-           f16x8pack(t8x8+bcf+dbuf): ['18.078125 ', '32.90625  '], time:51.68246ms, swizzle: NOOP, TFLOPS: 42.55
-           f16x8pack(t8x8+k16+dbuf): ['18.078125 ', '32.90625  '], time:49.95229ms, swizzle: NOOP, TFLOPS: 44.02 (+1.24%)
+                     f16x8pack(t8x8+bcf): ['-7.390625 ', '-9.75     '], time:48.67928ms, swizzle: NOOP, TFLOPS: 45.17 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-7.390625 ', '-9.75     '], time:49.57225ms, swizzle: NOOP, TFLOPS: 44.36
+                f16x8pack(t8x8+k16+dbuf): ['-7.390625 ', '-9.75     '], time:48.31402ms, swizzle: NOOP, TFLOPS: 45.52 (+0.76%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['17.953125 ', '32.8125   '], time:151.9513ms, swizzle: NOOP, TFLOPS: 14.47
-                    f16wmma(mma4x2): ['17.953125 ', '32.8125   '], time:63.35564ms, swizzle: NOOP, TFLOPS: 34.71
-            f16wmma(mma4x2+warp2x4): ['17.953125 ', '32.8125   '], time:28.43757ms, swizzle: NOOP, TFLOPS: 77.33 (+75.66%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['17.953125 ', '32.8125   '], time:24.45222ms, swizzle: NOOP, TFLOPS: 89.93 (+16.30%)
-     f16wmma(mma2x4+warp2x4+stage3): ['17.953125 ', '32.8125   '], time:24.54504ms, swizzle: NOOP, TFLOPS: 89.59
-     f16wmma(mma2x4+warp2x4+stage2): ['17.953125 ', '32.8125   '], time:23.58353ms, swizzle: NOOP, TFLOPS: 93.24 (+3.68%)
-   f16wmma(mma2x4+...+stage3+dsmem): ['17.953125 ', '32.8125   '], time:25.04811ms, swizzle: NOOP, TFLOPS: 87.79
-   f16wmma(mma2x4+...+stage2+dsmem): ['17.953125 ', '32.8125   '], time:23.30942ms, swizzle: NOOP, TFLOPS: 94.34 (+1.18%)
- f16wmma(mma2x4+...+stage3+swizzle): ['17.953125 ', '32.8125   '], time:20.55881ms, swizzle: 4096, TFLOPS: 106.96(+13.38%)
- f16wmma(mma2x4+...+stage2+swizzle): ['17.953125 ', '32.8125   '], time:20.38375ms, swizzle: 4096, TFLOPS: 107.88(+0.86%)
-  f16wmma(...+stage3+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:20.68349ms, swizzle: 4096, TFLOPS: 106.32
-  f16wmma(...+stage2+dsmem+swizzle): ['17.953125 ', '32.8125   '], time:20.32511ms, swizzle: 4096, TFLOPS: 108.19(+0.29%)
-                        f16(cublas): ['17.953125 ', '32.8125   '], time:19.43935ms, swizzle: NOOP, TFLOPS: 113.12(+4.56%)
-                             f16_th: ['17.96875  ', '32.75     '], time:19.07173ms, swizzle: NOOP, TFLOPS: 115.30(+1.93%)
+                         f16wmma(mma4x2): ['-7.765625 ', '-9.59375  '], time:63.08031ms, swizzle: NOOP, TFLOPS: 34.86
+                 f16wmma(mma4x2+warp2x4): ['-7.765625 ', '-9.59375  '], time:28.37953ms, swizzle: NOOP, TFLOPS: 77.49 (+70.24%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-7.765625 ', '-9.59375  '], time:22.57206ms, swizzle: NOOP, TFLOPS: 97.42 (+25.73%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-7.765625 ', '-9.59375  '], time:23.40888ms, swizzle: NOOP, TFLOPS: 93.94
+          f16wmma(mma2x4+warp2x4+stage3): ['-7.765625 ', '-9.59375  '], time:23.52602ms, swizzle: NOOP, TFLOPS: 93.47
+          f16wmma(mma2x4+warp2x4+stage2): ['-7.765625 ', '-9.59375  '], time:22.71277ms, swizzle: NOOP, TFLOPS: 96.82
+        f16wmma(mma2x4+...+stage4+dsmem): ['-7.765625 ', '-9.59375  '], time:23.63452ms, swizzle: NOOP, TFLOPS: 93.04
+        f16wmma(mma2x4+...+stage3+dsmem): ['-7.765625 ', '-9.59375  '], time:23.45573ms, swizzle: NOOP, TFLOPS: 93.75
+        f16wmma(mma2x4+...+stage2+dsmem): ['-7.765625 ', '-9.59375  '], time:22.61314ms, swizzle: NOOP, TFLOPS: 97.25
+      f16wmma(mma2x4+...+stage4+swizzle): ['-7.765625 ', '-9.59375  '], time:20.72081ms, swizzle: 4096, TFLOPS: 106.13(+8.93%)
+      f16wmma(mma2x4+...+stage3+swizzle): ['-7.765625 ', '-9.59375  '], time:20.47779ms, swizzle: 4096, TFLOPS: 107.39(+1.19%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-7.765625 ', '-9.59375  '], time:20.16084ms, swizzle: 4096, TFLOPS: 109.07(+1.57%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:20.65706ms, swizzle: 4096, TFLOPS: 106.45
+       f16wmma(...+stage3+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:20.57960ms, swizzle: 4096, TFLOPS: 106.85
+       f16wmma(...+stage2+dsmem+swizzle): ['-7.765625 ', '-9.59375  '], time:20.07975ms, swizzle: 4096, TFLOPS: 109.51(+0.40%)
+                             f16(cublas): ['-7.765625 ', '-9.59375  '], time:19.41347ms, swizzle: NOOP, TFLOPS: 113.27(+3.43%)
+                                  f16_th: ['-7.9101562', '-9.703125 '], time:19.11869ms, swizzle: NOOP, TFLOPS: 115.02(+1.54%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=16384, N=16384, K=8192
-                         f16(naive): ['69.5      ', '17.9375   '], time:1831.563ms, swizzle: NOOP, TFLOPS: 2.40  (+0.00%)
-                f16x8pack(t8x8+bcf): ['69.5      ', '17.9375   '], time:106.1777ms, swizzle: NOOP, TFLOPS: 41.42 (+1625.00%)
-           f16x8pack(t8x8+bcf+dbuf): ['69.5      ', '17.9375   '], time:107.1921ms, swizzle: NOOP, TFLOPS: 41.03
-           f16x8pack(t8x8+k16+dbuf): ['69.5      ', '17.9375   '], time:105.5787ms, swizzle: NOOP, TFLOPS: 41.66 (+0.57%)
+                     f16x8pack(t8x8+bcf): ['-34.6875  ', '109.75    '], time:105.4982ms, swizzle: NOOP, TFLOPS: 41.69 (+0.00%)
+                f16x8pack(t8x8+bcf+dbuf): ['-34.6875  ', '109.75    '], time:105.9915ms, swizzle: NOOP, TFLOPS: 41.49
+                f16x8pack(t8x8+k16+dbuf): ['-34.6875  ', '109.75    '], time:104.0459ms, swizzle: NOOP, TFLOPS: 42.27 (+1.40%)
 --------------------------------------------------------------------WMMA----------------------------------------------------------
-                     f16wmma(naive): ['69.25     ', '18.078125 '], time:824.0843ms, swizzle: NOOP, TFLOPS: 5.34
-                    f16wmma(mma4x2): ['69.25     ', '18.078125 '], time:125.0671ms, swizzle: NOOP, TFLOPS: 35.17
-            f16wmma(mma4x2+warp2x4): ['69.25     ', '18.078125 '], time:56.59587ms, swizzle: NOOP, TFLOPS: 77.71 (+86.55%)
-       f16wmma(mma2x4+warp2x4+dbuf): ['69.25     ', '18.078125 '], time:50.86129ms, swizzle: NOOP, TFLOPS: 86.47 (+11.27%)
-     f16wmma(mma2x4+warp2x4+stage3): ['69.25     ', '18.078125 '], time:50.88164ms, swizzle: NOOP, TFLOPS: 86.44
-     f16wmma(mma2x4+warp2x4+stage2): ['69.25     ', '18.078125 '], time:50.45264ms, swizzle: NOOP, TFLOPS: 87.17 (+0.81%)
-   f16wmma(mma2x4+...+stage3+dsmem): ['69.25     ', '18.078125 '], time:50.89710ms, swizzle: NOOP, TFLOPS: 86.41
-   f16wmma(mma2x4+...+stage2+dsmem): ['69.25     ', '18.078125 '], time:50.32118ms, swizzle: NOOP, TFLOPS: 87.40 (+0.26%)
- f16wmma(mma2x4+...+stage3+swizzle): ['69.25     ', '18.078125 '], time:41.41900ms, swizzle: 4096, TFLOPS: 106.18(+21.49%)
- f16wmma(mma2x4+...+stage2+swizzle): ['69.25     ', '18.078125 '], time:40.82697ms, swizzle: 4096, TFLOPS: 107.72(+1.45%)
-  f16wmma(...+stage3+dsmem+swizzle): ['69.25     ', '18.078125 '], time:41.47491ms, swizzle: 4096, TFLOPS: 106.04
-  f16wmma(...+stage2+dsmem+swizzle): ['69.25     ', '18.078125 '], time:40.86352ms, swizzle: 4096, TFLOPS: 107.63
-                        f16(cublas): ['69.25     ', '18.078125 '], time:38.96132ms, swizzle: NOOP, TFLOPS: 112.88(+4.79%)
-                             f16_th: ['69.3125   ', '18.09375  '], time:38.87616ms, swizzle: NOOP, TFLOPS: 113.13(+0.22%)
+                         f16wmma(mma4x2): ['-34.6875  ', '108.625   '], time:124.6572ms, swizzle: NOOP, TFLOPS: 35.28
+                 f16wmma(mma4x2+warp2x4): ['-34.6875  ', '108.625   '], time:55.98595ms, swizzle: NOOP, TFLOPS: 78.56 (+85.84%)
+            f16wmma(mma2x4+warp2x4+dbuf): ['-34.6875  ', '108.625   '], time:50.58474ms, swizzle: NOOP, TFLOPS: 86.94 (+10.68%)
+          f16wmma(mma2x4+warp2x4+stage4): ['-34.6875  ', '108.625   '], time:49.78964ms, swizzle: NOOP, TFLOPS: 88.33 (+1.60%)
+          f16wmma(mma2x4+warp2x4+stage3): ['-34.6875  ', '108.625   '], time:49.91416ms, swizzle: NOOP, TFLOPS: 88.11
+          f16wmma(mma2x4+warp2x4+stage2): ['-34.6875  ', '108.625   '], time:50.05099ms, swizzle: NOOP, TFLOPS: 87.87
+        f16wmma(mma2x4+...+stage4+dsmem): ['-34.6875  ', '108.625   '], time:50.12478ms, swizzle: NOOP, TFLOPS: 87.74
+        f16wmma(mma2x4+...+stage3+dsmem): ['-34.6875  ', '108.625   '], time:49.89173ms, swizzle: NOOP, TFLOPS: 88.15
+        f16wmma(mma2x4+...+stage2+dsmem): ['-34.6875  ', '108.625   '], time:50.12190ms, swizzle: NOOP, TFLOPS: 87.75
+      f16wmma(mma2x4+...+stage4+swizzle): ['-34.6875  ', '108.625   '], time:41.31774ms, swizzle: 4096, TFLOPS: 106.44(+20.50%)
+      f16wmma(mma2x4+...+stage3+swizzle): ['-34.6875  ', '108.625   '], time:40.67180ms, swizzle: 4096, TFLOPS: 108.14(+1.59%)
+      f16wmma(mma2x4+...+stage2+swizzle): ['-34.6875  ', '108.625   '], time:40.11447ms, swizzle: 4096, TFLOPS: 109.64(+1.39%)
+       f16wmma(...+stage4+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:41.21651ms, swizzle: 4096, TFLOPS: 106.71
+       f16wmma(...+stage3+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:41.71590ms, swizzle: 4096, TFLOPS: 105.43
+       f16wmma(...+stage2+dsmem+swizzle): ['-34.6875  ', '108.625   '], time:40.29407ms, swizzle: 4096, TFLOPS: 109.15
+                             f16(cublas): ['-34.6875  ', '108.625   '], time:38.75672ms, swizzle: NOOP, TFLOPS: 113.48(+3.50%)
+                                  f16_th: ['-34.9375  ', '108.625   '], time:38.51907ms, swizzle: NOOP, TFLOPS: 114.18(+0.62%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ```
