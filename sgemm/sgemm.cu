@@ -699,17 +699,22 @@ void sgemm_t_8x8_sliced_k16_f32x4_bcf_dbuf(torch::Tensor a, torch::Tensor b, tor
 void sgemm_t_8x8_sliced_k16_f32x4_bcf_dbuf_async(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void sgemm_t_8x16_sliced_k16_f32x4_bcf_dbuf(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void sgemm_t_8x16_sliced_k16_f32x4_bcf_dbuf_async(torch::Tensor a, torch::Tensor b, torch::Tensor c);
+// from sgemm_cublas.cu
+void sgemm_cublas(torch::Tensor a, torch::Tensor b, torch::Tensor c);
+void sgemm_cublas_tf32(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 // from sgemm_wmma_tf32_stage.cu
 void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage2(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage2_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage3(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage3_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
-// from sgemm_cublas.cu
-void sgemm_cublas(torch::Tensor a, torch::Tensor b, torch::Tensor c);
-void sgemm_cublas_tf32(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 
+void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages(torch::Tensor a, torch::Tensor b, torch::Tensor c, 
+                                               int stages, bool swizzle, int swizzle_stride);
+void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem(torch::Tensor a, torch::Tensor b, torch::Tensor c, 
+                                                     int stages, bool swizzle, int swizzle_stride);
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+  // CUDA Cores 
   TORCH_BINDING_COMMON_EXTENSION(sgemm_naive_f32)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_sliced_k_f32)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_f32x4)
@@ -723,10 +728,10 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k16_f32x4_bcf_dbuf_async)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x16_sliced_k16_f32x4_bcf_dbuf)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x16_sliced_k16_f32x4_bcf_dbuf_async)
-  TORCH_BINDING_COMMON_EXTENSION(sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage2)
-  TORCH_BINDING_COMMON_EXTENSION(sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage2_offset)
-  TORCH_BINDING_COMMON_EXTENSION(sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage3)
-  TORCH_BINDING_COMMON_EXTENSION(sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage3_offset)
+  // cuBLAS Tensor Cores
   TORCH_BINDING_COMMON_EXTENSION(sgemm_cublas)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_cublas_tf32)
+  // WMMA API Tensor Cores, stage, thread block swizzle, dsmem
+  TORCH_BINDING_COMMON_EXTENSION(sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages)
+  TORCH_BINDING_COMMON_EXTENSION(sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem)
 }

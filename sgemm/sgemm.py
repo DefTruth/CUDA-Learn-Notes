@@ -22,19 +22,45 @@ lib = load(name='sgemm_lib',
             ], 
            extra_cflags=['-std=c++17'])
 
+MAX_TFLOPS = -1
 
 def run_benchmark(perf_func: callable, 
                   a: torch.Tensor, b: torch.Tensor,
                   tag: str, out: Optional[torch.Tensor] = None, 
-                  warmup: int = 2, iters: int = 20,
+                  stages: int = -1, swizzle: bool = False,
+                  swizzle_stride: int = 1,
+                  warmup: int = 2, iters: int = 50,
                   show_all: bool = False):
-    a = a.clone()
-    b = b.clone()
+    
+    global MAX_TFLOPS
+
+    M = a.size(0)
+    K = a.size(1)
+    N = b.size(1)
+
+    if (a.size(0) > 1024 or a.size(1) >= 1024 
+        or b.size(1) > 1024):
+        iters = 20
+    
+    if swizzle:
+        # make swizzle stride as N/4 and multiples of 256
+        swizzle_stride = int((int(N / 4) // 256) * 256)
+        swizzle_stride = swizzle_stride if swizzle_stride >= 256 else 1
+        swizzle = swizzle if swizzle_stride >= 256 else False
+    else:
+        swizzle_stride = 1 # means no thread block swizzle
+    
+    if stages:
+        assert swizzle_stride is not None
+
     if out is not None: 
         out.fill_(0)      
     if out is not None:
         for i in range(warmup):
-            perf_func(a, b, out)
+            if stages > 1:
+                perf_func(a, b, out, stages, swizzle, swizzle_stride)
+            else:
+                perf_func(a, b, out)
     else:
         for i in range(warmup):
             _ = perf_func(a, b) 
@@ -44,7 +70,10 @@ def run_benchmark(perf_func: callable,
     # iters
     if out is not None:
         for i in range(iters):
-            perf_func(a, b, out)
+            if stages > 1:
+                perf_func(a, b, out, stages, swizzle, swizzle_stride)
+            else:
+                perf_func(a, b, out)
     else:
         for i in range(iters):
             out = perf_func(a, b) 
@@ -53,43 +82,72 @@ def run_benchmark(perf_func: callable,
     total_time = (end - start) * 1000 # ms
     mean_time = total_time / iters
     out_info = f"out_{tag}"
-    out_val = out.flatten().detach().cpu().numpy().tolist()[:3]
+    out_val = out.flatten()[:2].detach().cpu().numpy().tolist()[:3]
     out_val = [round(v, 8) for v in out_val]
-    out_val = [f"{v:<12}" for v in out_val]
-    print(f"{out_info:>35}: {out_val}, time:{mean_time:.6f}ms")
+    out_val = [f"{v:<12}"[:10] for v in out_val]
+    TFLOPS = (2 * M * N * K) * 1e-9 / (mean_time)
+    mean_time = str(f"{mean_time:<12}")[:8]
+    swizzle_stride = 'NOOP' if swizzle_stride == 1 else swizzle_stride
+
+    # caculate TFLOPS improved.
+    if TFLOPS > MAX_TFLOPS:
+        if MAX_TFLOPS > 0:
+            improve = ((TFLOPS - MAX_TFLOPS) / MAX_TFLOPS) * 100
+            improve = round(improve, 2)
+        else:
+            improve = 0
+        MAX_TFLOPS = TFLOPS
+        print(f"{out_info:>35}: {out_val}, time:{mean_time}ms, "
+              f"swizzle: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}(+{improve:.2f}%)")
+    else:
+        print(f"{out_info:>35}: {out_val}, time:{mean_time}ms, "
+              f"swizzle: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}")
     if show_all: print(out)
     return out, mean_time
 
 
-Ms = [2048, 4096]
-Ns = [2048, 4096]
-Ks = [512,  1024]
+Ms = [1024, 2048, 4096, 8192]
+Ns = [1024, 2048, 4096, 8192]
+Ks = [512,  1024, 2048, 4096]
+MAX_M, MAX_N, MAX_K = 8192, 8192, 4096
+# pre allocate for fast profiling.
+A = torch.randn((MAX_M, MAX_K), dtype=torch.float).cuda()
+B = torch.randn((MAX_K, MAX_N), dtype=torch.float).cuda()
+C = torch.randn((MAX_M, MAX_N), dtype=torch.float).cuda()
+torch.cuda.synchronize()
+
 MNKs = [(M, N, K) for M in Ms for N in Ns for K in Ks]
 for (M, N, K) in MNKs:
-    print("-" * 110)
-    print(" " * 45 + f"M={M}, N={N}, K={K}")
-    a = torch.randn((M, K)).cuda().float().contiguous() 
-    b = torch.randn((K, N)).cuda().float().contiguous() 
-    c = torch.randn((M, N)).cuda().float().contiguous() 
+    MAX_TFLOPS = -1
+    print("-" * 130)
+    print(" " * 55 + f"M={M}, N={N}, K={K}")
+    a = A[:M, :K].contiguous()
+    b = B[:K, :N].contiguous()
+    c = C[:M, :N].contiguous()
     torch.cuda.synchronize()
-    run_benchmark(lib.sgemm_naive_f32,                     
-                  a, b, "f32",                        c)
-    run_benchmark(lib.sgemm_sliced_k_f32,                  
-                  a, b, "f32(sk)",                    c)
-    run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4,          
-                  a, b, "f32x4(t8x8sk)",              c)
-    run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4_bcf,      
-                  a, b, "f32x4(t8x8bcf)",             c)
-    run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf, 
-                  a, b, "f32x4(t8x8dbuf)",            c)
-    print("-" * 52 + "WMMA" + "-" * 54)
-    run_benchmark(lib.sgemm_cublas, 
-                  a, b, "f32(cublas)",                c)
-    run_benchmark(lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage2, 
-                  a, b, "tf32(m16n16k8+stage2)",      c)
-    run_benchmark(lib.sgemm_cublas_tf32, 
-                  a, b, "tf32(cublas+tf32)",          c)
-    run_benchmark(partial(torch.matmul, out=c),            
-                  a, b, "f32_th")
+
+    # CUDA Cores FP32
+    run_benchmark(lib.sgemm_naive_f32, a, b, "f32(naive)", c)
+    run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4, a, b, "f32x4(t8x8sk)", c)
+    run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4_bcf, a, b, "f32x4(t8x8bcf)", c)
+    run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf, a, b, "f32x4(t8x8dbuf)", c)
+    run_benchmark(lib.sgemm_cublas, a, b, "f32(cublas)", c)
+    run_benchmark(partial(torch.matmul, out=c), a, b, "f32_th")
+
+    print("-" * 62 + "WMMA" + "-" * 64)
+    # stage, thread block swizzle, dsmem
+    run_benchmark(lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages, a, b, "tf32(mma2x4+warp2x4+stage3)", c, stages=3)
+    run_benchmark(lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages, a, b, "tf32(mma2x4+warp2x4+stage2)", c, stages=2)
+
+    run_benchmark(lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem, a, b, "tf32(mma2x4+...+stage3+dsmem)", c, stages=3)
+    run_benchmark(lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem, a, b, "tf32(mma2x4+...+stage2+dsmem)", c, stages=2)
+
+    run_benchmark(lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages, a, b, "tf32(mma2x4+...+stage3+swizzle)", c, stages=3, swizzle=True)
+    run_benchmark(lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages, a, b, "tf32(mma2x4+...+stage2+swizzle)", c, stages=2, swizzle=True)
+
+    run_benchmark(lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem, a, b, "tf32(...+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
+    run_benchmark(lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem, a, b, "tf32(...+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
+    
+    run_benchmark(lib.sgemm_cublas_tf32, a, b, "tf32(cublas+tf32)", c)
     torch.cuda.synchronize()
-    print("-" * 110)
+    print("-" * 130)

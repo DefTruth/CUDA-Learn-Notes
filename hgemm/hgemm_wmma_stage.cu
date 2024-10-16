@@ -875,16 +875,16 @@ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages(
     switch (stages)
     {
     case 2: // ~21KB
-      LAUNCH_161616_STAGE_SWIZZLE_DSMEM_KERNEL(2, swizzle_stride);
+      LAUNCH_161616_STAGE_SWIZZLE_KERNEL(2, swizzle_stride);
       break;
     case 3: // ~31KB
-      LAUNCH_161616_STAGE_SWIZZLE_DSMEM_KERNEL(3, swizzle_stride);
+      LAUNCH_161616_STAGE_SWIZZLE_KERNEL(3, swizzle_stride);
       break;
     case 4: // ~41K
-      LAUNCH_161616_STAGE_SWIZZLE_DSMEM_KERNEL(4, swizzle_stride);
+      LAUNCH_161616_STAGE_SWIZZLE_KERNEL(4, swizzle_stride);
       break;
     default:
-      LAUNCH_161616_STAGE_SWIZZLE_DSMEM_KERNEL(2, swizzle_stride);
+      LAUNCH_161616_STAGE_SWIZZLE_KERNEL(2, swizzle_stride);
       break;
     }
   } else {
