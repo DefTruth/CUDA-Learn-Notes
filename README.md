@@ -48,6 +48,12 @@
 | ✔️ [gelu_f16x2](./gelu/gelu.cu)|f16|/|[link](./gelu/)|⭐️|  
 | ✔️ [gelu_f16x8](./gelu/gelu.cu)|f16|/|[link](./gelu/)|⭐️|  
 | ✔️ [gelu_f16x8_pack](./gelu/gelu.cu)|f16|/|[link](./gelu/)|⭐️⭐️|  
+| ✔️ [swish_f32](./swish/swish.cu)|f32|/|[link](./swish/)|⭐️|  
+| ✔️ [swish_f32x4](./swish/swish.cu)|f32|/|[link](./swish/)|⭐️|  
+| ✔️ [swish_f16](./swish/swish.cu)|f16|/|[link](./swish/)|⭐️|  
+| ✔️ [swish_f16x2](./swish/swish.cu)|f16|/|[link](./swish/)|⭐️|  
+| ✔️ [swish_f16x8](./swish/swish.cu)|f16|/|[link](./swish/)|⭐️|  
+| ✔️ [swish_f16x8_pack](./swish/swish.cu)|f16|/|[link](./swish/)|⭐️⭐️|  
 | ✔️ [embedding_f32](./embedding/embedding.cu)|f32|/|[link](./embedding/)|⭐️|  
 | ✔️ [embedding_f32x4](./embedding/embedding.cu)|f32|/|[link](./embedding/)|⭐️|  
 | ✔️ [embedding_f32x4_pack](./embedding/embedding.cu)|f32|/|[link](./embedding/)|⭐️|  
