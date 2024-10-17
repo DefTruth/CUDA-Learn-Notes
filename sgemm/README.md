@@ -11,10 +11,11 @@
 - [X] sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_kernel (bank conflicts free, double buffers)
 - [X] sgemm_t_8x8_sliced_k16_f32x4_bcf_dbuf_kernel (double buffers, k16)
 - [X] sgemm_t_8x8_sliced_k16_f32x4_bcf_dbuf_async_kernel (double buffers, k16, copy async)
-- [X] sgemm_wmma_m16n16k8_mma4x2_warp2x4_stage2/3/4 (Tensor Cores, Tile MMA/Warp, Copy Async, Stage, Thread block swizzle)
+- [X] sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages (WMMA, Tile MMA/Warp, Copy Async, Stage, Pad, Block swizzle)
 - [X] PyTorch bindings
 
-目前在L20上，CUDA Cores FP32的实现能达到cuBLAS大概90%~95%左右的性能(TFLOPS)，部分size下会超过cuBLAS。已知问题为bank conflicts没有完全消除，目前通过padding的方式缓解bank conflicts会导致shared memory浪费，也会影响SM occupancy。而Tensor Cores TF32的实现，只能达到cuBLAS TF32大概80%左右的性能，尚有较大差距。目前未手工实现Warp swizzle(受限于WMMA API的灵活性以及本人的能力)，后续将会尝试通过MMA PTX实现warp swizzle。
+## 目前性能
+目前在L20上，CUDA Cores FP32(L20 FP32/TF32理论算力为59.8 TFLOPS) 的实现能达到cuBLAS大概85%~90%左右的性能(TFLOPS)，部分size下会超过cuBLAS。已知问题为bank conflicts没有完全消除，目前通过padding的方式缓解bank conflicts会导致shared memory浪费，也会影响SM occupancy。而Tensor Cores TF32的实现，只能达到cuBLAS TF32大概80%左右的性能，尚有较大差距。目前未手工实现Warp swizzle(受限于WMMA API的灵活性以及本人的能力)，后续将会尝试通过MMA PTX实现warp swizzle。另外，当前TF32的实现依赖额外的FP32转TF32的kernel，对整体性能有影响。
 
 ## 共享内存 Bank Conflicts
 
@@ -148,364 +149,516 @@ python3 sgemm.py
 
 ```bash
 ----------------------------------------------------------------------------------------------------------------------------------
-                                                       M=4096, N=8192, K=1024
-                     out_f32(naive): ['-45.176471', '17.7125091'], time:20.41349ms, swizzle: NOOP, TFLOPS: 3.37  (+0.00%)
-                  out_f32x4(t8x8sk): ['-45.176471', '17.7125091'], time:2.325522ms, swizzle: NOOP, TFLOPS: 29.55 (+777.80%)
-                 out_f32x4(t8x8bcf): ['-45.176471', '17.7125091'], time:2.031362ms, swizzle: NOOP, TFLOPS: 33.83 (+14.48%)
-                out_f32x4(t8x8dbuf): ['-45.176471', '17.7125091'], time:1.718842ms, swizzle: NOOP, TFLOPS: 39.98 (+18.18%)
-                    out_f32(cublas): ['-45.176471', '17.7125091'], time:1.925849ms, swizzle: NOOP, TFLOPS: 35.68
-                         out_f32_th: ['-45.176471', '17.7125091'], time:1.837718ms, swizzle: NOOP, TFLOPS: 37.39
+                                                       M=4096, N=4096, K=2048
+                     out_f32(naive): ['-17.842391', '0.18722232'], time:20.40503ms, swizzle: NOOP, TFLOPS: 3.37  (+0.00%)
+                  out_f32x4(t8x8sk): ['-17.842391', '0.18722232'], time:2.430105ms, swizzle: NOOP, TFLOPS: 28.28 (+739.68%)
+                 out_f32x4(t8x8bcf): ['-17.842391', '0.18722232'], time:2.102661ms, swizzle: NOOP, TFLOPS: 32.68 (+15.57%)
+                out_f32x4(t8x8dbuf): ['-17.842391', '0.18722232'], time:1.985645ms, swizzle: NOOP, TFLOPS: 34.61 (+5.89%)
+                    out_f32(cublas): ['-17.842391', '0.18722232'], time:2.087247ms, swizzle: NOOP, TFLOPS: 32.92
+                         out_f32_th: ['-17.842391', '0.18722232'], time:1.845526ms, swizzle: NOOP, TFLOPS: 37.24 (+7.59%)
 --------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-45.176361', '17.7123947'], time:1.949667ms, swizzle: NOOP, TFLOPS: 35.25
-    out_tf32(mma2x4+warp2x4+stage2): ['-45.176361', '17.7123947'], time:1.541721ms, swizzle: NOOP, TFLOPS: 44.57 (+11.49%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-45.176361', '17.7123947'], time:1.676261ms, swizzle: NOOP, TFLOPS: 41.00
-  out_tf32(mma2x4+...+stage2+dsmem): ['-45.176361', '17.7123947'], time:1.525127ms, swizzle: NOOP, TFLOPS: 45.06 (+1.09%)
-out_tf32(mma2x4+...+stage3+swizzle): ['-45.176361', '17.7123947'], time:1.883172ms, swizzle: 2048, TFLOPS: 36.49
-out_tf32(mma2x4+...+stage2+swizzle): ['-45.176361', '17.7123947'], time:1.541399ms, swizzle: 2048, TFLOPS: 44.58
- out_tf32(...+stage3+dsmem+swizzle): ['-45.176361', '17.7123947'], time:1.697039ms, swizzle: 2048, TFLOPS: 40.49
- out_tf32(...+stage2+dsmem+swizzle): ['-45.176361', '17.7123947'], time:1.544988ms, swizzle: 2048, TFLOPS: 44.48
-              out_tf32(cublas+tf32): ['-45.176361', '17.7123947'], time:1.331019ms, swizzle: NOOP, TFLOPS: 51.63 (+14.58%)
+    out_tf32(mma2x4+warp2x4+stage3): ['-17.849796', '0.19758633'], time:2.149534ms, swizzle: NOOP, TFLOPS: 31.97
+    out_tf32(mma2x4+warp2x4+stage2): ['-17.849796', '0.19758633'], time:1.663148ms, swizzle: NOOP, TFLOPS: 41.32 (+10.97%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-17.849796', '0.19758633'], time:1.823186ms, swizzle: NOOP, TFLOPS: 37.69
+  out_tf32(mma2x4+...+stage2+dsmem): ['-17.849796', '0.19758633'], time:1.662409ms, swizzle: NOOP, TFLOPS: 41.34 (+0.04%)
+out_tf32(mma2x4+...+stage3+swizzle): ['-17.849796', '0.19758633'], time:2.001917ms, swizzle: 1024, TFLOPS: 34.33
+out_tf32(mma2x4+...+stage2+swizzle): ['-17.849796', '0.19758633'], time:1.634597ms, swizzle: 1024, TFLOPS: 42.04 (+1.70%)
+ out_tf32(...+stage3+dsmem+swizzle): ['-17.849796', '0.19758633'], time:1.806831ms, swizzle: 1024, TFLOPS: 38.03
+ out_tf32(...+stage2+dsmem+swizzle): ['-17.849796', '0.19758633'], time:1.635658ms, swizzle: 1024, TFLOPS: 42.01
+              out_tf32(cublas+tf32): ['-17.849796', '0.19758633'], time:1.539385ms, swizzle: NOOP, TFLOPS: 44.64 (+6.19%)
+----------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------
+                                                       M=4096, N=4096, K=4096
+                     out_f32(naive): ['-24.547933', '26.0833282'], time:40.70725ms, swizzle: NOOP, TFLOPS: 3.38  (+0.00%)
+                  out_f32x4(t8x8sk): ['-24.547933', '26.0833282'], time:4.871845ms, swizzle: NOOP, TFLOPS: 28.21 (+735.56%)
+                 out_f32x4(t8x8bcf): ['-24.547933', '26.0833282'], time:4.412031ms, swizzle: NOOP, TFLOPS: 31.15 (+10.42%)
+                out_f32x4(t8x8dbuf): ['-24.547933', '26.0833282'], time:4.048168ms, swizzle: NOOP, TFLOPS: 33.95 (+8.99%)
+                    out_f32(cublas): ['-24.547933', '26.0833282'], time:4.019129ms, swizzle: NOOP, TFLOPS: 34.20 (+0.72%)
+                         out_f32_th: ['-24.547933', '26.0833282'], time:3.687226ms, swizzle: NOOP, TFLOPS: 37.27 (+9.00%)
+--------------------------------------------------------------WMMA----------------------------------------------------------------
+    out_tf32(mma2x4+warp2x4+stage3): ['-24.539142', '26.0933208'], time:4.418766ms, swizzle: NOOP, TFLOPS: 31.10
+    out_tf32(mma2x4+warp2x4+stage2): ['-24.539142', '26.0933208'], time:3.449714ms, swizzle: NOOP, TFLOPS: 39.84 (+6.88%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-24.539142', '26.0933208'], time:3.769552ms, swizzle: NOOP, TFLOPS: 36.46
+  out_tf32(mma2x4+...+stage2+dsmem): ['-24.539142', '26.0933208'], time:3.442633ms, swizzle: NOOP, TFLOPS: 39.92 (+0.21%)
+out_tf32(mma2x4+...+stage3+swizzle): ['-24.539142', '26.0933208'], time:4.073047ms, swizzle: 1024, TFLOPS: 33.74
+out_tf32(mma2x4+...+stage2+swizzle): ['-24.539142', '26.0933208'], time:3.320538ms, swizzle: 1024, TFLOPS: 41.39 (+3.68%)
+ out_tf32(...+stage3+dsmem+swizzle): ['-24.539142', '26.0933208'], time:3.651261ms, swizzle: 1024, TFLOPS: 37.64
+ out_tf32(...+stage2+dsmem+swizzle): ['-24.539142', '26.0933208'], time:3.319275ms, swizzle: 1024, TFLOPS: 41.41 (+0.04%)
+              out_tf32(cublas+tf32): ['-24.539142', '26.0933208'], time:2.791321ms, swizzle: NOOP, TFLOPS: 49.24 (+18.91%)
+----------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------
+                                                       M=4096, N=4096, K=8192
+                     out_f32(naive): ['47.3211364', '96.7818374'], time:124.1455ms, swizzle: NOOP, TFLOPS: 2.21  (+0.00%)
+                  out_f32x4(t8x8sk): ['47.3211364', '96.7818374'], time:10.18377ms, swizzle: NOOP, TFLOPS: 26.99 (+1119.05%)
+                 out_f32x4(t8x8bcf): ['47.3211364', '96.7818374'], time:8.965158ms, swizzle: NOOP, TFLOPS: 30.66 (+13.59%)
+                out_f32x4(t8x8dbuf): ['47.3211364', '96.7818374'], time:9.146523ms, swizzle: NOOP, TFLOPS: 30.05
+                    out_f32(cublas): ['47.3211364', '96.7818374'], time:7.824325ms, swizzle: NOOP, TFLOPS: 35.13 (+14.58%)
+                         out_f32_th: ['47.3211364', '96.7818374'], time:7.979285ms, swizzle: NOOP, TFLOPS: 34.45
+--------------------------------------------------------------WMMA----------------------------------------------------------------
+    out_tf32(mma2x4+warp2x4+stage3): ['47.3002510', '96.8180007'], time:8.486199ms, swizzle: NOOP, TFLOPS: 32.39
+    out_tf32(mma2x4+warp2x4+stage2): ['47.3002510', '96.8180007'], time:6.938815ms, swizzle: NOOP, TFLOPS: 39.61 (+12.76%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['47.3002510', '96.8180007'], time:7.443344ms, swizzle: NOOP, TFLOPS: 36.93
+  out_tf32(mma2x4+...+stage2+dsmem): ['47.3002510', '96.8180007'], time:6.947302ms, swizzle: NOOP, TFLOPS: 39.57
+out_tf32(mma2x4+...+stage3+swizzle): ['47.3002510', '96.8180007'], time:8.268499ms, swizzle: 1024, TFLOPS: 33.24
+out_tf32(mma2x4+...+stage2+swizzle): ['47.3002510', '96.8180007'], time:6.863093ms, swizzle: 1024, TFLOPS: 40.05 (+1.10%)
+ out_tf32(...+stage3+dsmem+swizzle): ['47.3002510', '96.8180007'], time:7.466220ms, swizzle: 1024, TFLOPS: 36.82
+ out_tf32(...+stage2+dsmem+swizzle): ['47.3002510', '96.8180007'], time:6.836020ms, swizzle: 1024, TFLOPS: 40.21 (+0.40%)
+              out_tf32(cublas+tf32): ['47.3002510', '96.8180007'], time:5.307173ms, swizzle: NOOP, TFLOPS: 51.79 (+28.81%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=4096, N=8192, K=2048
-                     out_f32(naive): ['-63.444438', '38.4295463'], time:40.65858ms, swizzle: NOOP, TFLOPS: 3.38  (+0.00%)
-                  out_f32x4(t8x8sk): ['-63.444438', '38.4295463'], time:4.587244ms, swizzle: NOOP, TFLOPS: 29.96 (+786.34%)
-                 out_f32x4(t8x8bcf): ['-63.444438', '38.4295463'], time:4.092347ms, swizzle: NOOP, TFLOPS: 33.58 (+12.09%)
-                out_f32x4(t8x8dbuf): ['-63.444438', '38.4295463'], time:3.641486ms, swizzle: NOOP, TFLOPS: 37.74 (+12.38%)
-                    out_f32(cublas): ['-63.444438', '38.4295463'], time:3.668510ms, swizzle: NOOP, TFLOPS: 37.46
-                         out_f32_th: ['-63.444438', '38.4295463'], time:3.594660ms, swizzle: NOOP, TFLOPS: 38.23 (+1.30%)
+                     out_f32(naive): ['-17.835220', '0.19710006'], time:40.66953ms, swizzle: NOOP, TFLOPS: 3.38  (+0.00%)
+                  out_f32x4(t8x8sk): ['-17.835220', '0.19710006'], time:4.663670ms, swizzle: NOOP, TFLOPS: 29.47 (+772.05%)
+                 out_f32x4(t8x8bcf): ['-17.835220', '0.19710006'], time:4.213857ms, swizzle: NOOP, TFLOPS: 32.62 (+10.67%)
+                out_f32x4(t8x8dbuf): ['-17.835220', '0.19710006'], time:3.852760ms, swizzle: NOOP, TFLOPS: 35.67 (+9.37%)
+                    out_f32(cublas): ['-17.835220', '0.19710006'], time:3.993618ms, swizzle: NOOP, TFLOPS: 34.41
+                         out_f32_th: ['-17.835220', '0.19710006'], time:3.633618ms, swizzle: NOOP, TFLOPS: 37.82 (+6.03%)
 --------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-63.444118', '38.4292221'], time:3.965806ms, swizzle: NOOP, TFLOPS: 34.66
-    out_tf32(mma2x4+warp2x4+stage2): ['-63.444118', '38.4292221'], time:3.167927ms, swizzle: NOOP, TFLOPS: 43.38 (+13.47%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-63.444118', '38.4292221'], time:3.450572ms, swizzle: NOOP, TFLOPS: 39.83
-  out_tf32(mma2x4+...+stage2+dsmem): ['-63.444118', '38.4292221'], time:3.164565ms, swizzle: NOOP, TFLOPS: 43.43 (+0.11%)
-out_tf32(mma2x4+...+stage3+swizzle): ['-63.444118', '38.4292221'], time:3.796541ms, swizzle: 2048, TFLOPS: 36.20
-out_tf32(mma2x4+...+stage2+swizzle): ['-63.444118', '38.4292221'], time:3.100752ms, swizzle: 2048, TFLOPS: 44.32 (+2.06%)
- out_tf32(...+stage3+dsmem+swizzle): ['-63.444118', '38.4292221'], time:3.401374ms, swizzle: 2048, TFLOPS: 40.41
- out_tf32(...+stage2+dsmem+swizzle): ['-63.444118', '38.4292221'], time:3.104865ms, swizzle: 2048, TFLOPS: 44.27
-              out_tf32(cublas+tf32): ['-63.444118', '38.4292221'], time:2.581250ms, swizzle: NOOP, TFLOPS: 53.25 (+20.13%)
+    out_tf32(mma2x4+warp2x4+stage3): ['-17.849796', '0.19758633'], time:3.958535ms, swizzle: NOOP, TFLOPS: 34.72
+    out_tf32(mma2x4+warp2x4+stage2): ['-17.849796', '0.19758633'], time:3.184044ms, swizzle: NOOP, TFLOPS: 43.16 (+14.12%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-17.849796', '0.19758633'], time:3.465819ms, swizzle: NOOP, TFLOPS: 39.66
+  out_tf32(mma2x4+...+stage2+dsmem): ['-17.849796', '0.19758633'], time:3.177452ms, swizzle: NOOP, TFLOPS: 43.25 (+0.21%)
+out_tf32(mma2x4+...+stage3+swizzle): ['-17.849796', '0.19758633'], time:3.823959ms, swizzle: 2048, TFLOPS: 35.94
+out_tf32(mma2x4+...+stage2+swizzle): ['-17.849796', '0.19758633'], time:3.122901ms, swizzle: 2048, TFLOPS: 44.01 (+1.75%)
+ out_tf32(...+stage3+dsmem+swizzle): ['-17.849796', '0.19758633'], time:3.422784ms, swizzle: 2048, TFLOPS: 40.15
+ out_tf32(...+stage2+dsmem+swizzle): ['-17.849796', '0.19758633'], time:3.124201ms, swizzle: 2048, TFLOPS: 43.99
+              out_tf32(cublas+tf32): ['-17.849796', '0.19758633'], time:2.821981ms, swizzle: NOOP, TFLOPS: 48.70 (+10.66%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=4096, N=8192, K=4096
-                     out_f32(naive): ['-53.302734', '81.0102462'], time:134.4451ms, swizzle: NOOP, TFLOPS: 2.04  (+0.00%)
-                  out_f32x4(t8x8sk): ['-53.302734', '81.0102462'], time:9.697830ms, swizzle: NOOP, TFLOPS: 28.34 (+1286.34%)
-                 out_f32x4(t8x8bcf): ['-53.302734', '81.0102462'], time:8.738136ms, swizzle: NOOP, TFLOPS: 31.46 (+10.98%)
-                out_f32x4(t8x8dbuf): ['-53.302734', '81.0102462'], time:8.403766ms, swizzle: NOOP, TFLOPS: 32.71 (+3.98%)
-                    out_f32(cublas): ['-53.302734', '81.0102462'], time:7.346343ms, swizzle: NOOP, TFLOPS: 37.42 (+14.39%)
-                         out_f32_th: ['-53.302734', '81.0102462'], time:7.214975ms, swizzle: NOOP, TFLOPS: 38.10 (+1.82%)
+                     out_f32(naive): ['-24.541957', '26.1021537'], time:134.3554ms, swizzle: NOOP, TFLOPS: 2.05  (+0.00%)
+                  out_f32x4(t8x8sk): ['-24.541957', '26.1021537'], time:9.993898ms, swizzle: NOOP, TFLOPS: 27.50 (+1244.37%)
+                 out_f32x4(t8x8bcf): ['-24.541957', '26.1021537'], time:9.019649ms, swizzle: NOOP, TFLOPS: 30.48 (+10.80%)
+                out_f32x4(t8x8dbuf): ['-24.541957', '26.1021537'], time:9.230816ms, swizzle: NOOP, TFLOPS: 29.78
+                    out_f32(cublas): ['-24.541957', '26.1021537'], time:7.709038ms, swizzle: NOOP, TFLOPS: 35.66 (+17.00%)
+                         out_f32_th: ['-24.541957', '26.1021537'], time:7.547247ms, swizzle: NOOP, TFLOPS: 36.42 (+2.14%)
 --------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-53.301563', '81.0088272'], time:7.857871ms, swizzle: NOOP, TFLOPS: 34.98
-    out_tf32(mma2x4+warp2x4+stage2): ['-53.301563', '81.0088272'], time:6.543970ms, swizzle: NOOP, TFLOPS: 42.00 (+10.25%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-53.301563', '81.0088272'], time:6.888926ms, swizzle: NOOP, TFLOPS: 39.90
-  out_tf32(mma2x4+...+stage2+dsmem): ['-53.301563', '81.0088272'], time:6.524801ms, swizzle: NOOP, TFLOPS: 42.13 (+0.29%)
-out_tf32(mma2x4+...+stage3+swizzle): ['-53.301563', '81.0088272'], time:7.694256ms, swizzle: 2048, TFLOPS: 35.73
-out_tf32(mma2x4+...+stage2+swizzle): ['-53.301563', '81.0088272'], time:6.326651ms, swizzle: 2048, TFLOPS: 43.45 (+3.13%)
- out_tf32(...+stage3+dsmem+swizzle): ['-53.301563', '81.0088272'], time:6.912016ms, swizzle: 2048, TFLOPS: 39.77
- out_tf32(...+stage2+dsmem+swizzle): ['-53.301563', '81.0088272'], time:6.328773ms, swizzle: 2048, TFLOPS: 43.43
-              out_tf32(cublas+tf32): ['-53.301563', '81.0088272'], time:5.089497ms, swizzle: NOOP, TFLOPS: 54.01 (+24.31%)
+    out_tf32(mma2x4+warp2x4+stage3): ['-24.539142', '26.0933208'], time:7.894265ms, swizzle: NOOP, TFLOPS: 34.82
+    out_tf32(mma2x4+warp2x4+stage2): ['-24.539142', '26.0933208'], time:6.565976ms, swizzle: NOOP, TFLOPS: 41.86 (+14.94%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-24.539142', '26.0933208'], time:6.902301ms, swizzle: NOOP, TFLOPS: 39.82
+  out_tf32(mma2x4+...+stage2+dsmem): ['-24.539142', '26.0933208'], time:6.546056ms, swizzle: NOOP, TFLOPS: 41.99 (+0.30%)
+out_tf32(mma2x4+...+stage3+swizzle): ['-24.539142', '26.0933208'], time:7.725191ms, swizzle: 2048, TFLOPS: 35.58
+out_tf32(mma2x4+...+stage2+swizzle): ['-24.539142', '26.0933208'], time:6.347680ms, swizzle: 2048, TFLOPS: 43.30 (+3.13%)
+ out_tf32(...+stage3+dsmem+swizzle): ['-24.539142', '26.0933208'], time:6.931185ms, swizzle: 2048, TFLOPS: 39.66
+ out_tf32(...+stage2+dsmem+swizzle): ['-24.539142', '26.0933208'], time:6.350684ms, swizzle: 2048, TFLOPS: 43.28
+              out_tf32(cublas+tf32): ['-24.539142', '26.0933208'], time:5.310356ms, swizzle: NOOP, TFLOPS: 51.76 (+19.53%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
-                                                       M=8192, N=1024, K=512
-                     out_f32(naive): ['-38.139781', '21.1172447'], time:2.568578ms, swizzle: NOOP, TFLOPS: 3.34  (+0.00%)
-                  out_f32x4(t8x8sk): ['-38.139781', '21.1172447'], time:0.320827ms, swizzle: NOOP, TFLOPS: 26.77 (+700.61%)
-                 out_f32x4(t8x8bcf): ['-38.139781', '21.1172447'], time:0.265586ms, swizzle: NOOP, TFLOPS: 32.34 (+20.80%)
-                out_f32x4(t8x8dbuf): ['-38.139781', '21.1172447'], time:0.228130ms, swizzle: NOOP, TFLOPS: 37.65 (+16.42%)
-                    out_f32(cublas): ['-38.139781', '21.1172447'], time:0.279211ms, swizzle: NOOP, TFLOPS: 30.76
-                         out_f32_th: ['-38.139781', '21.1172447'], time:0.259435ms, swizzle: NOOP, TFLOPS: 33.11
+                                                       M=4096, N=8192, K=8192
+                     out_f32(naive): ['47.3047409', '96.8061981'], time:275.4955ms, swizzle: NOOP, TFLOPS: 2.00  (+0.00%)
+                  out_f32x4(t8x8sk): ['47.3047409', '96.8061981'], time:20.12772ms, swizzle: NOOP, TFLOPS: 27.31 (+1268.74%)
+                 out_f32x4(t8x8bcf): ['47.3047409', '96.8061981'], time:18.67715ms, swizzle: NOOP, TFLOPS: 29.43 (+7.77%)
+                out_f32x4(t8x8dbuf): ['47.3047409', '96.8061981'], time:20.63833ms, swizzle: NOOP, TFLOPS: 26.64
+                    out_f32(cublas): ['47.3047409', '96.8061981'], time:15.28421ms, swizzle: NOOP, TFLOPS: 35.97 (+22.20%)
+                         out_f32_th: ['47.3047409', '96.8061981'], time:14.75317ms, swizzle: NOOP, TFLOPS: 37.26 (+3.60%)
 --------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-38.139759', '21.1171932'], time:0.258398ms, swizzle: NOOP, TFLOPS: 33.24
-    out_tf32(mma2x4+warp2x4+stage2): ['-38.139759', '21.1171932'], time:0.216126ms, swizzle: NOOP, TFLOPS: 39.74 (+5.55%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-38.139759', '21.1171932'], time:0.241804ms, swizzle: NOOP, TFLOPS: 35.52
-  out_tf32(mma2x4+...+stage2+dsmem): ['-38.139759', '21.1171932'], time:0.217437ms, swizzle: NOOP, TFLOPS: 39.51
-out_tf32(mma2x4+...+stage3+swizzle): ['-38.139759', '21.1171932'], time:0.266206ms, swizzle: 256 , TFLOPS: 32.27
-out_tf32(mma2x4+...+stage2+swizzle): ['-38.139759', '21.1171932'], time:0.213682ms, swizzle: 256 , TFLOPS: 40.20 (+1.14%)
- out_tf32(...+stage3+dsmem+swizzle): ['-38.139759', '21.1171932'], time:0.239634ms, swizzle: 256 , TFLOPS: 35.85
- out_tf32(...+stage2+dsmem+swizzle): ['-38.139759', '21.1171932'], time:0.214004ms, swizzle: 256 , TFLOPS: 40.14
-              out_tf32(cublas+tf32): ['-38.139759', '21.1171932'], time:0.211155ms, swizzle: NOOP, TFLOPS: 40.68 (+1.20%)
+    out_tf32(mma2x4+warp2x4+stage3): ['47.3002510', '96.8180007'], time:15.59357ms, swizzle: NOOP, TFLOPS: 35.26
+    out_tf32(mma2x4+warp2x4+stage2): ['47.3002510', '96.8180007'], time:13.13108ms, swizzle: NOOP, TFLOPS: 41.87 (+12.35%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['47.3002510', '96.8180007'], time:13.90327ms, swizzle: NOOP, TFLOPS: 39.54
+  out_tf32(mma2x4+...+stage2+dsmem): ['47.3002510', '96.8180007'], time:13.19309ms, swizzle: NOOP, TFLOPS: 41.67
+out_tf32(mma2x4+...+stage3+swizzle): ['47.3002510', '96.8180007'], time:15.48467ms, swizzle: 2048, TFLOPS: 35.50
+out_tf32(mma2x4+...+stage2+swizzle): ['47.3002510', '96.8180007'], time:12.81875ms, swizzle: 2048, TFLOPS: 42.89 (+2.44%)
+ out_tf32(...+stage3+dsmem+swizzle): ['47.3002510', '96.8180007'], time:13.90204ms, swizzle: 2048, TFLOPS: 39.54
+ out_tf32(...+stage2+dsmem+swizzle): ['47.3002510', '96.8180007'], time:12.77471ms, swizzle: 2048, TFLOPS: 43.03 (+0.34%)
+              out_tf32(cublas+tf32): ['47.3002510', '96.8180007'], time:10.32357ms, swizzle: NOOP, TFLOPS: 53.25 (+23.74%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
-                                                       M=8192, N=1024, K=1024
-                     out_f32(naive): ['-45.176471', '17.7125091'], time:5.143117ms, swizzle: NOOP, TFLOPS: 3.34  (+0.00%)
-                  out_f32x4(t8x8sk): ['-45.176471', '17.7125091'], time:0.621640ms, swizzle: NOOP, TFLOPS: 27.64 (+727.35%)
-                 out_f32x4(t8x8bcf): ['-45.176471', '17.7125091'], time:0.525009ms, swizzle: NOOP, TFLOPS: 32.72 (+18.41%)
-                out_f32x4(t8x8dbuf): ['-45.176471', '17.7125091'], time:0.445735ms, swizzle: NOOP, TFLOPS: 38.54 (+17.79%)
-                    out_f32(cublas): ['-45.176471', '17.7125091'], time:0.519812ms, swizzle: NOOP, TFLOPS: 33.05
-                         out_f32_th: ['-45.176471', '17.7125091'], time:0.519371ms, swizzle: NOOP, TFLOPS: 33.08
+                                                       M=4096, N=16384, K=2048
+                     out_f32(naive): ['-17.835220', '0.19710006'], time:138.1242ms, swizzle: NOOP, TFLOPS: 1.99  (+0.00%)
+                  out_f32x4(t8x8sk): ['-17.835220', '0.19710006'], time:10.01632ms, swizzle: NOOP, TFLOPS: 27.44 (+1278.99%)
+                 out_f32x4(t8x8bcf): ['-17.835220', '0.19710006'], time:9.498941ms, swizzle: NOOP, TFLOPS: 28.94 (+5.45%)
+                out_f32x4(t8x8dbuf): ['-17.835220', '0.19710006'], time:9.595859ms, swizzle: NOOP, TFLOPS: 28.65
+                    out_f32(cublas): ['-17.835220', '0.19710006'], time:7.673835ms, swizzle: NOOP, TFLOPS: 35.82 (+23.78%)
+                         out_f32_th: ['-17.835220', '0.19710006'], time:7.615864ms, swizzle: NOOP, TFLOPS: 36.09 (+0.76%)
 --------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-45.176361', '17.7123947'], time:0.523340ms, swizzle: NOOP, TFLOPS: 32.83
-    out_tf32(mma2x4+warp2x4+stage2): ['-45.176361', '17.7123947'], time:0.433433ms, swizzle: NOOP, TFLOPS: 39.64 (+2.84%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-45.176361', '17.7123947'], time:0.478589ms, swizzle: NOOP, TFLOPS: 35.90
-  out_tf32(mma2x4+...+stage2+dsmem): ['-45.176361', '17.7123947'], time:0.422394ms, swizzle: NOOP, TFLOPS: 40.67 (+2.61%)
-out_tf32(mma2x4+...+stage3+swizzle): ['-45.176361', '17.7123947'], time:0.516581ms, swizzle: 256 , TFLOPS: 33.26
-out_tf32(mma2x4+...+stage2+swizzle): ['-45.176361', '17.7123947'], time:0.417721ms, swizzle: 256 , TFLOPS: 41.13 (+1.12%)
- out_tf32(...+stage3+dsmem+swizzle): ['-45.176361', '17.7123947'], time:0.464761ms, swizzle: 256 , TFLOPS: 36.96
- out_tf32(...+stage2+dsmem+swizzle): ['-45.176361', '17.7123947'], time:0.412452ms, swizzle: 256 , TFLOPS: 41.65 (+1.28%)
-              out_tf32(cublas+tf32): ['-45.176361', '17.7123947'], time:0.352025ms, swizzle: NOOP, TFLOPS: 48.80 (+17.17%)
+    out_tf32(mma2x4+warp2x4+stage3): ['-17.849796', '0.19758633'], time:7.673478ms, swizzle: NOOP, TFLOPS: 35.82
+    out_tf32(mma2x4+warp2x4+stage2): ['-17.849796', '0.19758633'], time:6.537437ms, swizzle: NOOP, TFLOPS: 42.05 (+16.50%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-17.849796', '0.19758633'], time:6.784737ms, swizzle: NOOP, TFLOPS: 40.51
+  out_tf32(mma2x4+...+stage2+dsmem): ['-17.849796', '0.19758633'], time:6.545460ms, swizzle: NOOP, TFLOPS: 42.00
+out_tf32(mma2x4+...+stage3+swizzle): ['-17.849796', '0.19758633'], time:7.543981ms, swizzle: 4096, TFLOPS: 36.44
+out_tf32(mma2x4+...+stage2+swizzle): ['-17.849796', '0.19758633'], time:6.199836ms, swizzle: 4096, TFLOPS: 44.34 (+5.45%)
+ out_tf32(...+stage3+dsmem+swizzle): ['-17.849796', '0.19758633'], time:6.745231ms, swizzle: 4096, TFLOPS: 40.75
+ out_tf32(...+stage2+dsmem+swizzle): ['-17.849796', '0.19758633'], time:6.165897ms, swizzle: 4096, TFLOPS: 44.58 (+0.55%)
+              out_tf32(cublas+tf32): ['-17.849796', '0.19758633'], time:5.148077ms, swizzle: NOOP, TFLOPS: 53.39 (+19.77%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
-                                                       M=8192, N=1024, K=2048
-                     out_f32(naive): ['-63.444438', '38.4295463'], time:10.25099ms, swizzle: NOOP, TFLOPS: 3.35  (+0.00%)
-                  out_f32x4(t8x8sk): ['-63.444438', '38.4295463'], time:1.252877ms, swizzle: NOOP, TFLOPS: 27.42 (+718.20%)
-                 out_f32x4(t8x8bcf): ['-63.444438', '38.4295463'], time:1.111567ms, swizzle: NOOP, TFLOPS: 30.91 (+12.71%)
-                out_f32x4(t8x8dbuf): ['-63.444438', '38.4295463'], time:0.930094ms, swizzle: NOOP, TFLOPS: 36.94 (+19.51%)
-                    out_f32(cublas): ['-63.444450', '38.4295539'], time:0.992000ms, swizzle: NOOP, TFLOPS: 34.64
-                         out_f32_th: ['-63.444450', '38.4295539'], time:0.966060ms, swizzle: NOOP, TFLOPS: 35.57
+                                                       M=4096, N=16384, K=4096
+                     out_f32(naive): ['-24.556724', '26.1026535'], time:275.8962ms, swizzle: NOOP, TFLOPS: 1.99  (+0.00%)
+                  out_f32x4(t8x8sk): ['-24.556724', '26.1026535'], time:20.26476ms, swizzle: NOOP, TFLOPS: 27.13 (+1261.46%)
+                 out_f32x4(t8x8bcf): ['-24.556724', '26.1026535'], time:19.30289ms, swizzle: NOOP, TFLOPS: 28.48 (+4.98%)
+                out_f32x4(t8x8dbuf): ['-24.556724', '26.1026535'], time:20.73652ms, swizzle: NOOP, TFLOPS: 26.51
+                    out_f32(cublas): ['-24.556724', '26.1026535'], time:14.44500ms, swizzle: NOOP, TFLOPS: 38.06 (+33.63%)
+                         out_f32_th: ['-24.556724', '26.1026535'], time:14.17189ms, swizzle: NOOP, TFLOPS: 38.79 (+1.93%)
 --------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-63.444118', '38.4292221'], time:1.119196ms, swizzle: NOOP, TFLOPS: 30.70
-    out_tf32(mma2x4+warp2x4+stage2): ['-63.444118', '38.4292221'], time:0.890374ms, swizzle: NOOP, TFLOPS: 38.59 (+4.46%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-63.444118', '38.4292221'], time:0.972461ms, swizzle: NOOP, TFLOPS: 35.33
-  out_tf32(mma2x4+...+stage2+dsmem): ['-63.444118', '38.4292221'], time:0.870144ms, swizzle: NOOP, TFLOPS: 39.49 (+2.32%)
-out_tf32(mma2x4+...+stage3+swizzle): ['-63.444118', '38.4292221'], time:1.021003ms, swizzle: 256 , TFLOPS: 33.65
-out_tf32(mma2x4+...+stage2+swizzle): ['-63.444118', '38.4292221'], time:0.827944ms, swizzle: 256 , TFLOPS: 41.50 (+5.10%)
- out_tf32(...+stage3+dsmem+swizzle): ['-63.444118', '38.4292221'], time:0.927448ms, swizzle: 256 , TFLOPS: 37.05
- out_tf32(...+stage2+dsmem+swizzle): ['-63.444118', '38.4292221'], time:0.825393ms, swizzle: 256 , TFLOPS: 41.63 (+0.31%)
-              out_tf32(cublas+tf32): ['-63.444118', '38.4292221'], time:0.660848ms, swizzle: NOOP, TFLOPS: 51.99 (+24.90%)
+    out_tf32(mma2x4+warp2x4+stage3): ['-24.539142', '26.0933208'], time:15.15815ms, swizzle: NOOP, TFLOPS: 36.27
+    out_tf32(mma2x4+warp2x4+stage2): ['-24.539142', '26.0933208'], time:13.11252ms, swizzle: NOOP, TFLOPS: 41.93 (+8.08%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-24.539142', '26.0933208'], time:13.83591ms, swizzle: NOOP, TFLOPS: 39.73
+  out_tf32(mma2x4+...+stage2+dsmem): ['-24.539142', '26.0933208'], time:13.17880ms, swizzle: NOOP, TFLOPS: 41.72
+out_tf32(mma2x4+...+stage3+swizzle): ['-24.539142', '26.0933208'], time:15.04755ms, swizzle: 4096, TFLOPS: 36.53
+out_tf32(mma2x4+...+stage2+swizzle): ['-24.539142', '26.0933208'], time:12.35028ms, swizzle: 4096, TFLOPS: 44.51 (+6.17%)
+ out_tf32(...+stage3+dsmem+swizzle): ['-24.539142', '26.0933208'], time:13.40752ms, swizzle: 4096, TFLOPS: 41.00
+ out_tf32(...+stage2+dsmem+swizzle): ['-24.539142', '26.0933208'], time:12.35129ms, swizzle: 4096, TFLOPS: 44.51
+              out_tf32(cublas+tf32): ['-24.539142', '26.0933208'], time:10.01133ms, swizzle: NOOP, TFLOPS: 54.91 (+23.36%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
-                                                       M=8192, N=1024, K=4096
-                     out_f32(naive): ['-53.302734', '81.0102462'], time:20.42202ms, swizzle: NOOP, TFLOPS: 3.36  (+0.00%)
-                  out_f32x4(t8x8sk): ['-53.302734', '81.0102462'], time:2.512419ms, swizzle: NOOP, TFLOPS: 27.35 (+712.84%)
-                 out_f32x4(t8x8bcf): ['-53.302734', '81.0102462'], time:2.267622ms, swizzle: NOOP, TFLOPS: 30.30 (+10.80%)
-                out_f32x4(t8x8dbuf): ['-53.302734', '81.0102462'], time:1.932835ms, swizzle: NOOP, TFLOPS: 35.55 (+17.32%)
-                    out_f32(cublas): ['-53.302742', '81.0102233'], time:1.997232ms, swizzle: NOOP, TFLOPS: 34.41
-                         out_f32_th: ['-53.302742', '81.0102233'], time:1.887249ms, swizzle: NOOP, TFLOPS: 36.41 (+2.42%)
+                                                       M=4096, N=16384, K=8192
+                     out_f32(naive): ['47.3072891', '96.7974395'], time:551.3394ms, swizzle: NOOP, TFLOPS: 1.99  (+0.00%)
+                  out_f32x4(t8x8sk): ['47.3072891', '96.7974395'], time:41.22277ms, swizzle: NOOP, TFLOPS: 26.67 (+1237.46%)
+                 out_f32x4(t8x8bcf): ['47.3072891', '96.7974395'], time:39.89914ms, swizzle: NOOP, TFLOPS: 27.56 (+3.32%)
+                out_f32x4(t8x8dbuf): ['47.3072891', '96.7974395'], time:40.29097ms, swizzle: NOOP, TFLOPS: 27.29
+                    out_f32(cublas): ['47.3072891', '96.7974395'], time:29.63916ms, swizzle: NOOP, TFLOPS: 37.10 (+34.62%)
+                         out_f32_th: ['47.3072891', '96.7974395'], time:29.41981ms, swizzle: NOOP, TFLOPS: 37.37 (+0.75%)
 --------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-53.301563', '81.0088272'], time:2.416503ms, swizzle: NOOP, TFLOPS: 28.44
-    out_tf32(mma2x4+warp2x4+stage2): ['-53.301563', '81.0088272'], time:1.971995ms, swizzle: NOOP, TFLOPS: 34.85
-  out_tf32(mma2x4+...+stage3+dsmem): ['-53.301563', '81.0088272'], time:2.134644ms, swizzle: NOOP, TFLOPS: 32.19
-  out_tf32(mma2x4+...+stage2+dsmem): ['-53.301563', '81.0088272'], time:1.952743ms, swizzle: NOOP, TFLOPS: 35.19
-out_tf32(mma2x4+...+stage3+swizzle): ['-53.301563', '81.0088272'], time:2.245724ms, swizzle: 256 , TFLOPS: 30.60
-out_tf32(mma2x4+...+stage2+swizzle): ['-53.301563', '81.0088272'], time:1.889324ms, swizzle: 256 , TFLOPS: 36.37
- out_tf32(...+stage3+dsmem+swizzle): ['-53.301563', '81.0088272'], time:2.058339ms, swizzle: 256 , TFLOPS: 33.39
- out_tf32(...+stage2+dsmem+swizzle): ['-53.301563', '81.0088272'], time:1.884579ms, swizzle: 256 , TFLOPS: 36.46 (+0.14%)
-              out_tf32(cublas+tf32): ['-53.301563', '81.0088272'], time:1.295614ms, swizzle: NOOP, TFLOPS: 53.04 (+45.46%)
-----------------------------------------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------------------------------------
-                                                       M=8192, N=2048, K=512
-                     out_f32(naive): ['-38.139781', '21.1172447'], time:5.130171ms, swizzle: NOOP, TFLOPS: 3.35  (+0.00%)
-                  out_f32x4(t8x8sk): ['-38.139781', '21.1172447'], time:0.624418ms, swizzle: NOOP, TFLOPS: 27.51 (+721.59%)
-                 out_f32x4(t8x8bcf): ['-38.139781', '21.1172447'], time:0.527155ms, swizzle: NOOP, TFLOPS: 32.59 (+18.45%)
-                out_f32x4(t8x8dbuf): ['-38.139781', '21.1172447'], time:0.452876ms, swizzle: NOOP, TFLOPS: 37.94 (+16.40%)
-                    out_f32(cublas): ['-38.139781', '21.1172447'], time:0.455439ms, swizzle: NOOP, TFLOPS: 37.72
-                         out_f32_th: ['-38.139781', '21.1172447'], time:0.445389ms, swizzle: NOOP, TFLOPS: 38.57 (+1.68%)
---------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-38.139759', '21.1171932'], time:0.492978ms, swizzle: NOOP, TFLOPS: 34.85
-    out_tf32(mma2x4+warp2x4+stage2): ['-38.139759', '21.1171932'], time:0.407230ms, swizzle: NOOP, TFLOPS: 42.19 (+9.37%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-38.139759', '21.1171932'], time:0.444924ms, swizzle: NOOP, TFLOPS: 38.61
-  out_tf32(mma2x4+...+stage2+dsmem): ['-38.139759', '21.1171932'], time:0.411081ms, swizzle: NOOP, TFLOPS: 41.79
-out_tf32(mma2x4+...+stage3+swizzle): ['-38.139759', '21.1171932'], time:0.498151ms, swizzle: 512 , TFLOPS: 34.49
-out_tf32(mma2x4+...+stage2+swizzle): ['-38.139759', '21.1171932'], time:0.407123ms, swizzle: 512 , TFLOPS: 42.20 (+0.03%)
- out_tf32(...+stage3+dsmem+swizzle): ['-38.139759', '21.1171932'], time:0.449836ms, swizzle: 512 , TFLOPS: 38.19
- out_tf32(...+stage2+dsmem+swizzle): ['-38.139759', '21.1171932'], time:0.407958ms, swizzle: 512 , TFLOPS: 42.11
-              out_tf32(cublas+tf32): ['-38.139759', '21.1171932'], time:0.363135ms, swizzle: NOOP, TFLOPS: 47.31 (+12.11%)
-----------------------------------------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------------------------------------
-                                                       M=8192, N=2048, K=1024
-                     out_f32(naive): ['-45.176471', '17.7125091'], time:10.25258ms, swizzle: NOOP, TFLOPS: 3.35  (+0.00%)
-                  out_f32x4(t8x8sk): ['-45.176471', '17.7125091'], time:1.233506ms, swizzle: NOOP, TFLOPS: 27.86 (+731.17%)
-                 out_f32x4(t8x8bcf): ['-45.176471', '17.7125091'], time:1.065564ms, swizzle: NOOP, TFLOPS: 32.25 (+15.76%)
-                out_f32x4(t8x8dbuf): ['-45.176471', '17.7125091'], time:0.924682ms, swizzle: NOOP, TFLOPS: 37.16 (+15.24%)
-                    out_f32(cublas): ['-45.176471', '17.7125091'], time:0.961315ms, swizzle: NOOP, TFLOPS: 35.74
-                         out_f32_th: ['-45.176471', '17.7125091'], time:0.953686ms, swizzle: NOOP, TFLOPS: 36.03
---------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-45.176361', '17.7123947'], time:1.086962ms, swizzle: NOOP, TFLOPS: 31.61
-    out_tf32(mma2x4+warp2x4+stage2): ['-45.176361', '17.7123947'], time:0.838124ms, swizzle: NOOP, TFLOPS: 41.00 (+10.33%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-45.176361', '17.7123947'], time:0.898563ms, swizzle: NOOP, TFLOPS: 38.24
-  out_tf32(mma2x4+...+stage2+dsmem): ['-45.176361', '17.7123947'], time:0.816154ms, swizzle: NOOP, TFLOPS: 42.10 (+2.69%)
-out_tf32(mma2x4+...+stage3+swizzle): ['-45.176361', '17.7123947'], time:0.986397ms, swizzle: 512 , TFLOPS: 34.83
-out_tf32(mma2x4+...+stage2+swizzle): ['-45.176361', '17.7123947'], time:0.798583ms, swizzle: 512 , TFLOPS: 43.03 (+2.20%)
- out_tf32(...+stage3+dsmem+swizzle): ['-45.176361', '17.7123947'], time:0.885534ms, swizzle: 512 , TFLOPS: 38.80
- out_tf32(...+stage2+dsmem+swizzle): ['-45.176361', '17.7123947'], time:0.798654ms, swizzle: 512 , TFLOPS: 43.02
-              out_tf32(cublas+tf32): ['-45.176361', '17.7123947'], time:0.679850ms, swizzle: NOOP, TFLOPS: 50.54 (+17.46%)
-----------------------------------------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------------------------------------
-                                                       M=8192, N=2048, K=2048
-                     out_f32(naive): ['-63.444438', '38.4295463'], time:20.41318ms, swizzle: NOOP, TFLOPS: 3.37  (+0.00%)
-                  out_f32x4(t8x8sk): ['-63.444438', '38.4295463'], time:2.422833ms, swizzle: NOOP, TFLOPS: 28.36 (+742.53%)
-                 out_f32x4(t8x8bcf): ['-63.444438', '38.4295463'], time:2.085757ms, swizzle: NOOP, TFLOPS: 32.95 (+16.16%)
-                out_f32x4(t8x8dbuf): ['-63.444438', '38.4295463'], time:1.884448ms, swizzle: NOOP, TFLOPS: 36.47 (+10.68%)
-                    out_f32(cublas): ['-63.444438', '38.4295463'], time:1.839911ms, swizzle: NOOP, TFLOPS: 37.35 (+2.42%)
-                         out_f32_th: ['-63.444438', '38.4295463'], time:1.811099ms, swizzle: NOOP, TFLOPS: 37.94 (+1.59%)
---------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-63.444118', '38.4292221'], time:2.120578ms, swizzle: NOOP, TFLOPS: 32.41
-    out_tf32(mma2x4+warp2x4+stage2): ['-63.444118', '38.4292221'], time:1.714158ms, swizzle: NOOP, TFLOPS: 40.09 (+5.66%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-63.444118', '38.4292221'], time:1.859271ms, swizzle: NOOP, TFLOPS: 36.96
-  out_tf32(mma2x4+...+stage2+dsmem): ['-63.444118', '38.4292221'], time:1.693952ms, swizzle: NOOP, TFLOPS: 40.57 (+1.19%)
-out_tf32(mma2x4+...+stage3+swizzle): ['-63.444118', '38.4292221'], time:1.982808ms, swizzle: 512 , TFLOPS: 34.66
-out_tf32(mma2x4+...+stage2+swizzle): ['-63.444118', '38.4292221'], time:1.616728ms, swizzle: 512 , TFLOPS: 42.51 (+4.78%)
- out_tf32(...+stage3+dsmem+swizzle): ['-63.444118', '38.4292221'], time:1.785743ms, swizzle: 512 , TFLOPS: 38.48
- out_tf32(...+stage2+dsmem+swizzle): ['-63.444118', '38.4292221'], time:1.616978ms, swizzle: 512 , TFLOPS: 42.50
-              out_tf32(cublas+tf32): ['-63.444118', '38.4292221'], time:1.309895ms, swizzle: NOOP, TFLOPS: 52.46 (+23.42%)
-----------------------------------------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------------------------------------
-                                                       M=8192, N=2048, K=4096
-                     out_f32(naive): ['-53.302734', '81.0102462'], time:40.70653ms, swizzle: NOOP, TFLOPS: 3.38  (+0.00%)
-                  out_f32x4(t8x8sk): ['-53.302734', '81.0102462'], time:4.840099ms, swizzle: NOOP, TFLOPS: 28.40 (+741.03%)
-                 out_f32x4(t8x8bcf): ['-53.302734', '81.0102462'], time:4.246413ms, swizzle: NOOP, TFLOPS: 32.37 (+13.98%)
-                out_f32x4(t8x8dbuf): ['-53.302734', '81.0102462'], time:3.861558ms, swizzle: NOOP, TFLOPS: 35.59 (+9.97%)
-                    out_f32(cublas): ['-53.302734', '81.0102462'], time:3.663694ms, swizzle: NOOP, TFLOPS: 37.51 (+5.40%)
-                         out_f32_th: ['-53.302734', '81.0102462'], time:3.551971ms, swizzle: NOOP, TFLOPS: 38.69 (+3.15%)
---------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-53.301563', '81.0088272'], time:4.366672ms, swizzle: NOOP, TFLOPS: 31.47
-    out_tf32(mma2x4+warp2x4+stage2): ['-53.301563', '81.0088272'], time:3.547680ms, swizzle: NOOP, TFLOPS: 38.74 (+0.12%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-53.301563', '81.0088272'], time:3.854322ms, swizzle: NOOP, TFLOPS: 35.66
-  out_tf32(mma2x4+...+stage2+dsmem): ['-53.301563', '81.0088272'], time:3.531742ms, swizzle: NOOP, TFLOPS: 38.92 (+0.45%)
-out_tf32(mma2x4+...+stage3+swizzle): ['-53.301563', '81.0088272'], time:4.192590ms, swizzle: 512 , TFLOPS: 32.78
-out_tf32(mma2x4+...+stage2+swizzle): ['-53.301563', '81.0088272'], time:3.461444ms, swizzle: 512 , TFLOPS: 39.71 (+2.03%)
- out_tf32(...+stage3+dsmem+swizzle): ['-53.301563', '81.0088272'], time:3.778910ms, swizzle: 512 , TFLOPS: 36.37
- out_tf32(...+stage2+dsmem+swizzle): ['-53.301563', '81.0088272'], time:3.457832ms, swizzle: 512 , TFLOPS: 39.75 (+0.10%)
-              out_tf32(cublas+tf32): ['-53.301563', '81.0088272'], time:2.559447ms, swizzle: NOOP, TFLOPS: 53.70 (+35.10%)
-----------------------------------------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------------------------------------
-                                                       M=8192, N=4096, K=512
-                     out_f32(naive): ['-38.139781', '21.1172447'], time:10.26971ms, swizzle: NOOP, TFLOPS: 3.35  (+0.00%)
-                  out_f32x4(t8x8sk): ['-38.139781', '21.1172447'], time:1.201164ms, swizzle: NOOP, TFLOPS: 28.61 (+754.98%)
-                 out_f32x4(t8x8bcf): ['-38.139781', '21.1172447'], time:1.043498ms, swizzle: NOOP, TFLOPS: 32.93 (+15.11%)
-                out_f32x4(t8x8dbuf): ['-38.139781', '21.1172447'], time:0.908219ms, swizzle: NOOP, TFLOPS: 37.83 (+14.89%)
-                    out_f32(cublas): ['-38.139781', '21.1172447'], time:0.960171ms, swizzle: NOOP, TFLOPS: 35.79
-                         out_f32_th: ['-38.139781', '21.1172447'], time:0.959157ms, swizzle: NOOP, TFLOPS: 35.82
---------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-38.139759', '21.1171932'], time:1.014435ms, swizzle: NOOP, TFLOPS: 33.87
-    out_tf32(mma2x4+warp2x4+stage2): ['-38.139759', '21.1171932'], time:0.840067ms, swizzle: NOOP, TFLOPS: 40.90 (+8.11%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-38.139759', '21.1171932'], time:0.912702ms, swizzle: NOOP, TFLOPS: 37.65
-  out_tf32(mma2x4+...+stage2+dsmem): ['-38.139759', '21.1171932'], time:0.814163ms, swizzle: NOOP, TFLOPS: 42.20 (+3.18%)
-out_tf32(mma2x4+...+stage3+swizzle): ['-38.139759', '21.1171932'], time:0.938665ms, swizzle: 1024, TFLOPS: 36.60
-out_tf32(mma2x4+...+stage2+swizzle): ['-38.139759', '21.1171932'], time:0.772488ms, swizzle: 1024, TFLOPS: 44.48 (+5.39%)
- out_tf32(...+stage3+dsmem+swizzle): ['-38.139759', '21.1171932'], time:0.847816ms, swizzle: 1024, TFLOPS: 40.53
- out_tf32(...+stage2+dsmem+swizzle): ['-38.139759', '21.1171932'], time:0.774466ms, swizzle: 1024, TFLOPS: 44.37
-              out_tf32(cublas+tf32): ['-38.139759', '21.1171932'], time:0.699150ms, swizzle: NOOP, TFLOPS: 49.14 (+10.49%)
-----------------------------------------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------------------------------------
-                                                       M=8192, N=4096, K=1024
-                     out_f32(naive): ['-45.176471', '17.7125091'], time:20.41501ms, swizzle: NOOP, TFLOPS: 3.37  (+0.00%)
-                  out_f32x4(t8x8sk): ['-45.176471', '17.7125091'], time:2.332031ms, swizzle: NOOP, TFLOPS: 29.47 (+775.42%)
-                 out_f32x4(t8x8bcf): ['-45.176471', '17.7125091'], time:2.066183ms, swizzle: NOOP, TFLOPS: 33.26 (+12.87%)
-                out_f32x4(t8x8dbuf): ['-45.176471', '17.7125091'], time:1.836705ms, swizzle: NOOP, TFLOPS: 37.41 (+12.49%)
-                    out_f32(cublas): ['-45.176471', '17.7125091'], time:1.938247ms, swizzle: NOOP, TFLOPS: 35.45
-                         out_f32_th: ['-45.176471', '17.7125091'], time:1.861834ms, swizzle: NOOP, TFLOPS: 36.91
---------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-45.176361', '17.7123947'], time:2.018451ms, swizzle: NOOP, TFLOPS: 34.05
-    out_tf32(mma2x4+warp2x4+stage2): ['-45.176361', '17.7123947'], time:1.617014ms, swizzle: NOOP, TFLOPS: 42.50 (+13.59%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-45.176361', '17.7123947'], time:1.688873ms, swizzle: NOOP, TFLOPS: 40.69
-  out_tf32(mma2x4+...+stage2+dsmem): ['-45.176361', '17.7123947'], time:1.543068ms, swizzle: NOOP, TFLOPS: 44.53 (+4.79%)
-out_tf32(mma2x4+...+stage3+swizzle): ['-45.176361', '17.7123947'], time:1.872932ms, swizzle: 1024, TFLOPS: 36.69
-out_tf32(mma2x4+...+stage2+swizzle): ['-45.176361', '17.7123947'], time:1.532876ms, swizzle: 1024, TFLOPS: 44.83 (+0.66%)
- out_tf32(...+stage3+dsmem+swizzle): ['-45.176361', '17.7123947'], time:1.685547ms, swizzle: 1024, TFLOPS: 40.77
- out_tf32(...+stage2+dsmem+swizzle): ['-45.176361', '17.7123947'], time:1.534163ms, swizzle: 1024, TFLOPS: 44.79
-              out_tf32(cublas+tf32): ['-45.176361', '17.7123947'], time:1.331567ms, swizzle: NOOP, TFLOPS: 51.61 (+15.12%)
+    out_tf32(mma2x4+warp2x4+stage3): ['47.3002510', '96.8180007'], time:30.10461ms, swizzle: NOOP, TFLOPS: 36.52
+    out_tf32(mma2x4+warp2x4+stage2): ['47.3002510', '96.8180007'], time:26.53632ms, swizzle: NOOP, TFLOPS: 41.43 (+10.87%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['47.3002510', '96.8180007'], time:27.68478ms, swizzle: NOOP, TFLOPS: 39.72
+  out_tf32(mma2x4+...+stage2+dsmem): ['47.3002510', '96.8180007'], time:26.57709ms, swizzle: NOOP, TFLOPS: 41.37
+out_tf32(mma2x4+...+stage3+swizzle): ['47.3002510', '96.8180007'], time:30.01861ms, swizzle: 4096, TFLOPS: 36.63
+out_tf32(mma2x4+...+stage2+swizzle): ['47.3002510', '96.8180007'], time:25.24836ms, swizzle: 4096, TFLOPS: 43.55 (+5.10%)
+ out_tf32(...+stage3+dsmem+swizzle): ['47.3002510', '96.8180007'], time:27.08832ms, swizzle: 4096, TFLOPS: 40.59
+ out_tf32(...+stage2+dsmem+swizzle): ['47.3002510', '96.8180007'], time:25.11584ms, swizzle: 4096, TFLOPS: 43.78 (+0.53%)
+              out_tf32(cublas+tf32): ['47.3002510', '96.8180007'], time:19.69352ms, swizzle: NOOP, TFLOPS: 55.83 (+27.53%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=8192, N=4096, K=2048
-                     out_f32(naive): ['-63.444438', '38.4295463'], time:40.66463ms, swizzle: NOOP, TFLOPS: 3.38  (+0.00%)
-                  out_f32x4(t8x8sk): ['-63.444438', '38.4295463'], time:4.637265ms, swizzle: NOOP, TFLOPS: 29.64 (+776.91%)
-                 out_f32x4(t8x8bcf): ['-63.444438', '38.4295463'], time:4.159796ms, swizzle: NOOP, TFLOPS: 33.04 (+11.48%)
-                out_f32x4(t8x8dbuf): ['-63.444438', '38.4295463'], time:3.692436ms, swizzle: NOOP, TFLOPS: 37.22 (+12.66%)
-                    out_f32(cublas): ['-63.444438', '38.4295463'], time:3.658747ms, swizzle: NOOP, TFLOPS: 37.56 (+0.92%)
-                         out_f32_th: ['-63.444438', '38.4295463'], time:3.592646ms, swizzle: NOOP, TFLOPS: 38.26 (+1.84%)
+                     out_f32(naive): ['-17.849985', '0.19760081'], time:40.67556ms, swizzle: NOOP, TFLOPS: 3.38  (+0.00%)
+                  out_f32x4(t8x8sk): ['-17.849985', '0.19760081'], time:4.759192ms, swizzle: NOOP, TFLOPS: 28.88 (+754.67%)
+                 out_f32x4(t8x8bcf): ['-17.849985', '0.19760081'], time:4.249489ms, swizzle: NOOP, TFLOPS: 32.34 (+11.99%)
+                out_f32x4(t8x8dbuf): ['-17.849985', '0.19760081'], time:3.854548ms, swizzle: NOOP, TFLOPS: 35.66 (+10.25%)
+                    out_f32(cublas): ['-17.849985', '0.19760081'], time:4.017460ms, swizzle: NOOP, TFLOPS: 34.21
+                         out_f32_th: ['-17.849985', '0.19760081'], time:3.689861ms, swizzle: NOOP, TFLOPS: 37.25 (+4.46%)
 --------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-63.444118', '38.4292221'], time:3.974151ms, swizzle: NOOP, TFLOPS: 34.58
-    out_tf32(mma2x4+warp2x4+stage2): ['-63.444118', '38.4292221'], time:3.176820ms, swizzle: NOOP, TFLOPS: 43.26 (+13.09%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-63.444118', '38.4292221'], time:3.462576ms, swizzle: NOOP, TFLOPS: 39.69
-  out_tf32(mma2x4+...+stage2+dsmem): ['-63.444118', '38.4292221'], time:3.171265ms, swizzle: NOOP, TFLOPS: 43.34 (+0.18%)
-out_tf32(mma2x4+...+stage3+swizzle): ['-63.444118', '38.4292221'], time:3.786218ms, swizzle: 1024, TFLOPS: 36.30
-out_tf32(mma2x4+...+stage2+swizzle): ['-63.444118', '38.4292221'], time:3.086996ms, swizzle: 1024, TFLOPS: 44.52 (+2.73%)
- out_tf32(...+stage3+dsmem+swizzle): ['-63.444118', '38.4292221'], time:3.384017ms, swizzle: 1024, TFLOPS: 40.61
- out_tf32(...+stage2+dsmem+swizzle): ['-63.444118', '38.4292221'], time:3.088080ms, swizzle: 1024, TFLOPS: 44.51
-              out_tf32(cublas+tf32): ['-63.444118', '38.4292221'], time:2.580893ms, swizzle: NOOP, TFLOPS: 53.25 (+19.61%)
+    out_tf32(mma2x4+warp2x4+stage3): ['-17.849796', '0.19758633'], time:4.017901ms, swizzle: NOOP, TFLOPS: 34.21
+    out_tf32(mma2x4+warp2x4+stage2): ['-17.849796', '0.19758633'], time:3.204596ms, swizzle: NOOP, TFLOPS: 42.89 (+15.14%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-17.849796', '0.19758633'], time:3.486108ms, swizzle: NOOP, TFLOPS: 39.42
+  out_tf32(mma2x4+...+stage2+dsmem): ['-17.849796', '0.19758633'], time:3.196144ms, swizzle: NOOP, TFLOPS: 43.00 (+0.26%)
+out_tf32(mma2x4+...+stage3+swizzle): ['-17.849796', '0.19758633'], time:3.813004ms, swizzle: 1024, TFLOPS: 36.04
+out_tf32(mma2x4+...+stage2+swizzle): ['-17.849796', '0.19758633'], time:3.110313ms, swizzle: 1024, TFLOPS: 44.19 (+2.76%)
+ out_tf32(...+stage3+dsmem+swizzle): ['-17.849796', '0.19758633'], time:3.408885ms, swizzle: 1024, TFLOPS: 40.32
+ out_tf32(...+stage2+dsmem+swizzle): ['-17.849796', '0.19758633'], time:3.111791ms, swizzle: 1024, TFLOPS: 44.17
+              out_tf32(cublas+tf32): ['-17.849796', '0.19758633'], time:2.788853ms, swizzle: NOOP, TFLOPS: 49.28 (+11.53%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=8192, N=4096, K=4096
-                     out_f32(naive): ['-53.302734', '81.0102462'], time:81.23998ms, swizzle: NOOP, TFLOPS: 3.38  (+0.00%)
-                  out_f32x4(t8x8sk): ['-53.302734', '81.0102462'], time:9.287548ms, swizzle: NOOP, TFLOPS: 29.60 (+774.72%)
-                 out_f32x4(t8x8bcf): ['-53.302734', '81.0102462'], time:8.298587ms, swizzle: NOOP, TFLOPS: 33.12 (+11.92%)
-                out_f32x4(t8x8dbuf): ['-53.302734', '81.0102462'], time:7.456612ms, swizzle: NOOP, TFLOPS: 36.86 (+11.29%)
-                    out_f32(cublas): ['-53.302734', '81.0102462'], time:7.171332ms, swizzle: NOOP, TFLOPS: 38.33 (+3.98%)
-                         out_f32_th: ['-53.302734', '81.0102462'], time:7.176363ms, swizzle: NOOP, TFLOPS: 38.30
+                     out_f32(naive): ['-24.539411', '26.0933971'], time:81.24710ms, swizzle: NOOP, TFLOPS: 3.38  (+0.00%)
+                  out_f32x4(t8x8sk): ['-24.539411', '26.0933971'], time:9.419822ms, swizzle: NOOP, TFLOPS: 29.18 (+762.51%)
+                 out_f32x4(t8x8bcf): ['-24.539411', '26.0933971'], time:8.507907ms, swizzle: NOOP, TFLOPS: 32.31 (+10.72%)
+                out_f32x4(t8x8dbuf): ['-24.539411', '26.0933971'], time:7.820093ms, swizzle: NOOP, TFLOPS: 35.15 (+8.80%)
+                    out_f32(cublas): ['-24.539411', '26.0933971'], time:7.591652ms, swizzle: NOOP, TFLOPS: 36.21 (+3.01%)
+                         out_f32_th: ['-24.539411', '26.0933971'], time:7.503700ms, swizzle: NOOP, TFLOPS: 36.63 (+1.17%)
 --------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-53.301563', '81.0088272'], time:7.860970ms, swizzle: NOOP, TFLOPS: 34.97
-    out_tf32(mma2x4+warp2x4+stage2): ['-53.301563', '81.0088272'], time:6.430733ms, swizzle: NOOP, TFLOPS: 42.74 (+11.52%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-53.301563', '81.0088272'], time:6.960058ms, swizzle: NOOP, TFLOPS: 39.49
-  out_tf32(mma2x4+...+stage2+dsmem): ['-53.301563', '81.0088272'], time:6.388366ms, swizzle: NOOP, TFLOPS: 43.03 (+0.66%)
-out_tf32(mma2x4+...+stage3+swizzle): ['-53.301563', '81.0088272'], time:7.707548ms, swizzle: 1024, TFLOPS: 35.66
-out_tf32(mma2x4+...+stage2+swizzle): ['-53.301563', '81.0088272'], time:6.338858ms, swizzle: 1024, TFLOPS: 43.36 (+0.78%)
- out_tf32(...+stage3+dsmem+swizzle): ['-53.301563', '81.0088272'], time:6.924736ms, swizzle: 1024, TFLOPS: 39.70
- out_tf32(...+stage2+dsmem+swizzle): ['-53.301563', '81.0088272'], time:6.340122ms, swizzle: 1024, TFLOPS: 43.36
-              out_tf32(cublas+tf32): ['-53.301563', '81.0088272'], time:5.090487ms, swizzle: NOOP, TFLOPS: 54.00 (+24.52%)
+    out_tf32(mma2x4+warp2x4+stage3): ['-24.539142', '26.0933208'], time:7.938122ms, swizzle: NOOP, TFLOPS: 34.63
+    out_tf32(mma2x4+warp2x4+stage2): ['-24.539142', '26.0933208'], time:6.458127ms, swizzle: NOOP, TFLOPS: 42.56 (+16.19%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-24.539142', '26.0933208'], time:6.996679ms, swizzle: NOOP, TFLOPS: 39.29
+  out_tf32(mma2x4+...+stage2+dsmem): ['-24.539142', '26.0933208'], time:6.418275ms, swizzle: NOOP, TFLOPS: 42.83 (+0.62%)
+out_tf32(mma2x4+...+stage3+swizzle): ['-24.539142', '26.0933208'], time:7.730925ms, swizzle: 1024, TFLOPS: 35.56
+out_tf32(mma2x4+...+stage2+swizzle): ['-24.539142', '26.0933208'], time:6.363022ms, swizzle: 1024, TFLOPS: 43.20 (+0.87%)
+ out_tf32(...+stage3+dsmem+swizzle): ['-24.539142', '26.0933208'], time:6.948149ms, swizzle: 1024, TFLOPS: 39.56
+ out_tf32(...+stage2+dsmem+swizzle): ['-24.539142', '26.0933208'], time:6.365275ms, swizzle: 1024, TFLOPS: 43.18
+              out_tf32(cublas+tf32): ['-24.539142', '26.0933208'], time:5.335128ms, swizzle: NOOP, TFLOPS: 51.52 (+19.27%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
-                                                       M=8192, N=8192, K=512
-                     out_f32(naive): ['-38.139781', '21.1172447'], time:20.61622ms, swizzle: NOOP, TFLOPS: 3.33  (+0.00%)
-                  out_f32x4(t8x8sk): ['-38.139781', '21.1172447'], time:2.345955ms, swizzle: NOOP, TFLOPS: 29.29 (+778.80%)
-                 out_f32x4(t8x8bcf): ['-38.139781', '21.1172447'], time:2.059459ms, swizzle: NOOP, TFLOPS: 33.37 (+13.91%)
-                out_f32x4(t8x8dbuf): ['-38.139781', '21.1172447'], time:1.853263ms, swizzle: NOOP, TFLOPS: 37.08 (+11.13%)
-                    out_f32(cublas): ['-38.139781', '21.1172447'], time:2.026152ms, swizzle: NOOP, TFLOPS: 33.92
-                         out_f32_th: ['-38.139781', '21.1172447'], time:1.903581ms, swizzle: NOOP, TFLOPS: 36.10
+                                                       M=8192, N=4096, K=8192
+                     out_f32(naive): ['47.2999496', '96.8197784'], time:247.6329ms, swizzle: NOOP, TFLOPS: 2.22  (+0.00%)
+                  out_f32x4(t8x8sk): ['47.2999496', '96.8197784'], time:19.65559ms, swizzle: NOOP, TFLOPS: 27.97 (+1159.86%)
+                 out_f32x4(t8x8bcf): ['47.2999496', '96.8197784'], time:17.52810ms, swizzle: NOOP, TFLOPS: 31.36 (+12.14%)
+                out_f32x4(t8x8dbuf): ['47.2999496', '96.8197784'], time:18.90896ms, swizzle: NOOP, TFLOPS: 29.07
+                    out_f32(cublas): ['47.2999496', '96.8197784'], time:15.03305ms, swizzle: NOOP, TFLOPS: 36.57 (+16.60%)
+                         out_f32_th: ['47.2999496', '96.8197784'], time:14.72257ms, swizzle: NOOP, TFLOPS: 37.34 (+2.11%)
 --------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-38.139759', '21.1171932'], time:1.948964ms, swizzle: NOOP, TFLOPS: 35.26
-    out_tf32(mma2x4+warp2x4+stage2): ['-38.139759', '21.1171932'], time:1.598036ms, swizzle: NOOP, TFLOPS: 43.00 (+15.97%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-38.139759', '21.1171932'], time:1.643598ms, swizzle: NOOP, TFLOPS: 41.81
-  out_tf32(mma2x4+...+stage2+dsmem): ['-38.139759', '21.1171932'], time:1.511526ms, swizzle: NOOP, TFLOPS: 45.46 (+5.72%)
-out_tf32(mma2x4+...+stage3+swizzle): ['-38.139759', '21.1171932'], time:1.839053ms, swizzle: 2048, TFLOPS: 37.37
-out_tf32(mma2x4+...+stage2+swizzle): ['-38.139759', '21.1171932'], time:1.516401ms, swizzle: 2048, TFLOPS: 45.32
- out_tf32(...+stage3+dsmem+swizzle): ['-38.139759', '21.1171932'], time:1.657950ms, swizzle: 2048, TFLOPS: 41.45
- out_tf32(...+stage2+dsmem+swizzle): ['-38.139759', '21.1171932'], time:1.527225ms, swizzle: 2048, TFLOPS: 45.00
-              out_tf32(cublas+tf32): ['-38.139759', '21.1171932'], time:1.322066ms, swizzle: NOOP, TFLOPS: 51.98 (+14.33%)
-----------------------------------------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------------------------------------
-                                                       M=8192, N=8192, K=1024
-                     out_f32(naive): ['-45.176471', '17.7125091'], time:40.72170ms, swizzle: NOOP, TFLOPS: 3.38  (+0.00%)
-                  out_f32x4(t8x8sk): ['-45.176471', '17.7125091'], time:4.620969ms, swizzle: NOOP, TFLOPS: 29.74 (+781.24%)
-                 out_f32x4(t8x8bcf): ['-45.176471', '17.7125091'], time:4.087328ms, swizzle: NOOP, TFLOPS: 33.63 (+13.06%)
-                out_f32x4(t8x8dbuf): ['-45.176471', '17.7125091'], time:3.678190ms, swizzle: NOOP, TFLOPS: 37.37 (+11.12%)
-                    out_f32(cublas): ['-45.176471', '17.7125091'], time:3.668308ms, swizzle: NOOP, TFLOPS: 37.47 (+0.27%)
-                         out_f32_th: ['-45.176471', '17.7125091'], time:3.576636ms, swizzle: NOOP, TFLOPS: 38.43 (+2.56%)
---------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-45.176361', '17.7123947'], time:3.752338ms, swizzle: NOOP, TFLOPS: 36.63
-    out_tf32(mma2x4+warp2x4+stage2): ['-45.176361', '17.7123947'], time:2.998983ms, swizzle: NOOP, TFLOPS: 45.83 (+19.26%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-45.176361', '17.7123947'], time:3.254044ms, swizzle: NOOP, TFLOPS: 42.24
-  out_tf32(mma2x4+...+stage2+dsmem): ['-45.176361', '17.7123947'], time:2.984964ms, swizzle: NOOP, TFLOPS: 46.04 (+0.47%)
-out_tf32(mma2x4+...+stage3+swizzle): ['-45.176361', '17.7123947'], time:3.664243ms, swizzle: 2048, TFLOPS: 37.51
-out_tf32(mma2x4+...+stage2+swizzle): ['-45.176361', '17.7123947'], time:2.994239ms, swizzle: 2048, TFLOPS: 45.90
- out_tf32(...+stage3+dsmem+swizzle): ['-45.176361', '17.7123947'], time:3.278803ms, swizzle: 2048, TFLOPS: 41.92
- out_tf32(...+stage2+dsmem+swizzle): ['-45.176361', '17.7123947'], time:2.997756ms, swizzle: 2048, TFLOPS: 45.85
-              out_tf32(cublas+tf32): ['-45.176361', '17.7123947'], time:2.519428ms, swizzle: NOOP, TFLOPS: 54.55 (+18.48%)
+    out_tf32(mma2x4+warp2x4+stage3): ['47.3002510', '96.8180007'], time:15.59674ms, swizzle: NOOP, TFLOPS: 35.25
+    out_tf32(mma2x4+warp2x4+stage2): ['47.3002510', '96.8180007'], time:13.05602ms, swizzle: NOOP, TFLOPS: 42.11 (+12.76%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['47.3002510', '96.8180007'], time:13.85312ms, swizzle: NOOP, TFLOPS: 39.68
+  out_tf32(mma2x4+...+stage2+dsmem): ['47.3002510', '96.8180007'], time:13.07342ms, swizzle: NOOP, TFLOPS: 42.05
+out_tf32(mma2x4+...+stage3+swizzle): ['47.3002510', '96.8180007'], time:15.54510ms, swizzle: 1024, TFLOPS: 35.37
+out_tf32(mma2x4+...+stage2+swizzle): ['47.3002510', '96.8180007'], time:12.80124ms, swizzle: 1024, TFLOPS: 42.95 (+1.99%)
+ out_tf32(...+stage3+dsmem+swizzle): ['47.3002510', '96.8180007'], time:13.91153ms, swizzle: 1024, TFLOPS: 39.52
+ out_tf32(...+stage2+dsmem+swizzle): ['47.3002510', '96.8180007'], time:12.78195ms, swizzle: 1024, TFLOPS: 43.01 (+0.15%)
+              out_tf32(cublas+tf32): ['47.3002510', '96.8180007'], time:10.32341ms, swizzle: NOOP, TFLOPS: 53.25 (+23.82%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=8192, N=8192, K=2048
-                     out_f32(naive): ['-63.444438', '38.4295463'], time:81.26155ms, swizzle: NOOP, TFLOPS: 3.38  (+0.00%)
-                  out_f32x4(t8x8sk): ['-63.444438', '38.4295463'], time:9.094738ms, swizzle: NOOP, TFLOPS: 30.22 (+793.50%)
-                 out_f32x4(t8x8bcf): ['-63.444438', '38.4295463'], time:8.141028ms, swizzle: NOOP, TFLOPS: 33.76 (+11.71%)
-                out_f32x4(t8x8dbuf): ['-63.444438', '38.4295463'], time:7.292842ms, swizzle: NOOP, TFLOPS: 37.69 (+11.63%)
-                    out_f32(cublas): ['-63.444438', '38.4295463'], time:7.507431ms, swizzle: NOOP, TFLOPS: 36.61
-                         out_f32_th: ['-63.444438', '38.4295463'], time:7.204532ms, swizzle: NOOP, TFLOPS: 38.15 (+1.23%)
+                     out_f32(naive): ['-17.849985', '0.19760081'], time:81.26928ms, swizzle: NOOP, TFLOPS: 3.38  (+0.00%)
+                  out_f32x4(t8x8sk): ['-17.849985', '0.19760081'], time:9.237766ms, swizzle: NOOP, TFLOPS: 29.76 (+779.75%)
+                 out_f32x4(t8x8bcf): ['-17.849985', '0.19760081'], time:8.254611ms, swizzle: NOOP, TFLOPS: 33.30 (+11.91%)
+                out_f32x4(t8x8dbuf): ['-17.849985', '0.19760081'], time:7.502532ms, swizzle: NOOP, TFLOPS: 36.64 (+10.02%)
+                    out_f32(cublas): ['-17.849985', '0.19760081'], time:8.107531ms, swizzle: NOOP, TFLOPS: 33.90
+                         out_f32_th: ['-17.849985', '0.19760081'], time:7.478880ms, swizzle: NOOP, TFLOPS: 36.75 (+0.32%)
 --------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-63.444118', '38.4292221'], time:7.576847ms, swizzle: NOOP, TFLOPS: 36.28
-    out_tf32(mma2x4+warp2x4+stage2): ['-63.444118', '38.4292221'], time:6.128752ms, swizzle: NOOP, TFLOPS: 44.85 (+17.55%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-63.444118', '38.4292221'], time:6.638467ms, swizzle: NOOP, TFLOPS: 41.41
-  out_tf32(mma2x4+...+stage2+dsmem): ['-63.444118', '38.4292221'], time:6.089091ms, swizzle: NOOP, TFLOPS: 45.14 (+0.65%)
-out_tf32(mma2x4+...+stage3+swizzle): ['-63.444118', '38.4292221'], time:7.358527ms, swizzle: 2048, TFLOPS: 37.36
-out_tf32(mma2x4+...+stage2+swizzle): ['-63.444118', '38.4292221'], time:6.038904ms, swizzle: 2048, TFLOPS: 45.52 (+0.83%)
- out_tf32(...+stage3+dsmem+swizzle): ['-63.444118', '38.4292221'], time:6.595373ms, swizzle: 2048, TFLOPS: 41.68
- out_tf32(...+stage2+dsmem+swizzle): ['-63.444118', '38.4292221'], time:6.041479ms, swizzle: 2048, TFLOPS: 45.50
-              out_tf32(cublas+tf32): ['-63.444118', '38.4292221'], time:4.927039ms, swizzle: NOOP, TFLOPS: 55.79 (+22.57%)
+    out_tf32(mma2x4+warp2x4+stage3): ['-17.849796', '0.19758633'], time:7.743370ms, swizzle: NOOP, TFLOPS: 35.50
+    out_tf32(mma2x4+warp2x4+stage2): ['-17.849796', '0.19758633'], time:6.154835ms, swizzle: NOOP, TFLOPS: 44.66 (+21.51%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-17.849796', '0.19758633'], time:6.668007ms, swizzle: NOOP, TFLOPS: 41.22
+  out_tf32(mma2x4+...+stage2+dsmem): ['-17.849796', '0.19758633'], time:6.114292ms, swizzle: NOOP, TFLOPS: 44.96 (+0.66%)
+out_tf32(mma2x4+...+stage3+swizzle): ['-17.849796', '0.19758633'], time:7.382285ms, swizzle: 2048, TFLOPS: 37.23
+out_tf32(mma2x4+...+stage2+swizzle): ['-17.849796', '0.19758633'], time:6.063973ms, swizzle: 2048, TFLOPS: 45.33 (+0.83%)
+ out_tf32(...+stage3+dsmem+swizzle): ['-17.849796', '0.19758633'], time:6.617772ms, swizzle: 2048, TFLOPS: 41.54
+ out_tf32(...+stage2+dsmem+swizzle): ['-17.849796', '0.19758633'], time:6.061935ms, swizzle: 2048, TFLOPS: 45.34 (+0.03%)
+              out_tf32(cublas+tf32): ['-17.849796', '0.19758633'], time:5.143392ms, swizzle: NOOP, TFLOPS: 53.44 (+17.86%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=8192, N=8192, K=4096
-                     out_f32(naive): ['-53.302734', '81.0102462'], time:268.5254ms, swizzle: NOOP, TFLOPS: 2.05  (+0.00%)
-                  out_f32x4(t8x8sk): ['-53.302734', '81.0102462'], time:19.46458ms, swizzle: NOOP, TFLOPS: 28.24 (+1279.56%)
-                 out_f32x4(t8x8bcf): ['-53.302734', '81.0102462'], time:17.27800ms, swizzle: NOOP, TFLOPS: 31.82 (+12.66%)
-                out_f32x4(t8x8dbuf): ['-53.302734', '81.0102462'], time:19.06965ms, swizzle: NOOP, TFLOPS: 28.83
-                    out_f32(cublas): ['-53.302734', '81.0102462'], time:14.07110ms, swizzle: NOOP, TFLOPS: 39.07 (+22.79%)
-                         out_f32_th: ['-53.302734', '81.0102462'], time:13.88913ms, swizzle: NOOP, TFLOPS: 39.58 (+1.31%)
+                     out_f32(naive): ['-24.539411', '26.0933971'], time:268.3647ms, swizzle: NOOP, TFLOPS: 2.05  (+0.00%)
+                  out_f32x4(t8x8sk): ['-24.539411', '26.0933971'], time:19.59303ms, swizzle: NOOP, TFLOPS: 28.06 (+1269.69%)
+                 out_f32x4(t8x8bcf): ['-24.539411', '26.0933971'], time:17.70466ms, swizzle: NOOP, TFLOPS: 31.05 (+10.67%)
+                out_f32x4(t8x8dbuf): ['-24.539411', '26.0933971'], time:19.52338ms, swizzle: NOOP, TFLOPS: 28.16
+                    out_f32(cublas): ['-24.539411', '26.0933971'], time:14.43643ms, swizzle: NOOP, TFLOPS: 38.08 (+22.64%)
+                         out_f32_th: ['-24.539411', '26.0933971'], time:14.19519ms, swizzle: NOOP, TFLOPS: 38.73 (+1.70%)
 --------------------------------------------------------------WMMA----------------------------------------------------------------
-    out_tf32(mma2x4+warp2x4+stage3): ['-53.301563', '81.0088272'], time:14.84680ms, swizzle: NOOP, TFLOPS: 37.03
-    out_tf32(mma2x4+warp2x4+stage2): ['-53.301563', '81.0088272'], time:12.48193ms, swizzle: NOOP, TFLOPS: 44.04 (+11.27%)
-  out_tf32(mma2x4+...+stage3+dsmem): ['-53.301563', '81.0088272'], time:13.23648ms, swizzle: NOOP, TFLOPS: 41.53
-  out_tf32(mma2x4+...+stage2+dsmem): ['-53.301563', '81.0088272'], time:12.67541ms, swizzle: NOOP, TFLOPS: 43.37
-out_tf32(mma2x4+...+stage3+swizzle): ['-53.301563', '81.0088272'], time:14.82864ms, swizzle: 2048, TFLOPS: 37.07
-out_tf32(mma2x4+...+stage2+swizzle): ['-53.301563', '81.0088272'], time:12.10294ms, swizzle: 2048, TFLOPS: 45.42 (+3.13%)
- out_tf32(...+stage3+dsmem+swizzle): ['-53.301563', '81.0088272'], time:13.19457ms, swizzle: 2048, TFLOPS: 41.67
- out_tf32(...+stage2+dsmem+swizzle): ['-53.301563', '81.0088272'], time:12.10335ms, swizzle: 2048, TFLOPS: 45.42
-              out_tf32(cublas+tf32): ['-53.301563', '81.0088272'], time:9.771990ms, swizzle: NOOP, TFLOPS: 56.26 (+23.85%)
+    out_tf32(mma2x4+warp2x4+stage3): ['-24.539142', '26.0933208'], time:14.91366ms, swizzle: NOOP, TFLOPS: 36.86
+    out_tf32(mma2x4+warp2x4+stage2): ['-24.539142', '26.0933208'], time:12.80041ms, swizzle: NOOP, TFLOPS: 42.95 (+10.90%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-24.539142', '26.0933208'], time:13.52418ms, swizzle: NOOP, TFLOPS: 40.65
+  out_tf32(mma2x4+...+stage2+dsmem): ['-24.539142', '26.0933208'], time:12.89166ms, swizzle: NOOP, TFLOPS: 42.64
+out_tf32(mma2x4+...+stage3+swizzle): ['-24.539142', '26.0933208'], time:14.86917ms, swizzle: 2048, TFLOPS: 36.97
+out_tf32(mma2x4+...+stage2+swizzle): ['-24.539142', '26.0933208'], time:12.12794ms, swizzle: 2048, TFLOPS: 45.33 (+5.54%)
+ out_tf32(...+stage3+dsmem+swizzle): ['-24.539142', '26.0933208'], time:13.22101ms, swizzle: 2048, TFLOPS: 41.58
+ out_tf32(...+stage2+dsmem+swizzle): ['-24.539142', '26.0933208'], time:12.12646ms, swizzle: 2048, TFLOPS: 45.34 (+0.01%)
+              out_tf32(cublas+tf32): ['-24.539142', '26.0933208'], time:9.958040ms, swizzle: NOOP, TFLOPS: 55.21 (+21.78%)
+----------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------
+                                                       M=8192, N=8192, K=8192
+                     out_f32(naive): ['47.2999496', '96.8197784'], time:550.5259ms, swizzle: NOOP, TFLOPS: 2.00  (+0.00%)
+                  out_f32x4(t8x8sk): ['47.2999496', '96.8197784'], time:39.90060ms, swizzle: NOOP, TFLOPS: 27.56 (+1279.74%)
+                 out_f32x4(t8x8bcf): ['47.2999496', '96.8197784'], time:36.95698ms, swizzle: NOOP, TFLOPS: 29.75 (+7.96%)
+                out_f32x4(t8x8dbuf): ['47.2999496', '96.8197784'], time:38.06703ms, swizzle: NOOP, TFLOPS: 28.88
+                    out_f32(cublas): ['47.2999496', '96.8197784'], time:28.85241ms, swizzle: NOOP, TFLOPS: 38.11 (+28.09%)
+                         out_f32_th: ['47.2999496', '96.8197784'], time:29.13621ms, swizzle: NOOP, TFLOPS: 37.74
+--------------------------------------------------------------WMMA----------------------------------------------------------------
+    out_tf32(mma2x4+warp2x4+stage3): ['47.3002510', '96.8180007'], time:29.58662ms, swizzle: NOOP, TFLOPS: 37.16
+    out_tf32(mma2x4+warp2x4+stage2): ['47.3002510', '96.8180007'], time:25.65428ms, swizzle: NOOP, TFLOPS: 42.86 (+12.47%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['47.3002510', '96.8180007'], time:27.24572ms, swizzle: NOOP, TFLOPS: 40.36
+  out_tf32(mma2x4+...+stage2+dsmem): ['47.3002510', '96.8180007'], time:25.65881ms, swizzle: NOOP, TFLOPS: 42.85
+out_tf32(mma2x4+...+stage3+swizzle): ['47.3002510', '96.8180007'], time:29.62752ms, swizzle: 2048, TFLOPS: 37.11
+out_tf32(mma2x4+...+stage2+swizzle): ['47.3002510', '96.8180007'], time:24.43090ms, swizzle: 2048, TFLOPS: 45.00 (+5.01%)
+ out_tf32(...+stage3+dsmem+swizzle): ['47.3002510', '96.8180007'], time:26.46713ms, swizzle: 2048, TFLOPS: 41.54
+ out_tf32(...+stage2+dsmem+swizzle): ['47.3002510', '96.8180007'], time:24.40419ms, swizzle: 2048, TFLOPS: 45.05 (+0.11%)
+              out_tf32(cublas+tf32): ['47.3002510', '96.8180007'], time:19.60293ms, swizzle: NOOP, TFLOPS: 56.09 (+24.49%)
+----------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------
+                                                       M=8192, N=16384, K=2048
+                     out_f32(naive): ['-17.849985', '0.19760081'], time:276.2140ms, swizzle: NOOP, TFLOPS: 1.99  (+0.00%)
+                  out_f32x4(t8x8sk): ['-17.849985', '0.19760081'], time:20.09291ms, swizzle: NOOP, TFLOPS: 27.36 (+1274.68%)
+                 out_f32x4(t8x8bcf): ['-17.849985', '0.19760081'], time:18.52561ms, swizzle: NOOP, TFLOPS: 29.68 (+8.46%)
+                out_f32x4(t8x8dbuf): ['-17.849985', '0.19760081'], time:19.83964ms, swizzle: NOOP, TFLOPS: 27.71
+                    out_f32(cublas): ['-17.849985', '0.19760081'], time:14.76491ms, swizzle: NOOP, TFLOPS: 37.23 (+25.47%)
+                         out_f32_th: ['-17.849985', '0.19760081'], time:14.15612ms, swizzle: NOOP, TFLOPS: 38.84 (+4.30%)
+--------------------------------------------------------------WMMA----------------------------------------------------------------
+    out_tf32(mma2x4+warp2x4+stage3): ['-17.849796', '0.19758633'], time:14.75453ms, swizzle: NOOP, TFLOPS: 37.26
+    out_tf32(mma2x4+warp2x4+stage2): ['-17.849796', '0.19758633'], time:13.11275ms, swizzle: NOOP, TFLOPS: 41.93 (+7.96%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-17.849796', '0.19758633'], time:13.43187ms, swizzle: NOOP, TFLOPS: 40.93
+  out_tf32(mma2x4+...+stage2+dsmem): ['-17.849796', '0.19758633'], time:13.04426ms, swizzle: NOOP, TFLOPS: 42.15 (+0.53%)
+out_tf32(mma2x4+...+stage3+swizzle): ['-17.849796', '0.19758633'], time:14.68685ms, swizzle: 4096, TFLOPS: 37.43
+out_tf32(mma2x4+...+stage2+swizzle): ['-17.849796', '0.19758633'], time:11.95122ms, swizzle: 4096, TFLOPS: 46.00 (+9.15%)
+ out_tf32(...+stage3+dsmem+swizzle): ['-17.849796', '0.19758633'], time:13.05289ms, swizzle: 4096, TFLOPS: 42.12
+ out_tf32(...+stage2+dsmem+swizzle): ['-17.849796', '0.19758633'], time:11.98161ms, swizzle: 4096, TFLOPS: 45.88
+              out_tf32(cublas+tf32): ['-17.849796', '0.19758633'], time:9.834122ms, swizzle: NOOP, TFLOPS: 55.90 (+21.53%)
+----------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------
+                                                       M=8192, N=16384, K=4096
+                     out_f32(naive): ['-24.539411', '26.0933971'], time:551.5206ms, swizzle: NOOP, TFLOPS: 1.99  (+0.00%)
+                  out_f32x4(t8x8sk): ['-24.539411', '26.0933971'], time:40.85628ms, swizzle: NOOP, TFLOPS: 26.91 (+1249.90%)
+                 out_f32x4(t8x8bcf): ['-24.539411', '26.0933971'], time:38.69991ms, swizzle: NOOP, TFLOPS: 28.41 (+5.57%)
+                out_f32x4(t8x8dbuf): ['-24.539411', '26.0933971'], time:39.29961ms, swizzle: NOOP, TFLOPS: 27.98
+                    out_f32(cublas): ['-24.539411', '26.0933971'], time:28.43469ms, swizzle: NOOP, TFLOPS: 38.67 (+36.10%)
+                         out_f32_th: ['-24.539411', '26.0933971'], time:28.36043ms, swizzle: NOOP, TFLOPS: 38.77 (+0.26%)
+--------------------------------------------------------------WMMA----------------------------------------------------------------
+    out_tf32(mma2x4+warp2x4+stage3): ['-24.539142', '26.0933208'], time:29.58275ms, swizzle: NOOP, TFLOPS: 37.17
+    out_tf32(mma2x4+warp2x4+stage2): ['-24.539142', '26.0933208'], time:25.94059ms, swizzle: NOOP, TFLOPS: 42.39 (+9.33%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-24.539142', '26.0933208'], time:27.37162ms, swizzle: NOOP, TFLOPS: 40.17
+  out_tf32(mma2x4+...+stage2+dsmem): ['-24.539142', '26.0933208'], time:25.87283ms, swizzle: NOOP, TFLOPS: 42.50 (+0.26%)
+out_tf32(mma2x4+...+stage3+swizzle): ['-24.539142', '26.0933208'], time:29.19225ms, swizzle: 4096, TFLOPS: 37.66
+out_tf32(mma2x4+...+stage2+swizzle): ['-24.539142', '26.0933208'], time:23.91030ms, swizzle: 4096, TFLOPS: 45.98 (+8.21%)
+ out_tf32(...+stage3+dsmem+swizzle): ['-24.539142', '26.0933208'], time:25.98127ms, swizzle: 4096, TFLOPS: 42.32
+ out_tf32(...+stage2+dsmem+swizzle): ['-24.539142', '26.0933208'], time:23.91967ms, swizzle: 4096, TFLOPS: 45.97
+              out_tf32(cublas+tf32): ['-24.539142', '26.0933208'], time:19.25871ms, swizzle: NOOP, TFLOPS: 57.09 (+24.15%)
+----------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------
+                                                       M=8192, N=16384, K=8192
+                     out_f32(naive): ['47.2999496', '96.8197784'], time:1102.202ms, swizzle: NOOP, TFLOPS: 2.00  (+0.00%)
+                  out_f32x4(t8x8sk): ['47.2999496', '96.8197784'], time:82.22703ms, swizzle: NOOP, TFLOPS: 26.74 (+1240.44%)
+                 out_f32x4(t8x8bcf): ['47.2999496', '96.8197784'], time:77.98941ms, swizzle: NOOP, TFLOPS: 28.20 (+5.43%)
+                out_f32x4(t8x8dbuf): ['47.2999496', '96.8197784'], time:78.90355ms, swizzle: NOOP, TFLOPS: 27.87
+                    out_f32(cublas): ['47.2999496', '96.8197784'], time:58.00436ms, swizzle: NOOP, TFLOPS: 37.91 (+34.45%)
+                         out_f32_th: ['47.2999496', '96.8197784'], time:58.51061ms, swizzle: NOOP, TFLOPS: 37.58
+--------------------------------------------------------------WMMA----------------------------------------------------------------
+    out_tf32(mma2x4+warp2x4+stage3): ['47.3002510', '96.8180007'], time:59.37192ms, swizzle: NOOP, TFLOPS: 37.04
+    out_tf32(mma2x4+warp2x4+stage2): ['47.3002510', '96.8180007'], time:51.85855ms, swizzle: NOOP, TFLOPS: 42.40 (+11.85%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['47.3002510', '96.8180007'], time:55.02256ms, swizzle: NOOP, TFLOPS: 39.97
+  out_tf32(mma2x4+...+stage2+dsmem): ['47.3002510', '96.8180007'], time:52.14641ms, swizzle: NOOP, TFLOPS: 42.17
+out_tf32(mma2x4+...+stage3+swizzle): ['47.3002510', '96.8180007'], time:58.22221ms, swizzle: 4096, TFLOPS: 37.77
+out_tf32(mma2x4+...+stage2+swizzle): ['47.3002510', '96.8180007'], time:49.53384ms, swizzle: 4096, TFLOPS: 44.39 (+4.69%)
+ out_tf32(...+stage3+dsmem+swizzle): ['47.3002510', '96.8180007'], time:53.26046ms, swizzle: 4096, TFLOPS: 41.29
+ out_tf32(...+stage2+dsmem+swizzle): ['47.3002510', '96.8180007'], time:49.65736ms, swizzle: 4096, TFLOPS: 44.28
+              out_tf32(cublas+tf32): ['47.3002510', '96.8180007'], time:38.19205ms, swizzle: NOOP, TFLOPS: 57.58 (+29.70%)
+----------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------
+                                                       M=16384, N=4096, K=2048
+                     out_f32(naive): ['-17.849985', '0.19760081'], time:81.29155ms, swizzle: NOOP, TFLOPS: 3.38  (+0.00%)
+                  out_f32x4(t8x8sk): ['-17.849985', '0.19760081'], time:9.530687ms, swizzle: NOOP, TFLOPS: 28.84 (+752.95%)
+                 out_f32x4(t8x8bcf): ['-17.849985', '0.19760081'], time:8.524906ms, swizzle: NOOP, TFLOPS: 32.24 (+11.80%)
+                out_f32x4(t8x8dbuf): ['-17.849985', '0.19760081'], time:8.015465ms, swizzle: NOOP, TFLOPS: 34.29 (+6.36%)
+                    out_f32(cublas): ['-17.849985', '0.19760081'], time:8.247447ms, swizzle: NOOP, TFLOPS: 33.33
+                         out_f32_th: ['-17.849985', '0.19760081'], time:7.800579ms, swizzle: NOOP, TFLOPS: 35.24 (+2.75%)
+--------------------------------------------------------------WMMA----------------------------------------------------------------
+    out_tf32(mma2x4+warp2x4+stage3): ['-17.849796', '0.19758633'], time:7.802319ms, swizzle: NOOP, TFLOPS: 35.23
+    out_tf32(mma2x4+warp2x4+stage2): ['-17.849796', '0.19758633'], time:6.260669ms, swizzle: NOOP, TFLOPS: 43.91 (+24.60%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-17.849796', '0.19758633'], time:6.773519ms, swizzle: NOOP, TFLOPS: 40.58
+  out_tf32(mma2x4+...+stage2+dsmem): ['-17.849796', '0.19758633'], time:6.221926ms, swizzle: NOOP, TFLOPS: 44.18 (+0.62%)
+out_tf32(mma2x4+...+stage3+swizzle): ['-17.849796', '0.19758633'], time:7.493686ms, swizzle: 1024, TFLOPS: 36.68
+out_tf32(mma2x4+...+stage2+swizzle): ['-17.849796', '0.19758633'], time:6.252801ms, swizzle: 1024, TFLOPS: 43.96
+ out_tf32(...+stage3+dsmem+swizzle): ['-17.849796', '0.19758633'], time:6.773734ms, swizzle: 1024, TFLOPS: 40.58
+ out_tf32(...+stage2+dsmem+swizzle): ['-17.849796', '0.19758633'], time:6.259787ms, swizzle: 1024, TFLOPS: 43.91
+              out_tf32(cublas+tf32): ['-17.849796', '0.19758633'], time:5.200731ms, swizzle: NOOP, TFLOPS: 52.85 (+19.64%)
+----------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------
+                                                       M=16384, N=4096, K=4096
+                     out_f32(naive): ['-24.539411', '26.0933971'], time:162.3996ms, swizzle: NOOP, TFLOPS: 3.39  (+0.00%)
+                  out_f32x4(t8x8sk): ['-24.539411', '26.0933971'], time:18.98237ms, swizzle: NOOP, TFLOPS: 28.96 (+755.53%)
+                 out_f32x4(t8x8bcf): ['-24.539411', '26.0933971'], time:17.01517ms, swizzle: NOOP, TFLOPS: 32.31 (+11.56%)
+                out_f32x4(t8x8dbuf): ['-24.539411', '26.0933971'], time:17.42953ms, swizzle: NOOP, TFLOPS: 31.54
+                    out_f32(cublas): ['-24.539411', '26.0933971'], time:14.61760ms, swizzle: NOOP, TFLOPS: 37.61 (+16.40%)
+                         out_f32_th: ['-24.539411', '26.0933971'], time:14.48466ms, swizzle: NOOP, TFLOPS: 37.95 (+0.92%)
+--------------------------------------------------------------WMMA----------------------------------------------------------------
+    out_tf32(mma2x4+warp2x4+stage3): ['-24.539142', '26.0933208'], time:15.16782ms, swizzle: NOOP, TFLOPS: 36.24
+    out_tf32(mma2x4+warp2x4+stage2): ['-24.539142', '26.0933208'], time:12.41897ms, swizzle: NOOP, TFLOPS: 44.27 (+16.63%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-24.539142', '26.0933208'], time:13.44157ms, swizzle: NOOP, TFLOPS: 40.90
+  out_tf32(mma2x4+...+stage2+dsmem): ['-24.539142', '26.0933208'], time:12.39446ms, swizzle: NOOP, TFLOPS: 44.35 (+0.20%)
+out_tf32(mma2x4+...+stage3+swizzle): ['-24.539142', '26.0933208'], time:14.96917ms, swizzle: 1024, TFLOPS: 36.73
+out_tf32(mma2x4+...+stage2+swizzle): ['-24.539142', '26.0933208'], time:12.42594ms, swizzle: 1024, TFLOPS: 44.24
+ out_tf32(...+stage3+dsmem+swizzle): ['-24.539142', '26.0933208'], time:13.48555ms, swizzle: 1024, TFLOPS: 40.77
+ out_tf32(...+stage2+dsmem+swizzle): ['-24.539142', '26.0933208'], time:12.44277ms, swizzle: 1024, TFLOPS: 44.18
+              out_tf32(cublas+tf32): ['-24.539142', '26.0933208'], time:10.07603ms, swizzle: NOOP, TFLOPS: 54.56 (+23.01%)
+----------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------
+                                                       M=16384, N=4096, K=8192
+                     out_f32(naive): ['47.2999496', '96.8197784'], time:494.3340ms, swizzle: NOOP, TFLOPS: 2.22  (+0.00%)
+                  out_f32x4(t8x8sk): ['47.2999496', '96.8197784'], time:39.43489ms, swizzle: NOOP, TFLOPS: 27.88 (+1153.54%)
+                 out_f32x4(t8x8bcf): ['47.2999496', '96.8197784'], time:35.69089ms, swizzle: NOOP, TFLOPS: 30.81 (+10.49%)
+                out_f32x4(t8x8dbuf): ['47.2999496', '96.8197784'], time:37.27245ms, swizzle: NOOP, TFLOPS: 29.50
+                    out_f32(cublas): ['47.2999496', '96.8197784'], time:29.58321ms, swizzle: NOOP, TFLOPS: 37.17 (+20.65%)
+                         out_f32_th: ['47.2999496', '96.8197784'], time:29.77937ms, swizzle: NOOP, TFLOPS: 36.92
+--------------------------------------------------------------WMMA----------------------------------------------------------------
+    out_tf32(mma2x4+warp2x4+stage3): ['47.3002510', '96.8180007'], time:30.08049ms, swizzle: NOOP, TFLOPS: 36.55
+    out_tf32(mma2x4+warp2x4+stage2): ['47.3002510', '96.8180007'], time:25.29913ms, swizzle: NOOP, TFLOPS: 43.46 (+16.93%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['47.3002510', '96.8180007'], time:27.23990ms, swizzle: NOOP, TFLOPS: 40.36
+  out_tf32(mma2x4+...+stage2+dsmem): ['47.3002510', '96.8180007'], time:25.82558ms, swizzle: NOOP, TFLOPS: 42.57
+out_tf32(mma2x4+...+stage3+swizzle): ['47.3002510', '96.8180007'], time:30.02738ms, swizzle: 1024, TFLOPS: 36.62
+out_tf32(mma2x4+...+stage2+swizzle): ['47.3002510', '96.8180007'], time:24.85141ms, swizzle: 1024, TFLOPS: 44.24 (+1.80%)
+ out_tf32(...+stage3+dsmem+swizzle): ['47.3002510', '96.8180007'], time:26.89465ms, swizzle: 1024, TFLOPS: 40.88
+ out_tf32(...+stage2+dsmem+swizzle): ['47.3002510', '96.8180007'], time:24.83090ms, swizzle: 1024, TFLOPS: 44.28 (+0.08%)
+              out_tf32(cublas+tf32): ['47.3002510', '96.8180007'], time:19.69830ms, swizzle: NOOP, TFLOPS: 55.82 (+26.06%)
+----------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------
+                                                       M=16384, N=8192, K=2048
+                     out_f32(naive): ['-17.849985', '0.19760081'], time:162.4853ms, swizzle: NOOP, TFLOPS: 3.38  (+0.00%)
+                  out_f32x4(t8x8sk): ['-17.849985', '0.19760081'], time:18.61557ms, swizzle: NOOP, TFLOPS: 29.53 (+772.85%)
+                 out_f32x4(t8x8bcf): ['-17.849985', '0.19760081'], time:16.65081ms, swizzle: NOOP, TFLOPS: 33.02 (+11.80%)
+                out_f32x4(t8x8dbuf): ['-17.849985', '0.19760081'], time:16.60894ms, swizzle: NOOP, TFLOPS: 33.10 (+0.25%)
+                    out_f32(cublas): ['-17.849985', '0.19760081'], time:14.59673ms, swizzle: NOOP, TFLOPS: 37.66 (+13.79%)
+                         out_f32_th: ['-17.849985', '0.19760081'], time:14.25113ms, swizzle: NOOP, TFLOPS: 38.58 (+2.43%)
+--------------------------------------------------------------WMMA----------------------------------------------------------------
+    out_tf32(mma2x4+warp2x4+stage3): ['-17.849796', '0.19758633'], time:14.85270ms, swizzle: NOOP, TFLOPS: 37.01
+    out_tf32(mma2x4+warp2x4+stage2): ['-17.849796', '0.19758633'], time:12.02559ms, swizzle: NOOP, TFLOPS: 45.72 (+18.51%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-17.849796', '0.19758633'], time:13.04501ms, swizzle: NOOP, TFLOPS: 42.14
+  out_tf32(mma2x4+...+stage2+dsmem): ['-17.849796', '0.19758633'], time:12.00811ms, swizzle: NOOP, TFLOPS: 45.78 (+0.15%)
+out_tf32(mma2x4+...+stage3+swizzle): ['-17.849796', '0.19758633'], time:14.59468ms, swizzle: 2048, TFLOPS: 37.67
+out_tf32(mma2x4+...+stage2+swizzle): ['-17.849796', '0.19758633'], time:12.04820ms, swizzle: 2048, TFLOPS: 45.63
+ out_tf32(...+stage3+dsmem+swizzle): ['-17.849796', '0.19758633'], time:13.12594ms, swizzle: 2048, TFLOPS: 41.88
+ out_tf32(...+stage2+dsmem+swizzle): ['-17.849796', '0.19758633'], time:12.04621ms, swizzle: 2048, TFLOPS: 45.64
+              out_tf32(cublas+tf32): ['-17.849796', '0.19758633'], time:9.895133ms, swizzle: NOOP, TFLOPS: 55.56 (+21.35%)
+----------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------
+                                                       M=16384, N=8192, K=4096
+                     out_f32(naive): ['-24.539411', '26.0933971'], time:536.4258ms, swizzle: NOOP, TFLOPS: 2.05  (+0.00%)
+                  out_f32x4(t8x8sk): ['-24.539411', '26.0933971'], time:40.05281ms, swizzle: NOOP, TFLOPS: 27.45 (+1239.30%)
+                 out_f32x4(t8x8bcf): ['-24.539411', '26.0933971'], time:35.56506ms, swizzle: NOOP, TFLOPS: 30.92 (+12.62%)
+                out_f32x4(t8x8dbuf): ['-24.539411', '26.0933971'], time:38.55193ms, swizzle: NOOP, TFLOPS: 28.52
+                    out_f32(cublas): ['-24.539411', '26.0933971'], time:28.43211ms, swizzle: NOOP, TFLOPS: 38.67 (+25.09%)
+                         out_f32_th: ['-24.539411', '26.0933971'], time:28.49795ms, swizzle: NOOP, TFLOPS: 38.58
+--------------------------------------------------------------WMMA----------------------------------------------------------------
+    out_tf32(mma2x4+warp2x4+stage3): ['-24.539142', '26.0933208'], time:29.34467ms, swizzle: NOOP, TFLOPS: 37.47
+    out_tf32(mma2x4+warp2x4+stage2): ['-24.539142', '26.0933208'], time:25.17921ms, swizzle: NOOP, TFLOPS: 43.67 (+12.92%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-24.539142', '26.0933208'], time:26.83230ms, swizzle: NOOP, TFLOPS: 40.98
+  out_tf32(mma2x4+...+stage2+dsmem): ['-24.539142', '26.0933208'], time:25.15255ms, swizzle: NOOP, TFLOPS: 43.71 (+0.11%)
+out_tf32(mma2x4+...+stage3+swizzle): ['-24.539142', '26.0933208'], time:29.20446ms, swizzle: 2048, TFLOPS: 37.65
+out_tf32(mma2x4+...+stage2+swizzle): ['-24.539142', '26.0933208'], time:23.84365ms, swizzle: 2048, TFLOPS: 46.11 (+5.49%)
+ out_tf32(...+stage3+dsmem+swizzle): ['-24.539142', '26.0933208'], time:26.03495ms, swizzle: 2048, TFLOPS: 42.23
+ out_tf32(...+stage2+dsmem+swizzle): ['-24.539142', '26.0933208'], time:23.87169ms, swizzle: 2048, TFLOPS: 46.06
+              out_tf32(cublas+tf32): ['-24.539142', '26.0933208'], time:19.30768ms, swizzle: NOOP, TFLOPS: 56.95 (+23.49%)
+----------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------
+                                                       M=16384, N=8192, K=8192
+                     out_f32(naive): ['47.2999496', '96.8197784'], time:1100.691ms, swizzle: NOOP, TFLOPS: 2.00  (+0.00%)
+                  out_f32x4(t8x8sk): ['47.2999496', '96.8197784'], time:79.86506ms, swizzle: NOOP, TFLOPS: 27.53 (+1278.19%)
+                 out_f32x4(t8x8bcf): ['47.2999496', '96.8197784'], time:74.10305ms, swizzle: NOOP, TFLOPS: 29.68 (+7.78%)
+                out_f32x4(t8x8dbuf): ['47.2999496', '96.8197784'], time:74.76978ms, swizzle: NOOP, TFLOPS: 29.41
+                    out_f32(cublas): ['47.2999496', '96.8197784'], time:57.91260ms, swizzle: NOOP, TFLOPS: 37.97 (+27.96%)
+                         out_f32_th: ['47.2999496', '96.8197784'], time:58.26066ms, swizzle: NOOP, TFLOPS: 37.74
+--------------------------------------------------------------WMMA----------------------------------------------------------------
+    out_tf32(mma2x4+warp2x4+stage3): ['47.3002510', '96.8180007'], time:58.64821ms, swizzle: NOOP, TFLOPS: 37.50
+    out_tf32(mma2x4+warp2x4+stage2): ['47.3002510', '96.8180007'], time:49.91295ms, swizzle: NOOP, TFLOPS: 44.06 (+16.03%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['47.3002510', '96.8180007'], time:54.05123ms, swizzle: NOOP, TFLOPS: 40.68
+  out_tf32(mma2x4+...+stage2+dsmem): ['47.3002510', '96.8180007'], time:50.64512ms, swizzle: NOOP, TFLOPS: 43.42
+out_tf32(mma2x4+...+stage3+swizzle): ['47.3002510', '96.8180007'], time:58.26839ms, swizzle: 2048, TFLOPS: 37.74
+out_tf32(mma2x4+...+stage2+swizzle): ['47.3002510', '96.8180007'], time:48.46489ms, swizzle: 2048, TFLOPS: 45.37 (+2.99%)
+ out_tf32(...+stage3+dsmem+swizzle): ['47.3002510', '96.8180007'], time:51.88893ms, swizzle: 2048, TFLOPS: 42.38
+ out_tf32(...+stage2+dsmem+swizzle): ['47.3002510', '96.8180007'], time:48.42858ms, swizzle: 2048, TFLOPS: 45.41 (+0.07%)
+              out_tf32(cublas+tf32): ['47.3002510', '96.8180007'], time:38.56168ms, swizzle: NOOP, TFLOPS: 57.03 (+25.59%)
+----------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------
+                                                       M=16384, N=16384, K=2048
+                     out_f32(naive): ['-17.849985', '0.19760081'], time:552.1761ms, swizzle: NOOP, TFLOPS: 1.99  (+0.00%)
+                  out_f32x4(t8x8sk): ['-17.849985', '0.19760081'], time:41.13322ms, swizzle: NOOP, TFLOPS: 26.73 (+1242.41%)
+                 out_f32x4(t8x8bcf): ['-17.849985', '0.19760081'], time:39.94113ms, swizzle: NOOP, TFLOPS: 27.53 (+2.98%)
+                out_f32x4(t8x8dbuf): ['-17.849985', '0.19760081'], time:39.03629ms, swizzle: NOOP, TFLOPS: 28.17 (+2.32%)
+                    out_f32(cublas): ['-17.849985', '0.19760081'], time:29.52983ms, swizzle: NOOP, TFLOPS: 37.23 (+32.19%)
+                         out_f32_th: ['-17.849985', '0.19760081'], time:29.55764ms, swizzle: NOOP, TFLOPS: 37.20
+--------------------------------------------------------------WMMA----------------------------------------------------------------
+    out_tf32(mma2x4+warp2x4+stage3): ['-17.849796', '0.19758633'], time:29.32828ms, swizzle: NOOP, TFLOPS: 37.49 (+0.69%)
+    out_tf32(mma2x4+warp2x4+stage2): ['-17.849796', '0.19758633'], time:26.04321ms, swizzle: NOOP, TFLOPS: 42.22 (+12.61%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-17.849796', '0.19758633'], time:27.00719ms, swizzle: NOOP, TFLOPS: 40.71
+  out_tf32(mma2x4+...+stage2+dsmem): ['-17.849796', '0.19758633'], time:26.04371ms, swizzle: NOOP, TFLOPS: 42.22
+out_tf32(mma2x4+...+stage3+swizzle): ['-17.849796', '0.19758633'], time:28.73388ms, swizzle: 4096, TFLOPS: 38.27
+out_tf32(mma2x4+...+stage2+swizzle): ['-17.849796', '0.19758633'], time:23.58162ms, swizzle: 4096, TFLOPS: 46.63 (+10.44%)
+ out_tf32(...+stage3+dsmem+swizzle): ['-17.849796', '0.19758633'], time:25.63526ms, swizzle: 4096, TFLOPS: 42.89
+ out_tf32(...+stage2+dsmem+swizzle): ['-17.849796', '0.19758633'], time:23.56603ms, swizzle: 4096, TFLOPS: 46.66 (+0.07%)
+              out_tf32(cublas+tf32): ['-17.849796', '0.19758633'], time:19.51431ms, swizzle: NOOP, TFLOPS: 56.34 (+20.76%)
+----------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------
+                                                       M=16384, N=16384, K=4096
+                     out_f32(naive): ['-24.539411', '26.0933971'], time:1103.022ms, swizzle: NOOP, TFLOPS: 1.99  (+0.00%)
+                  out_f32x4(t8x8sk): ['-24.539411', '26.0933971'], time:83.92670ms, swizzle: NOOP, TFLOPS: 26.20 (+1214.27%)
+                 out_f32x4(t8x8bcf): ['-24.539411', '26.0933971'], time:80.32040ms, swizzle: NOOP, TFLOPS: 27.38 (+4.49%)
+                out_f32x4(t8x8dbuf): ['-24.539411', '26.0933971'], time:81.26325ms, swizzle: NOOP, TFLOPS: 27.06
+                    out_f32(cublas): ['-24.539411', '26.0933971'], time:58.41444ms, swizzle: NOOP, TFLOPS: 37.65 (+37.50%)
+                         out_f32_th: ['-24.539411', '26.0933971'], time:58.71068ms, swizzle: NOOP, TFLOPS: 37.46
+--------------------------------------------------------------WMMA----------------------------------------------------------------
+    out_tf32(mma2x4+warp2x4+stage3): ['-24.539142', '26.0933208'], time:59.40877ms, swizzle: NOOP, TFLOPS: 37.02
+    out_tf32(mma2x4+warp2x4+stage2): ['-24.539142', '26.0933208'], time:51.33775ms, swizzle: NOOP, TFLOPS: 42.83 (+13.78%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['-24.539142', '26.0933208'], time:54.76785ms, swizzle: NOOP, TFLOPS: 40.15
+  out_tf32(mma2x4+...+stage2+dsmem): ['-24.539142', '26.0933208'], time:51.49431ms, swizzle: NOOP, TFLOPS: 42.70
+out_tf32(mma2x4+...+stage3+swizzle): ['-24.539142', '26.0933208'], time:57.20764ms, swizzle: 4096, TFLOPS: 38.44
+out_tf32(mma2x4+...+stage2+swizzle): ['-24.539142', '26.0933208'], time:47.47045ms, swizzle: 4096, TFLOPS: 46.32 (+8.15%)
+ out_tf32(...+stage3+dsmem+swizzle): ['-24.539142', '26.0933208'], time:50.96282ms, swizzle: 4096, TFLOPS: 43.15
+ out_tf32(...+stage2+dsmem+swizzle): ['-24.539142', '26.0933208'], time:47.44813ms, swizzle: 4096, TFLOPS: 46.35 (+0.05%)
+              out_tf32(cublas+tf32): ['-24.539142', '26.0933208'], time:38.30858ms, swizzle: NOOP, TFLOPS: 57.40 (+23.86%)
+----------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------
+                                                       M=16384, N=16384, K=8192
+                     out_f32(naive): ['47.2999496', '96.8197784'], time:2203.968ms, swizzle: NOOP, TFLOPS: 2.00  (+0.00%)
+                  out_f32x4(t8x8sk): ['47.2999496', '96.8197784'], time:164.6066ms, swizzle: NOOP, TFLOPS: 26.72 (+1238.93%)
+                 out_f32x4(t8x8bcf): ['47.2999496', '96.8197784'], time:156.5503ms, swizzle: NOOP, TFLOPS: 28.09 (+5.15%)
+                out_f32x4(t8x8dbuf): ['47.2999496', '96.8197784'], time:157.3980ms, swizzle: NOOP, TFLOPS: 27.94
+                    out_f32(cublas): ['47.2999496', '96.8197784'], time:115.1302ms, swizzle: NOOP, TFLOPS: 38.20 (+35.98%)
+                         out_f32_th: ['47.2999496', '96.8197784'], time:115.7525ms, swizzle: NOOP, TFLOPS: 38.00
+--------------------------------------------------------------WMMA----------------------------------------------------------------
+    out_tf32(mma2x4+warp2x4+stage3): ['47.3002510', '96.8180007'], time:117.6291ms, swizzle: NOOP, TFLOPS: 37.39
+    out_tf32(mma2x4+warp2x4+stage2): ['47.3002510', '96.8180007'], time:102.4631ms, swizzle: NOOP, TFLOPS: 42.92 (+12.36%)
+  out_tf32(mma2x4+...+stage3+dsmem): ['47.3002510', '96.8180007'], time:108.2939ms, swizzle: NOOP, TFLOPS: 40.61
+  out_tf32(mma2x4+...+stage2+dsmem): ['47.3002510', '96.8180007'], time:104.3870ms, swizzle: NOOP, TFLOPS: 42.13
+out_tf32(mma2x4+...+stage3+swizzle): ['47.3002510', '96.8180007'], time:114.1043ms, swizzle: 4096, TFLOPS: 38.54
+out_tf32(mma2x4+...+stage2+swizzle): ['47.3002510', '96.8180007'], time:98.40396ms, swizzle: 4096, TFLOPS: 44.69 (+4.13%)
+ out_tf32(...+stage3+dsmem+swizzle): ['47.3002510', '96.8180007'], time:106.3529ms, swizzle: 4096, TFLOPS: 41.35
+ out_tf32(...+stage2+dsmem+swizzle): ['47.3002510', '96.8180007'], time:97.71902ms, swizzle: 4096, TFLOPS: 45.01 (+0.70%)
+              out_tf32(cublas+tf32): ['47.3002510', '96.8180007'], time:75.97206ms, swizzle: NOOP, TFLOPS: 57.89 (+28.62%)
 ----------------------------------------------------------------------------------------------------------------------------------
 ```

@@ -31,7 +31,6 @@ using namespace nvcuda;
 // Support A and B matrix with row-major inorder to compare with the kernels using CUDA Cores in
 // hgemm.cu and hgemm_async.cu. 
 
-
 HOST_DEVICE_INLINE 
 int div_ceil(int a, int b) { return (a % b != 0) ? (a / b + 1) : (a / b); }
 
@@ -41,7 +40,7 @@ int div_ceil(int a, int b) { return (a % b != 0) ? (a / b + 1) : (a / b); }
 // 共享内存，调用kernel时 需要指定动态共享内存大小，且smem的寻址
 // 方式需要按照一维数组来使用 2. 提高L2 Cache的局部性(Thread 
 // Block Swizzle): https://zhuanlan.zhihu.com/p/555339335
-// 3. nedd __launch_bounds__ to avoid error 'too many resources required for launch'
+// 3. __launch_bounds__: avoid error 'too many resources required for launch'
 // reference: https://blog.csdn.net/feng__shuai/article/details/124395023
 template<const int WMMA_M=16, const int WMMA_N=16, const int WMMA_K=16, 
          const int WMMA_TILE_M=4, const int WMMA_TILE_N=2, 
@@ -257,7 +256,7 @@ hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_kernel(
 // 共享内存，调用kernel时 需要指定动态共享内存大小，且smem的寻址
 // 方式需要按照一维数组来使用 2. 提高L2 Cache的局部性(Thread 
 // Block Swizzle): https://zhuanlan.zhihu.com/p/555339335
-// 3. nedd __launch_bounds__ to avoid error 'too many resources required for launch'
+// 3. __launch_bounds__: avoid error 'too many resources required for launch'
 // reference: https://blog.csdn.net/feng__shuai/article/details/124395023
 template<const int WMMA_M=16, const int WMMA_N=16, const int WMMA_K=16, 
          const int WMMA_TILE_M=4, const int WMMA_TILE_N=2, 
@@ -476,7 +475,7 @@ hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem_kernel(
 }
 
 // stage with 256x256 block, dynamic smem
-// nedd __launch_bounds__ to avoid error 'too many resources required for launch'
+// __launch_bounds__: avoid error 'too many resources required for launch'
 // reference: https://blog.csdn.net/feng__shuai/article/details/124395023
 template<const int WMMA_M=16, const int WMMA_N=16, const int WMMA_K=16, 
          const int WMMA_TILE_M=4, const int WMMA_TILE_N=4, 

@@ -106,10 +106,10 @@ def run_benchmark(perf_func: callable,
     return out, mean_time
 
 
-Ms = [1024, 2048, 4096, 8192]
-Ns = [1024, 2048, 4096, 8192]
-Ks = [512,  1024, 2048, 4096]
-MAX_M, MAX_N, MAX_K = 8192, 8192, 4096
+Ms = [4096, 8192, 16384]
+Ns = [4096, 8192, 16384]
+Ks = [2048, 4096, 8192]
+MAX_M, MAX_N, MAX_K = 16384, 16384, 8192
 # pre allocate for fast profiling.
 A = torch.randn((MAX_M, MAX_K), dtype=torch.float).cuda()
 B = torch.randn((MAX_K, MAX_N), dtype=torch.float).cuda()
