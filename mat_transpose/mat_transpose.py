@@ -60,32 +60,36 @@ def run_benchmark(
     real_t = f"{out.T.equal(x)}"
     out_val = out[:2, :2].flatten().detach().cpu().numpy().tolist()[:3]
     out_val = [round(v, 8) for v in out_val]
-    print(f"{out_info:>30}: {out_val}, validate {real_t:<5}, time:{mean_time:.8f}ms")
+    print(f"{out_info:>35}: {out_val}, validate {real_t:<5}, time:{mean_time:.8f}ms")
     if show_all:
         print(out)
     return out, mean_time
 
 
-Ss = [1024, 2048, 4096]
-Ks = [1024, 2048, 4096]
-SKs = [(S, K) for S in Ss for K in Ks]
+Ms = [1024, 2048, 4096]
+Ns = [1024, 2048, 4096]
+MNs = [(M, N) for M in Ms for N in Ns]
 copy_x = lambda x: x
 # show the three elements x[0][0], x[0][1], x[1][0]
-for S, K in SKs:
-    print("-" * 120)
-    print(" " * 50 + f"S={S}, K={K}")
-    x = torch.randn((S, K)).cuda().float().contiguous()
-    y = torch.randn((K, S)).cuda().float().contiguous()
+for M, N in MNs:
+    print("-" * 130)
+    print(" " * 55 + f"M={M}, N={N}")
+    x = torch.randn((M, N)).cuda().float().contiguous()
+    y = torch.randn((N, M)).cuda().float().contiguous()
     run_benchmark(partial(copy_x), x, "original")
     run_benchmark(lib.mat_transpose_f32_col2row, x, "f32_col2row", y)
     run_benchmark(lib.mat_transpose_f32_row2col, x, "f32_row2col", y)
     run_benchmark(lib.mat_transpose_f32_col2row2d, x, "f32_col2row(2d)", y)
     run_benchmark(lib.mat_transpose_f32_row2col2d, x, "f32_row2col(2d)", y)
-    if S == K:
+    if M == N:
         run_benchmark(lib.mat_transpose_f32_diagonal2d, x, "f32_diagnonal", y)
     run_benchmark(lib.mat_transpose_f32x4_col2row, x, "f32x4_col2row", y)
     run_benchmark(lib.mat_transpose_f32x4_row2col, x, "f32x4_row2col", y)
     run_benchmark(lib.mat_transpose_f32x4_col2row2d, x, "f32x4_col2row(2d)", y)
     run_benchmark(lib.mat_transpose_f32x4_row2col2d, x, "f32x4_row2col(2d)", y)
+    run_benchmark(lib.mat_transpose_f32x4_shared_col2row2d, x, "f32x4_shared_col2row(2d)", y)
+    run_benchmark(lib.mat_transpose_f32x4_shared_row2col2d, x, "f32x4_shared_row2col(2d)", y)
+    run_benchmark(lib.mat_transpose_f32x4_shared_bcf_col2row2d, x, "f32x4_shared_bcf_col2row(2d)", y)
+    run_benchmark(lib.mat_transpose_f32x4_shared_bcf_row2col2d, x, "f32x4_shared_bcf_row2col(2d)", y)
     run_benchmark(partial(torch.transpose_copy, dim0=0, dim1=1, out=y), x, "f32_th")
-    print("-" * 120)
+    print("-" * 130)
