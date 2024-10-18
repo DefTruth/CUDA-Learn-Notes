@@ -18,6 +18,7 @@
 - ✔️ = known work and already supported now.
 - ❔ = in my plan, but not coming soon, maybe a few weeks later.
 - **workflow**: custom **CUDA** kernel impl -> **PyTorch** python binding -> Run tests.
+- How to contribute? please check [🌤🌤Kernel Trace & 目标 & 代码规范 & 致谢🎉🎉](https://github.com/DefTruth/CUDA-Learn-Notes/issues/50) 
 
 |📖 cuda kernel| 📖 elem dtype| 📖 acc dtype| 📖 docs | 📖 level |
 |:---|:---|:---|:---|:---|  
