@@ -7,7 +7,26 @@ import argparse
 
 torch.set_grad_enabled(False)
 
+def get_args():
+    parser = argparse.ArgumentParser(description="hgemm benchmark")
+    parser.add_argument("--M", type=int, default=None, help="Matrix M size")
+    parser.add_argument("--N", type=int, default=None, help="Matrix N size")
+    parser.add_argument("--K", type=int, default=None, help="Matrix K size")
+    parser.add_argument("--warmup", "--w", type=int, default=5, help="Warmup iters")
+    parser.add_argument("--iters", "--i", type=int, default=20, help="Benchmark iters")
+    parser.add_argument("--enable-mma-all", "--mma", action="store_true", help="Enable all MMA kernel tests")
+    parser.add_argument("--enable-wmma-all", "--wmma", action="store_true", help="Enable all WMMA kernel tests")
+    parser.add_argument("--enable-cuda-all", "--cuda", action="store_true", help="Enable all CUDA kernel tests")
+    parser.add_argument("--enable-torch", "--torch", action="store_true", help="Enable torch matmul")
+    parser.add_argument("--enable-cublas", "--cublas", action="store_true", default=True, help="Enable cublas hgemm")
+    parser.add_argument("--disable-default", "--no-default", action="store_true", default=False, help="Disable default tests")
+    return parser.parse_args()
+
+args = get_args()
+print(args)
+
 # Load the CUDA kernel as a python module
+print("Loading hgemm lib ...")
 lib = load(name='hgemm_lib', 
            sources=['hgemm.cu', 'hgemm_async.cu', 'hgemm_wmma.cu', 
                     'hgemm_wmma_stage.cu', 'hgemm_cublas.cu'], 
@@ -23,6 +42,7 @@ lib = load(name='hgemm_lib',
             ], 
            extra_cflags=['-std=c++17'])
 
+
 MAX_TFLOPS = -1
 
 def run_benchmark(perf_func: callable, 
@@ -30,7 +50,8 @@ def run_benchmark(perf_func: callable,
                   tag: str, out: Optional[torch.Tensor] = None, 
                   stages: int = -1, swizzle: bool = False,
                   swizzle_stride: int = 1,
-                  warmup: int = 5, iters: int = 20,
+                  warmup: int = args.warmup, 
+                  iters: int = args.iters,
                   show_all: bool = False):
     global MAX_TFLOPS
 
@@ -77,6 +98,7 @@ def run_benchmark(perf_func: callable,
         for i in range(iters):
             out = perf_func(a, b) 
     torch.cuda.synchronize()
+
     end = time.time()
     total_time = (end - start) * 1000 # ms
     mean_time = total_time / iters
@@ -96,83 +118,96 @@ def run_benchmark(perf_func: callable,
         else:
             improve = 0
         MAX_TFLOPS = TFLOPS
-        print(f"{out_info:>35}: {out_val}, time:{mean_time}ms, "
+        print(f"{out_info:>40}: {out_val}, time:{mean_time}ms, "
               f"swizzle: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}(+{improve:.2f}%)")
     else:
-        print(f"{out_info:>35}: {out_val}, time:{mean_time}ms, "
+        print(f"{out_info:>40}: {out_val}, time:{mean_time}ms, "
               f"swizzle: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}")
     if show_all: print(out)
     return out, mean_time
 
 
-def get_args():
-    parser = argparse.ArgumentParser(description="hgemm benchmark")
-    parser.add_argument("--enable-mma-all",  "-ma", action="store_true")
-    parser.add_argument("--enable-wmma-all", "-wa", action="store_true")
-    parser.add_argument("--enable-cuda-all", "-ca", action="store_true")
-    return parser.parse_args()
-
-
-args = get_args()
 Ms = [4096, 8192, 16384]
 Ns = [4096, 8192, 16384]
 Ks = [2048, 4096, 8192]
-MAX_M, MAX_N, MAX_K = 16384, 16384, 8192
+if args.M and args.N and args.K:
+    Ms = [args.M]
+    Ns = [args.N]
+    Ks = [args.K]
+MAX_M, MAX_N, MAX_K = max(Ms), max(Ns), max(Ks)
 # pre allocate for fast profiling.
+torch.cuda.synchronize()
+start = time.time()
+print(f"pre allocate for fast profiling start, MAX_M={MAX_M}, MAX_N={MAX_N}, MAX_K={MAX_K}")
 A = torch.randn((MAX_M, MAX_K), dtype=torch.half).cuda()
 B = torch.randn((MAX_K, MAX_N), dtype=torch.half).cuda()
 C = torch.randn((MAX_M, MAX_N), dtype=torch.half).cuda()
 torch.cuda.synchronize()
-
+end = time.time()
+print(f"pre allocate for fast profiling done, time: {(end - start) * 1000} ms")
 MNKs = [(M, N, K) for M in Ms for N in Ns for K in Ks]
+
+PERF_COUNT = 0
 for (M, N, K) in MNKs:
     MAX_TFLOPS = -1
+    PERF_COUNT += 1
     print("-" * 130)
-    print(" " * 55 + f"M={M}, N={N}, K={K}")
+    print(" " * 30 + f"M={M}, N={N}, K={K}, Warmup={args.warmup}, Iters={args.iters}, {PERF_COUNT}/{len(MNKs)}")
+    print("-" * 130)
     a = A[:M, :K].contiguous()
     b = B[:K, :N].contiguous()
     c = C[:M, :N].contiguous()
     torch.cuda.synchronize()
-
-    if args.enable_cuda_all:
+    if args.enable_cuda_all: # more cuda cores kernel tests.
         # CUDA Cores FP16
-        run_benchmark(lib.hgemm_naive_f16, a, b, "f16(naive)",  c)
-        run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf, a, b, "f16x8pack(t8x8+bcf)", c)
-
-    run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf, a, b, "f16x8pack(t8x8+dbuf)", c)
-    run_benchmark(lib.hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf, a, b, "f16x8pack(t8x8+k16+dbuf)", c)
-
-    print("-" * 68 + "WMMA" + "-" * 58)
-    # wmma api, stages, dsmem, swizzle
-    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2, a, b, "(mma4x2)", c)
-    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4, a, b, "(mma4x2+warp2x4)", c)
-    
-    # prefer on NVIDIA L20 device.
-    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "(mma2x4+warp2x4+stage3)", c, stages=3)
-    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "(mma2x4+warp2x4+stage2)", c, stages=2)
-
-    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "(mma2x4+...+stage3+dsmem)", c, stages=3)
-    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "(mma2x4+...+stage2+dsmem)", c, stages=2)
-
-    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "(mma2x4+...+stage3+swizzle)", c, stages=3, swizzle=True)
-    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "(mma2x4+...+stage2+swizzle)", c, stages=2, swizzle=True)
-
-    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "(...+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
-    run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "(...+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
-    
-    if args.enable_wmma_all:
+        run_benchmark(lib.hgemm_naive_f16, a, b, "(naive)",  c)
+        run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf, a, b, "(f16x8pack+t8x8+bcf)", c)
+    if not args.disable_default:
+        run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf, a, b, "(f16x8pack+t8x8+dbuf)", c)
+        run_benchmark(lib.hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf, a, b, "(f16x8pack+t8x8+k16+dbuf)", c)
+        print("-" * 68 + "WMMA" + "-" * 58)
+        # wmma api, stages, dsmem, swizzle
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2, a, b, "(mma4x2)", c)
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4, a, b, "(mma4x2+warp2x4)", c)
+        # prefer on NVIDIA L20 device.
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "(mma4x2+warp2x4+stage3)", c, stages=3)
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "(mma4x2+warp2x4+stage2)", c, stages=2)
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "(mma4x2+warp2x4+stage3+dsmem)", c, stages=3)
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "(mma4x2+warp2x4+stage2+dsmem)", c, stages=2)
+        # swizzle
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "(mma4x2+warp2x4+stage3+swizzle)", c, stages=3, swizzle=True)
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "(mma4x2+warp2x4+stage2+swizzle)", c, stages=2, swizzle=True)
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "(mma4x2+warp2x4+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "(mma4x2+warp2x4+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
+        # TODO: add MMA PTX kernel tests.
+    if args.enable_wmma_all: # more wmma kernel tests.
+        # TODO: add more stages tests for mma2x4/mma4x4, 4,5 etc.
         # prefer on NVIDIA TRX 3080 Laptop 16GB GDDR6 device.
-        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "(mma4x4+...+stage3+dsmem)", c, stages=3)
-        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "(mma4x4+...+stage2+dsmem)", c, stages=2)
-        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_stages_dsmem, a, b, "(warp2x4x2+...+stage3+dsmem)", c, stages=3)
-        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_stages_dsmem, a, b, "(warp2x4x2+...+stage2+dsmem)", c, stages=2)
-        
-        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "(mma4x4+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
-        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "(mma4x4+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
-        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_stages_dsmem, a, b, "(warp2x4x2+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
-        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_stages_dsmem, a, b, "(warp2x4x2+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
-
-    run_benchmark(lib.hgemm_cublas_tensor_op, a, b, "f16(cublas)", c)
-    run_benchmark(partial(torch.matmul, out=c), a, b, "f16_th")
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "(mma4x4+warp4x4+stage3+dsmem)", c, stages=3)
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "(mma4x4+warp4x4+stage2+dsmem)", c, stages=2)
+        # may not get good performance for warp_tile_k, e.g. warp2x2x2, warp2x4x2 etc.
+        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem, a, b, "(mma4x2+warp4x4+stage3+dsmem)", c, stages=3)
+        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem, a, b, "(mma4x2+warp4x4+stage2+dsmem)", c, stages=2)
+        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_stages_dsmem, a, b, "(mma4x2+warp2x4x2+stage3+dsmem)", c, stages=3)
+        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_stages_dsmem, a, b, "(mma4x2+warp2x4x2+stage2+dsmem)", c, stages=2)
+        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_stages_dsmem, a, b, "(mma4x4+warp2x2x2+stage3+dsmem)", c, stages=3)
+        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_stages_dsmem, a, b, "(mma4x4+warp2x2x2+stage2+dsmem)", c, stages=2)
+        # swizzle
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "(mma4x4+warp4x4+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "(mma4x4+warp4x4+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
+        # may not get good performance for warp_tile_k, e.g. warp2x2x2, warp2x4x2 etc.
+        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem, a, b, "(mma4x2+warp4x4+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
+        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem, a, b, "(mma4x2+warp4x4+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
+        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_stages_dsmem, a, b, "(mma4x2+warp2x4x2+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
+        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_stages_dsmem, a, b, "(mma4x2+warp2x4x2+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
+        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_stages_dsmem, a, b, "(mma4x4+warp2x2x2+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
+        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_stages_dsmem, a, b, "(mma4x4+warp2x2x2+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
+    if args.enable_mma_all: # more mma kernel tests.
+        print("-" * 68 + "MMA" + "-" * 59)
+        pass
+    if args.enable_cublas:
+        run_benchmark(lib.hgemm_cublas_tensor_op, a, b, "(cublas)", c)
+    if args.enable_torch:
+        run_benchmark(partial(torch.matmul, out=c), a, b, "(torch)")
     torch.cuda.synchronize()
     print("-" * 130)

@@ -1235,11 +1235,14 @@ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages(torch::Tensor a, torch::Tensor b
                                                 int stages, bool swizzle, int swizzle_stride);
 void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem(torch::Tensor a, torch::Tensor b, torch::Tensor c, 
                                                       int stages, bool swizzle, int swizzle_stride);
+void hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem(torch::Tensor a, torch::Tensor b, torch::Tensor c, 
+                                                      int stages, bool swizzle, int swizzle_stride);                                                        
 void hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem(torch::Tensor a, torch::Tensor b, torch::Tensor c, 
                                                       int stages, bool swizzle, int swizzle_stride);
 void hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_stages_dsmem(torch::Tensor a, torch::Tensor b, torch::Tensor c, 
-                                                        int stages, bool swizzle, int swizzle_stride);                                                      
-
+                                                        int stages, bool swizzle, int swizzle_stride);      
+void hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_stages_dsmem(torch::Tensor a, torch::Tensor b, torch::Tensor c, 
+                                                        int stages, bool swizzle, int swizzle_stride);
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   // CUDA Cores FP16
@@ -1285,7 +1288,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   // stage, thread block swizzle, dsmem
   TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem)
+  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_stages_dsmem)
+  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_stages_dsmem)
 }
 
