@@ -29,7 +29,7 @@ def run_benchmark(perf_func: callable,
                   tag: str, out: Optional[torch.Tensor] = None, 
                   stages: int = -1, swizzle: bool = False,
                   swizzle_stride: int = 1,
-                  warmup: int = 2, iters: int = 50,
+                  warmup: int = 2, iters: int = 20,
                   show_all: bool = False):
     
     global MAX_TFLOPS
@@ -40,11 +40,11 @@ def run_benchmark(perf_func: callable,
 
     if (a.size(0) > 1024 or a.size(1) >= 1024 
         or b.size(1) > 1024):
-        iters = 20
+        iters = 10
     
     if swizzle:
         # make swizzle stride as N/4 and multiples of 256
-        swizzle_stride = int((int(N / 4) // 256) * 256)
+        swizzle_stride = int((int(N / 8) // 256) * 256)
         swizzle_stride = swizzle_stride if swizzle_stride >= 256 else 1
         swizzle = swizzle if swizzle_stride >= 256 else False
     else:
@@ -127,7 +127,7 @@ for (M, N, K) in MNKs:
     torch.cuda.synchronize()
 
     # CUDA Cores FP32
-    run_benchmark(lib.sgemm_naive_f32, a, b, "f32(naive)", c)
+    # run_benchmark(lib.sgemm_naive_f32, a, b, "f32(naive)", c)
     run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4, a, b, "f32x4(t8x8sk)", c)
     run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4_bcf, a, b, "f32x4(t8x8bcf)", c)
     run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf, a, b, "f32x4(t8x8dbuf)", c)

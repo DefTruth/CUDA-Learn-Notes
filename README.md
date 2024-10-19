@@ -62,11 +62,11 @@
 | ✔️ [embedding_f16x2](./embedding/embedding.cu)|f16|/|[link](./embedding/)|⭐️|  
 | ✔️ [embedding_f16x8](./embedding/embedding.cu)|f16|/|[link](./embedding/)|⭐️|  
 | ✔️ [embedding_f16x8_pack](./embedding/embedding.cu)|f16|/|[link](./embedding/)|⭐️⭐️| 
-| ✔️ [mat_trans_f32_col2row{2d}](./mat_transpose/mat_transpose.cu)|f32|/|[link](./mat_transpose/)|⭐️|  
-| ✔️ [mat_trans_f32_row2col{2d}](./mat_transpose/mat_transpose.cu)|f32|/|[link](./mat_transpose/)|⭐️|  
-| ✔️ [mat_trans_f32_diagonal2d](./mat_transpose/mat_transpose.cu)|f32|/|[link](./mat_transpose/)|⭐️⭐️|  
-| ✔️ [mat_trans_f32x4_col2row{2d}](./mat_transpose/mat_transpose.cu)|f32|/|[link](./mat_transpose/)|⭐️⭐️|  
-| ✔️ [mat_trans_f32x4_row2col{2d}](./mat_transpose/mat_transpose.cu)|f32|/|[link](./mat_transpose/)|⭐️⭐️|  
+| ✔️ [mat_trans_f32_col2row{2d}](./mat-transpose/mat_transpose.cu)|f32|/|[link](./mat-transpose/)|⭐️|  
+| ✔️ [mat_trans_f32_row2col{2d}](./mat-transpose/mat_transpose.cu)|f32|/|[link](./mat-transpose/)|⭐️|  
+| ✔️ [mat_trans_f32_diagonal2d](./mat-transpose/mat_transpose.cu)|f32|/|[link](./mat-transpose/)|⭐️⭐️|  
+| ✔️ [mat_trans_f32x4_col2row{2d}](./mat-transpose/mat_transpose.cu)|f32|/|[link](./mat-transpose/)|⭐️⭐️|  
+| ✔️ [mat_trans_f32x4_row2col{2d}](./mat-transpose/mat_transpose.cu)|f32|/|[link](./mat-transpose/)|⭐️⭐️|  
 | ✔️ [warp_reduce_[all]](./reduce/reduce.cu)|all|all|[link](./reduce/)|⭐️⭐️|  
 | ✔️ [reduce_f32_f32](./reduce/reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  
 | ✔️ [reduce_f32x4_f32](./reduce/reduce.cu)|f32|f32|[link](./reduce/)|⭐️⭐️|  

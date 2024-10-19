@@ -50,16 +50,24 @@ __global__ void f32x4_tf32x4_kernel(float* x, float* y, int N) {
 }
 
 // stage2/3/4 (stage2=double buffers+copy async)
-// 1. 当使用的shared memory超过48 KB时，需要使用dynamic shared 
-// memory， 即extern __shared__ float smem[];这样声明一块动态
-// 共享内存，调用kernel时 需要指定动态共享内存大小，且smem的寻址
-// 方式需要按照一维数组来使用 2. 提高L2 Cache的局部性(Thread 
-// Block Swizzle): https://zhuanlan.zhihu.com/p/555339335
-template<const int WMMA_M=16, const int WMMA_N=16, const int WMMA_K=8, 
-         const int WMMA_TILE_M=4, const int WMMA_TILE_N=2, 
-         const int WARP_TILE_M=2, const int WARP_TILE_N=4,
-         const int K_STAGE=3, const int OFFSET=0,
-         const bool BLOCK_SWIZZLE = false>
+// 1. When using shared memory exceeds 48 KB, dynamic shared memory needs to be used,
+// i.e., declare a block of dynamic shared memory with extern shared half smem[];. 
+// When calling the kernel, the size of the dynamic shared memory needs to be specified, 
+// and smem addressing should be used in a one-dimensional array manner. 
+// 2. Improve L2 Cache locality (Thread Block Swizzle): https://zhuanlan.zhihu.com/p/555339335
+// 3. __launch_bounds__: avoid error 'too many resources required for launch'
+// reference: https://blog.csdn.net/feng__shuai/article/details/124395023
+template<const int WMMA_M=16, 
+         const int WMMA_N=16, 
+         const int WMMA_K=8, 
+         const int WMMA_TILE_M=4, 
+         const int WMMA_TILE_N=2, 
+         const int WARP_TILE_M=2, 
+         const int WARP_TILE_N=4,
+         const int A_PAD=0, 
+         const int B_PAD=0, 
+         const int K_STAGE=2, 
+         const bool BLOCK_SWIZZLE=false>
 __global__ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_kernel(
   float* A, float* B, float* C, int M, int N, int K) {
   // 256 threads(8 warps) per block.
@@ -71,10 +79,7 @@ __global__ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_kernel(
   constexpr int BM = WMMA_M * WMMA_TILE_M * WARP_TILE_M; // 16x4*2=128
   constexpr int BN = WMMA_N * WMMA_TILE_N * WARP_TILE_N; // 16x2*4=128
   constexpr int BK = WMMA_K; // 8
-  // s2: 2*128*(8+4)*4=12KB, 2*8*(128+4)*4=8.25KB,   ~21KB
-  // s3: 3*128*(8+4)*4=18KB, 3*8*(128+4)*4=12.375KB, ~31KB
-  // s4: 4*128*(8+4)*4=24KB, 4*8*(128+4)*4=16.5KB,   ~41KB
-  __shared__ float s_a[K_STAGE][BM][BK+OFFSET], s_b[K_STAGE][BK][BN+OFFSET]; 
+  __shared__ float s_a[K_STAGE][BM][BK+A_PAD], s_b[K_STAGE][BK][BN+B_PAD]; 
  
   // 要保证相同的warp下thread执行相同的指令
   const int tid = threadIdx.y * blockDim.x + threadIdx.x;
@@ -162,14 +167,14 @@ __global__ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_kernel(
     for (int i = 0; i < WARP_TILE_M; ++i) {
       // load 2 tiles -> reg, smem a -> frags a, warp_m 0~3
       const int warp_smem_a_m = warp_m * (WMMA_M * WARP_TILE_M) + i * WMMA_M;
-      wmma::load_matrix_sync(A_frag[i], &s_a[smem_sel][warp_smem_a_m][0], BK+OFFSET); 
+      wmma::load_matrix_sync(A_frag[i], &s_a[smem_sel][warp_smem_a_m][0], BK+A_PAD); 
     }
 
     #pragma unroll
     for (int j = 0; j < WARP_TILE_N; ++j) {
       // load 4 tiles -> reg, smem b -> frags b, warp_n 0~2
       const int warp_smem_b_n = warp_n * (WMMA_N * WARP_TILE_N) + j * WMMA_N;
-      wmma::load_matrix_sync(B_frag[j], &s_b[smem_sel][0][warp_smem_b_n], BN+OFFSET);
+      wmma::load_matrix_sync(B_frag[j], &s_b[smem_sel][0][warp_smem_b_n], BN+B_PAD);
     }
 
     #pragma unroll
@@ -203,14 +208,14 @@ __global__ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_kernel(
       for (int i = 0; i < WARP_TILE_M; ++i) {
         // load 2 tiles -> reg, smem a -> frags a, warp_m 0~3
         const int warp_smem_a_m = warp_m * (WMMA_M * WARP_TILE_M) + i * WMMA_M;
-        wmma::load_matrix_sync(A_frag[i], &s_a[stage_sel][warp_smem_a_m][0], BK+OFFSET); 
+        wmma::load_matrix_sync(A_frag[i], &s_a[stage_sel][warp_smem_a_m][0], BK+A_PAD); 
       }
 
       #pragma unroll
       for (int j = 0; j < WARP_TILE_N; ++j) {
         // load 4 tiles -> reg, smem b -> frags b, warp_n 0~2
         const int warp_smem_b_n = warp_n * (WMMA_N * WARP_TILE_N) + j * WMMA_N;
-        wmma::load_matrix_sync(B_frag[j], &s_b[stage_sel][0][warp_smem_b_n], BN+OFFSET);
+        wmma::load_matrix_sync(B_frag[j], &s_b[stage_sel][0][warp_smem_b_n], BN+B_PAD);
       }
       
       #pragma unroll
@@ -237,16 +242,24 @@ __global__ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_kernel(
 }
 
 // stage2/3/4 (stage2=double buffers+copy async)
-// 1. 当使用的shared memory超过48 KB时，需要使用dynamic shared 
-// memory， 即extern __shared__ float smem[];这样声明一块动态
-// 共享内存，调用kernel时 需要指定动态共享内存大小，且smem的寻址
-// 方式需要按照一维数组来使用 2. 提高L2 Cache的局部性(Thread 
-// Block Swizzle): https://zhuanlan.zhihu.com/p/555339335
-template<const int WMMA_M=16, const int WMMA_N=16, const int WMMA_K=8, 
-         const int WMMA_TILE_M=4, const int WMMA_TILE_N=2, 
-         const int WARP_TILE_M=2, const int WARP_TILE_N=4,
-         const int K_STAGE=3, const int OFFSET=0,
-         const bool BLOCK_SWIZZLE = false>
+// 1. When using shared memory exceeds 48 KB, dynamic shared memory needs to be used,
+// i.e., declare a block of dynamic shared memory with extern shared half smem[];. 
+// When calling the kernel, the size of the dynamic shared memory needs to be specified, 
+// and smem addressing should be used in a one-dimensional array manner. 
+// 2. Improve L2 Cache locality (Thread Block Swizzle): https://zhuanlan.zhihu.com/p/555339335
+// 3. __launch_bounds__: avoid error 'too many resources required for launch'
+// reference: https://blog.csdn.net/feng__shuai/article/details/124395023
+template<const int WMMA_M=16, 
+         const int WMMA_N=16, 
+         const int WMMA_K=8, 
+         const int WMMA_TILE_M=4, 
+         const int WMMA_TILE_N=2, 
+         const int WARP_TILE_M=2, 
+         const int WARP_TILE_N=4,
+         const int A_PAD=0, 
+         const int B_PAD=0, 
+         const int K_STAGE=2,
+         const bool BLOCK_SWIZZLE=false>
 __global__ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem_kernel(
   float* A, float* B, float* C, int M, int N, int K) {
   // 256 threads(8 warps) per block.
@@ -263,9 +276,9 @@ __global__ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem_kernel(
   // s4: 4*128*(8+4)*4=24KB, 4*8*(128+4)*4=16.5KB,   ~41KB
   extern __shared__ float smem[]; 
   float* s_a = smem;
-  float* s_b = smem + K_STAGE * BM * (BK + OFFSET);
-  constexpr int s_a_stage_offset = BM * (BK + OFFSET);
-  constexpr int s_b_stage_offset = BK * (BN + OFFSET);
+  float* s_b = smem + K_STAGE * BM * (BK + A_PAD);
+  constexpr int s_a_stage_offset = BM * (BK + A_PAD);
+  constexpr int s_b_stage_offset = BK * (BN + B_PAD);
  
   // 要保证相同的warp下thread执行相同的指令
   const int tid = threadIdx.y * blockDim.x + threadIdx.x;
@@ -311,14 +324,14 @@ __global__ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem_kernel(
 
     uint32_t load_smem_a_ptr = (
       smem_a_base_ptr + (k * s_a_stage_offset + 
-                         load_smem_a_m * (BK + OFFSET) + 
+                         load_smem_a_m * (BK + A_PAD) + 
                          load_smem_a_k) * sizeof(float)
     );
     CP_ASYNC_CG(load_smem_a_ptr, &A[load_gmem_a_addr], 16);
 
     uint32_t load_smem_b_ptr = (
       smem_b_base_ptr + (k * s_b_stage_offset + 
-                         load_smem_b_k * (BN + OFFSET) + 
+                         load_smem_b_k * (BN + B_PAD) + 
                          load_smem_b_n) * sizeof(float)
     );
     CP_ASYNC_CG(load_smem_b_ptr, &B[load_gmem_b_addr], 16);
@@ -346,14 +359,14 @@ __global__ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem_kernel(
     // load stage 2, k start from 2
     uint32_t load_smem_a_ptr = (
       smem_a_base_ptr + (smem_sel_next * s_a_stage_offset + 
-                         load_smem_a_m * (BK + OFFSET) + 
+                         load_smem_a_m * (BK + A_PAD) + 
                          load_smem_a_k) * sizeof(float)
     );
     CP_ASYNC_CG(load_smem_a_ptr, &A[load_gmem_a_addr], 16);
 
     uint32_t load_smem_b_ptr = (
       smem_b_base_ptr + (smem_sel_next * s_b_stage_offset + 
-                         load_smem_b_k * (BN + OFFSET) + 
+                         load_smem_b_k * (BN + B_PAD) + 
                          load_smem_b_n) * sizeof(float)
     );
     CP_ASYNC_CG(load_smem_b_ptr, &B[load_gmem_b_addr], 16);
@@ -370,9 +383,9 @@ __global__ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem_kernel(
       // load 2 tiles -> reg, smem a -> frags a, warp_m 0~3
       int warp_smem_a_m = warp_m * (WMMA_M * WARP_TILE_M) + i * WMMA_M;
       float* load_smem_a_frag_ptr = (s_a + smem_sel * s_a_stage_offset + 
-                                     warp_smem_a_m * (BK + OFFSET) 
+                                     warp_smem_a_m * (BK + A_PAD) 
                                      + 0); // BK=WMMA_K=8
-      wmma::load_matrix_sync(A_frag[i], load_smem_a_frag_ptr, BK + OFFSET); 
+      wmma::load_matrix_sync(A_frag[i], load_smem_a_frag_ptr, BK + A_PAD); 
     }
 
     #pragma unroll
@@ -380,9 +393,9 @@ __global__ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem_kernel(
       // load 4 tiles -> reg, smem b -> frags b, warp_n 0~2
       int warp_smem_b_n = warp_n * (WMMA_N * WARP_TILE_N) + j * WMMA_N;
       float* load_smem_b_frag_ptr = (s_b + smem_sel * s_b_stage_offset + 
-                                     0 * (BN + OFFSET) + 
+                                     0 * (BN + B_PAD) + 
                                      warp_smem_b_n); // BK=WMMA_K=8
-      wmma::load_matrix_sync(B_frag[j], load_smem_b_frag_ptr, BN + OFFSET);
+      wmma::load_matrix_sync(B_frag[j], load_smem_b_frag_ptr, BN + B_PAD);
     }
 
     #pragma unroll
@@ -417,9 +430,9 @@ __global__ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem_kernel(
         // load 2 tiles -> reg, smem a -> frags a, warp_m 0~3
         int warp_smem_a_m = warp_m * (WMMA_M * WARP_TILE_M) + i * WMMA_M;
         float* load_smem_a_frag_ptr = (s_a + stage_sel * s_a_stage_offset + 
-                                       warp_smem_a_m * (BK + OFFSET) 
+                                       warp_smem_a_m * (BK + A_PAD) 
                                        + 0); // BK=WMMA_K=8
-        wmma::load_matrix_sync(A_frag[i], load_smem_a_frag_ptr, BK + OFFSET); 
+        wmma::load_matrix_sync(A_frag[i], load_smem_a_frag_ptr, BK + A_PAD); 
       }
 
       #pragma unroll
@@ -427,9 +440,9 @@ __global__ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem_kernel(
         // load 4 tiles -> reg, smem b -> frags b, warp_n 0~2
         int warp_smem_b_n = warp_n * (WMMA_N * WARP_TILE_N) + j * WMMA_N;
         float* load_smem_b_frag_ptr = (s_b + stage_sel * s_b_stage_offset + 
-                                       0 * (BN + OFFSET) + 
+                                       0 * (BN + B_PAD) + 
                                        warp_smem_b_n); // BK=WMMA_K=8
-        wmma::load_matrix_sync(B_frag[j], load_smem_b_frag_ptr, BN + OFFSET);
+        wmma::load_matrix_sync(B_frag[j], load_smem_b_frag_ptr, BN + B_PAD);
       }
       
       #pragma unroll
@@ -481,8 +494,8 @@ if (((T).size(0) != (S0)) || ((T).size(1) != (S1))) { \
              N_SWIZZLE);                                     \
   sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_kernel<          \
     WMMA_M, WMMA_N, WMMA_K, WMMA_TILE_M, WMMA_TILE_N,        \
-    WARP_TILE_M, WARP_TILE_N, (stages), OFFSET, true><<<     \
-    grid, block>>>(                                          \
+    WARP_TILE_M, WARP_TILE_N, A_PAD, B_PAD,                  \
+    (stages), true><<<grid, block>>>(                        \
     reinterpret_cast<float*>(a.data_ptr()),                  \
     reinterpret_cast<float*>(b.data_ptr()),                  \
     reinterpret_cast<float*>(c.data_ptr()),                  \
@@ -496,8 +509,8 @@ if (((T).size(0) != (S0)) || ((T).size(1) != (S1))) { \
   dim3 grid(div_ceil(N, BN), div_ceil(M, BM));               \
   sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_kernel<          \
     WMMA_M, WMMA_N, WMMA_K, WMMA_TILE_M, WMMA_TILE_N,        \
-    WARP_TILE_M, WARP_TILE_N, (stages), OFFSET, false><<<    \
-    grid, block>>>(                                          \
+    WARP_TILE_M, WARP_TILE_N, A_PAD, B_PAD,                  \
+    (stages), false><<<grid, block>>>(                       \
     reinterpret_cast<float*>(a.data_ptr()),                  \
     reinterpret_cast<float*>(b.data_ptr()),                  \
     reinterpret_cast<float*>(c.data_ptr()),                  \
@@ -509,12 +522,12 @@ if (((T).size(0) != (S0)) || ((T).size(1) != (S1))) { \
 #define LAUNCH_16168_STAGE_SWIZZLE_DSMEM_KERNEL(stages, stride)   \
 {                                                                 \
   const int smem_max_size = (                                     \
-    (stages) * BM * (BK + OFFSET) * sizeof(float) +               \
-    (stages) * BK * (BN + OFFSET) * sizeof(float));               \
+    (stages) * BM * (BK + A_PAD) * sizeof(float) +                \
+    (stages) * BK * (BN + B_PAD) * sizeof(float));                \
   cudaFuncSetAttribute(                                           \
     sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem_kernel<       \
       WMMA_M, WMMA_N, WMMA_K, WMMA_TILE_M, WMMA_TILE_N,           \
-      WARP_TILE_M, WARP_TILE_N, (stages), OFFSET, true>,          \
+      WARP_TILE_M, WARP_TILE_N, A_PAD, B_PAD, (stages), true>,    \
     cudaFuncAttributeMaxDynamicSharedMemorySize,                  \
     98304);                                                       \
   const int N_SWIZZLE = (N + (stride) - 1) / (stride);            \
@@ -524,7 +537,7 @@ if (((T).size(0) != (S0)) || ((T).size(1) != (S1))) { \
              N_SWIZZLE);                                          \
   sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem_kernel<         \
     WMMA_M, WMMA_N, WMMA_K, WMMA_TILE_M, WMMA_TILE_N,             \
-    WARP_TILE_M, WARP_TILE_N, (stages), OFFSET, true><<<          \
+    WARP_TILE_M, WARP_TILE_N, A_PAD, B_PAD, (stages), true><<<    \
     grid, block, smem_max_size>>>(                                \
     reinterpret_cast<float*>(a.data_ptr()),                       \
     reinterpret_cast<float*>(b.data_ptr()),                       \
@@ -536,19 +549,19 @@ if (((T).size(0) != (S0)) || ((T).size(1) != (S1))) { \
 #define LAUNCH_16168_STAGE_NO_SWIZZLE_DSMEM_KERNEL(stages)     \
 {                                                              \
   const int smem_max_size = (                                  \
-    (stages) * BM * (BK + OFFSET) * sizeof(float) +            \
-    (stages) * BK * (BN + OFFSET) * sizeof(float));            \
+    (stages) * BM * (BK + A_PAD) * sizeof(float) +             \
+    (stages) * BK * (BN + B_PAD) * sizeof(float));             \
   cudaFuncSetAttribute(                                        \
     sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem_kernel<    \
       WMMA_M, WMMA_N, WMMA_K, WMMA_TILE_M, WMMA_TILE_N,        \
-      WARP_TILE_M, WARP_TILE_N, (stages), OFFSET, false>,      \
+      WARP_TILE_M, WARP_TILE_N, A_PAD, B_PAD, (stages), false>,\
     cudaFuncAttributeMaxDynamicSharedMemorySize,               \
     98304);                                                    \
   dim3 block(NUM_THREADS);                                     \
   dim3 grid(div_ceil(N, BN), div_ceil(M, BM));                 \
   sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem_kernel<      \
     WMMA_M, WMMA_N, WMMA_K, WMMA_TILE_M, WMMA_TILE_N,          \
-    WARP_TILE_M, WARP_TILE_N, (stages), OFFSET, false><<<      \
+    WARP_TILE_M, WARP_TILE_N, A_PAD, B_PAD, (stages), false><<<\
     grid, block, smem_max_size>>>(                             \
     reinterpret_cast<float*>(a.data_ptr()),                    \
     reinterpret_cast<float*>(b.data_ptr()),                    \
@@ -576,7 +589,6 @@ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages(
   const int Nb = K * N;
   constexpr int T = 256;
 
-  // TODO: multi streams for a and b.
   f32x4_tf32x4_kernel<<<((Na + T * 4 - 1)/(T * 4)), T>>>(
     reinterpret_cast<float*>(a.data_ptr()),
     reinterpret_cast<float*>(a.data_ptr()),
@@ -594,24 +606,32 @@ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages(
   constexpr int WMMA_TILE_N = 2; 
   constexpr int WARP_TILE_M = 2;
   constexpr int WARP_TILE_N = 4;
-  constexpr int OFFSET = 0;
+  // s_a 2 ways bank conflicts within warp, after pad 4 -> 2 ways bank conflicts.
+  // s_b 8 ways bank conflicts within warp, after pad 4 -> 4 ways bank conflicts.
+  // so, the best padding policy for s_a and s_b is A_PAD=0, B_PAD=0/4/8. 
+  // B_PAD consume 16x~ less smem than A_PAD, 8xB_PAD vs 128xA_PAD.
+  constexpr int A_PAD = 0;  
+  constexpr int B_PAD = 0; 
   constexpr int NUM_THREADS= (
     WMMA_TILE_M * WMMA_TILE_N * WARP_SIZE); // 2 * 4 * 32 = 256
   constexpr int BM = WMMA_M * WMMA_TILE_M * WARP_TILE_M;    
   constexpr int BN = WMMA_N * WMMA_TILE_N * WARP_TILE_N;    
-  constexpr int BK = WMMA_K;          
+  constexpr int BK = WMMA_K;   
+  // s2: 2*128*(8)*4=8KB,  2*8*(128+0~4)*4=8.25KB,   12~13KB
+  // s3: 3*128*(8)*4=12KB, 3*8*(128+0~4)*4=12.375KB, 24~25KB
+  // s4: 4*128*(8)*4=16KB, 4*8*(128+0~4)*4=16.5KB,   32~33KB             
 
   if (swizzle) {
     assert(swizzle_stride % 256 == 0);
     switch (stages)
     {
-    case 2: // ~21KB
+    case 2: 
       LAUNCH_16168_STAGE_SWIZZLE_KERNEL(2, swizzle_stride);
       break;
-    case 3: // ~31KB
+    case 3: 
       LAUNCH_16168_STAGE_SWIZZLE_KERNEL(3, swizzle_stride);
       break;
-    case 4: // ~41KB
+    case 4: 
       LAUNCH_16168_STAGE_SWIZZLE_KERNEL(4, swizzle_stride);
       break;
     default:
@@ -655,7 +675,6 @@ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem(
   const int Nb = K * N;
   constexpr int T = 256;
 
-  // TODO: multi streams for a and b.
   f32x4_tf32x4_kernel<<<((Na + T * 4 - 1)/(T * 4)), T>>>(
     reinterpret_cast<float*>(a.data_ptr()),
     reinterpret_cast<float*>(a.data_ptr()),
@@ -673,27 +692,35 @@ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem(
   constexpr int WMMA_TILE_N = 2; 
   constexpr int WARP_TILE_M = 2;
   constexpr int WARP_TILE_N = 4;
-  constexpr int OFFSET = 0;
+  // s_a 2 ways bank conflicts within warp, after pad 4 -> 2 ways bank conflicts.
+  // s_b 8 ways bank conflicts within warp, after pad 4 -> 4 ways bank conflicts.
+  // so, the best padding policy for s_a and s_b is A_PAD=0, B_PAD=0/4/8. 
+  // B_PAD consume 16x~ less smem than A_PAD, 8xB_PAD vs 128xA_PAD.
+  constexpr int A_PAD = 0;  
+  constexpr int B_PAD = 0; 
   constexpr int NUM_THREADS= (
     WMMA_TILE_M * WMMA_TILE_N * WARP_SIZE); // 2 * 4 * 32 = 256
   constexpr int BM = WMMA_M * WMMA_TILE_M * WARP_TILE_M;    
   constexpr int BN = WMMA_N * WMMA_TILE_N * WARP_TILE_N;    
-  constexpr int BK = WMMA_K;          
+  constexpr int BK = WMMA_K;   
+  // s2: 2*128*(8)*4=8KB,  2*8*(128+0~4)*4=8.25KB,   12~13KB
+  // s3: 3*128*(8)*4=12KB, 3*8*(128+0~4)*4=12.375KB, 24~25KB
+  // s4: 4*128*(8)*4=16KB, 4*8*(128+0~4)*4=16.5KB,   32~33KB          
 
   if (swizzle) {
     assert(swizzle_stride % 256 == 0);
     switch (stages)
     {
-    case 2: // ~21KB
+    case 2: 
       LAUNCH_16168_STAGE_SWIZZLE_DSMEM_KERNEL(2, swizzle_stride);
       break;
-    case 3: // ~31KB
+    case 3:
       LAUNCH_16168_STAGE_SWIZZLE_DSMEM_KERNEL(3, swizzle_stride);
       break;
-    case 4: // ~41KB
+    case 4: 
       LAUNCH_16168_STAGE_SWIZZLE_DSMEM_KERNEL(4, swizzle_stride);
       break;
-    case 5: // ~52KB
+    case 5: 
       LAUNCH_16168_STAGE_SWIZZLE_DSMEM_KERNEL(5, swizzle_stride);
       break;
     default:
