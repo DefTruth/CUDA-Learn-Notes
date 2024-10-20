@@ -18,8 +18,8 @@ def get_args():
     parser.add_argument("--enable-wmma-all", "--wmma", action="store_true", help="Enable all WMMA kernel tests")
     parser.add_argument("--enable-cuda-all", "--cuda", action="store_true", help="Enable all CUDA kernel tests")
     parser.add_argument("--enable-torch", "--torch", action="store_true", help="Enable torch matmul")
-    parser.add_argument("--enable-cublas", "--cublas", action="store_true", default=True, help="Enable cublas hgemm")
-    parser.add_argument("--disable-default", "--no-default", action="store_true", default=False, help="Disable default tests")
+    parser.add_argument("--disable-cublas", "--no-cublas", action="store_true", help="Disable cublas hgemm")
+    parser.add_argument("--disable-default", "--no-default", action="store_true", help="Disable default tests")
     return parser.parse_args()
 
 args = get_args()
@@ -205,8 +205,8 @@ for (M, N, K) in MNKs:
     if args.enable_mma_all: # more mma kernel tests.
         print("-" * 68 + "MMA" + "-" * 59)
         pass
-    if args.enable_cublas:
-        run_benchmark(lib.hgemm_cublas_tensor_op, a, b, "(cublas)", c)
+    if not args.disable_cublas:
+        run_benchmark(lib.hgemm_cublas_tensor_op_row_major, a, b, "(cublas)", c)
     if args.enable_torch:
         run_benchmark(partial(torch.matmul, out=c), a, b, "(torch)")
     torch.cuda.synchronize()

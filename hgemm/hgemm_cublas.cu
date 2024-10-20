@@ -14,11 +14,10 @@
 
 #include "cublas_v2.h"
 
+void cublas_tensor_op_row_major(half *A, half *B, half *C,  size_t M, 
+                                size_t N, size_t K) {
 
-void cublas_tensor_op(half *A, half *B, half *C,  size_t M, 
-                      size_t N, size_t K) {
-
-  cublasHandle_t handle = nullptr;
+  static cublasHandle_t handle = nullptr;
   cublasCreate(&handle);
   cublasSetMathMode(handle, CUBLAS_TENSOR_OP_MATH);
 
@@ -41,6 +40,8 @@ void cublas_tensor_op(half *A, half *B, half *C,  size_t M,
   // cublasDestroy(handle);
 }
 
+// TODO: add cublas_tensor_op_col_major
+
 // --------------------- PyTorch bindings for custom kernel -----------------------
 #define STRINGFY(str) #str
 #define TORCH_BINDING_COMMON_EXTENSION(func)   \
@@ -57,8 +58,8 @@ if (((T).size(0) != (S0)) || ((T).size(1) != (S1))) { \
   throw std::runtime_error("Tensor size mismatch!");  \
 }
 
-// cublas tensor op
-void hgemm_cublas_tensor_op(
+// cublas tensor op with row major B matrix
+void hgemm_cublas_tensor_op_row_major(
   torch::Tensor a, torch::Tensor b, torch::Tensor c) {
   CHECK_TORCH_TENSOR_DTYPE(a, torch::kHalf)
   CHECK_TORCH_TENSOR_DTYPE(b, torch::kHalf)
@@ -70,10 +71,12 @@ void hgemm_cublas_tensor_op(
   CHECK_TORCH_TENSOR_SHAPE(b, K, N)
   CHECK_TORCH_TENSOR_SHAPE(c, M, N)
 
-  cublas_tensor_op(
+  cublas_tensor_op_row_major(
     reinterpret_cast<half*>(a.data_ptr()),
     reinterpret_cast<half*>(b.data_ptr()),
     reinterpret_cast<half*>(c.data_ptr()),
     M, N, K
   );
 }
+
+// TODO: add cublas_tensor_op_col_major

@@ -238,12 +238,14 @@ export TORCH_CUDA_ARCH_LIST=Ada
 python3 hgemm.py # default, test some wmma kernels for all MNK
 python3 hgemm.py --wmma # test all wmma kernels for all MNK
 python3 hgemm.py --M 16384 --N 16384 --K 8192 --i 10 --wmma # test all wmma kernels for specific MNK
+python3 hgemm.py --wmma --no-default # test all wmma kernels, but exclude the default part.
 ```
 
 输出:
 
 - NVIDIA L20  
 ```bash
+python3 hgemm.py
 ----------------------------------------------------------------------------------------------------------------------------------
                                                        M=4096, N=4096, K=2048
                     f16x8pack(t8x8+dbuf): ['1.59863281', '-1.5263671'], time:1.404404ms, swizzle: NOOP, TFLOPS: 48.93 (+0.00%)
