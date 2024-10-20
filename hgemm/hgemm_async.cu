@@ -724,37 +724,8 @@ if (((T).size(0) != (S0)) || ((T).size(1) != (S1))) { \
   throw std::runtime_error("Tensor size mismatch!");  \
 }
 
-// t 8x8 fp16x8 pack, double buffers, k 16
+
 void hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf(
-  torch::Tensor a, torch::Tensor b, torch::Tensor c) {
-  CHECK_TORCH_TENSOR_DTYPE(a, torch::kHalf)
-  CHECK_TORCH_TENSOR_DTYPE(b, torch::kHalf)
-  CHECK_TORCH_TENSOR_DTYPE(c, torch::kHalf)
-  const int M = a.size(0);
-  const int K = a.size(1);
-  const int N = b.size(1); 
-  CHECK_TORCH_TENSOR_SHAPE(a, M, K)
-  CHECK_TORCH_TENSOR_SHAPE(b, K, N)
-  CHECK_TORCH_TENSOR_SHAPE(c, M, N)
-  constexpr int BM = 128;
-  constexpr int BN = 128;
-  constexpr int BK = 16; 
-  constexpr int TM = 8;
-  constexpr int TN = 8;
-
-  dim3 block(BN/TN, BM/TM);
-  dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
-
-  hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf_kernel<
-    BM, BN, BK, TM, TN><<<grid, block>>>(
-    reinterpret_cast<half*>(a.data_ptr()),
-    reinterpret_cast<half*>(b.data_ptr()),
-    reinterpret_cast<half*>(c.data_ptr()),
-    M, N, K
-  );
-}
-
-void hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf_offset(
   torch::Tensor a, torch::Tensor b, torch::Tensor c) {
   CHECK_TORCH_TENSOR_DTYPE(a, torch::kHalf)
   CHECK_TORCH_TENSOR_DTYPE(b, torch::kHalf)
@@ -805,7 +776,7 @@ void hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf_async(
   dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
 
   hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf_async_kernel<
-    BM, BN, BK, TM, TN><<<grid, block>>>(
+    BM, BN, BK, TM, TN, 8><<<grid, block>>>(
     reinterpret_cast<half*>(a.data_ptr()),
     reinterpret_cast<half*>(b.data_ptr()),
     reinterpret_cast<half*>(c.data_ptr()),
@@ -834,7 +805,7 @@ void hgemm_t_8x8_sliced_k32_f16x8_pack_dbuf(
   dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
 
   hgemm_t_8x8_sliced_k32_f16x8_pack_dbuf_kernel<
-    BM, BN, BK, TM, TN><<<grid, block>>>(
+    BM, BN, BK, TM, TN, 8><<<grid, block>>>(
     reinterpret_cast<half*>(a.data_ptr()),
     reinterpret_cast<half*>(b.data_ptr()),
     reinterpret_cast<half*>(c.data_ptr()),
@@ -863,7 +834,7 @@ void hgemm_t_8x8_sliced_k32_f16x8_pack_dbuf_async(
   dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
 
   hgemm_t_8x8_sliced_k32_f16x8_pack_dbuf_async_kernel<
-    BM, BN, BK, TM, TN><<<grid, block>>>(
+    BM, BN, BK, TM, TN, 8><<<grid, block>>>(
     reinterpret_cast<half*>(a.data_ptr()),
     reinterpret_cast<half*>(b.data_ptr()),
     reinterpret_cast<half*>(c.data_ptr()),
@@ -893,7 +864,7 @@ void hgemm_t_16x8_sliced_k32_f16x8_pack_dbuf(
   dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
 
   hgemm_t_16x8_sliced_k32_f16x8_pack_dbuf_kernel<
-    BM, BN, BK, TM, TN><<<grid, block>>>(
+    BM, BN, BK, TM, TN, 8><<<grid, block>>>(
     reinterpret_cast<half*>(a.data_ptr()),
     reinterpret_cast<half*>(b.data_ptr()),
     reinterpret_cast<half*>(c.data_ptr()),
@@ -922,7 +893,7 @@ void hgemm_t_16x8_sliced_k32_f16x8_pack_dbuf_async(
   dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
 
   hgemm_t_16x8_sliced_k32_f16x8_pack_dbuf_async_kernel<
-    BM, BN, BK, TM, TN><<<grid, block>>>(
+    BM, BN, BK, TM, TN, 8><<<grid, block>>>(
     reinterpret_cast<half*>(a.data_ptr()),
     reinterpret_cast<half*>(b.data_ptr()),
     reinterpret_cast<half*>(c.data_ptr()),

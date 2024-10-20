@@ -517,94 +517,6 @@ __global__ void hgemm_t_8x8_sliced_k_f16x4_pack_bcf_kernel(
   }
 }
 
-template<const int BM=64, 
-         const int BN=64, 
-         const int BK=8, 
-         const int TM=4, 
-         const int TN=4, 
-         const int OFFSET=0>
-__global__ void hgemm_t_4x4_sliced_k_f16x4_pack_bcf_kernel(
-  half* a, half* b, half* c, const int M, const int N, const int K) {
-  // threads: 64/4 * 64/4 = 256
-  const int bx = blockIdx.x;
-  const int by = blockIdx.y;
-  const int tx = threadIdx.x;
-  const int ty = threadIdx.y;
-  const int tid = ty * blockDim.x + tx;
-
-  __shared__ half s_a[BK][BM + OFFSET]; // 8*64*2=1KB
-  __shared__ half s_b[BK][BN + OFFSET]; // 8*64*2=1KB
-
-  half r_load_a[TM]; // 4
-  half r_load_b[TN]; // 4
-  half r_comp_a[TM]; // 4
-  half r_comp_b[TN]; // 4
-  half r_c[TM][TN] = {__float2half(0.0f)}; // 4x4
-  
-  // mapping tid to s_a[BK][BM], for each orginal m-th row, load 4 + 4 K-dim 
-  // row major values from A matrix, and store it in COL major s_a[8][64].
-  int load_a_smem_m = tid / 4; // (0,1,2,...,64)
-  // (0b00000000 & 0b00000001) << 2 = 0
-  // (0b00000001 & 0b00000001) << 2 = 4
-  // (0b00000010 & 0b00000001) << 2 = 0
-  // (0b00000011 & 0b00000001) << 2 = 4
-  int load_a_smem_k = (tid & 1) << 2; // (0,4)
-  // mapping tid to s_b[BK][BN], for each orginal k-th row, load 4 + 4 N-dim 
-  // row major values from B matrix, and store it in ROW major s_b[8][64].
-  int load_b_smem_k = tid / 32; // 0~8
-  // (0b00000000 & 0b00001111) << 2 = 0
-  // (0b00000001 & 0b00001111) << 2 = 4
-  // (0b00000010 & 0b00001111) << 2 = 8
-  // (0b00000011 & 0b00001111) << 2 = 12
-  // (0b11111111 & 0b00001111) << 2 = 60
-  int load_b_smem_n = (tid & 15) << 2; // (0,4,8,12,...,60)
-
-  int load_a_gmem_m = by * BM + load_a_smem_m;
-  int load_b_gmem_n = bx * BN + load_b_smem_n;
-
-  for (int bk = 0; bk < (K + BK - 1) / BK; bk++) {
-
-    int load_a_gmem_k = bk * BK + load_a_smem_k;
-    int load_a_gmem_addr = load_a_gmem_m * K + load_a_gmem_k;
-    int load_b_gmem_k = bk * BK + load_b_smem_k;
-    int load_b_gmem_addr = load_b_gmem_k * N + load_b_gmem_n;
-    LDST64BITS(r_load_a[0]) = LDST64BITS(a[load_a_gmem_addr]);
-    LDST64BITS(r_load_b[0]) = LDST64BITS(b[load_b_gmem_addr]);
-    
-    s_a[load_a_smem_k    ][load_a_smem_m] = r_load_a[0]; 
-    s_a[load_a_smem_k + 1][load_a_smem_m] = r_load_a[1]; 
-    s_a[load_a_smem_k + 2][load_a_smem_m] = r_load_a[2]; 
-    s_a[load_a_smem_k + 3][load_a_smem_m] = r_load_a[3]; 
-    LDST64BITS(s_b[load_b_smem_k][load_b_smem_n]) = LDST64BITS(r_load_b[0]);
-  
-    __syncthreads();
-
-    #pragma unroll
-    for (int tk = 0; tk < BK; tk++) {
-      
-      LDST64BITS(r_comp_a[0]) = LDST64BITS(s_a[tk][ty * TM]);
-      LDST64BITS(r_comp_b[0]) = LDST64BITS(s_b[tk][tx * TN]);
-      
-      #pragma unroll
-      for (int tm = 0; tm < TM; tm++) {
-        #pragma unroll
-        for (int tn = 0; tn < TN; tn++) {
-          // r_c[tm][tn] += r_comp_a[tm] * r_comp_b[tn];
-          r_c[tm][tn] = __hfma(r_comp_a[tm], r_comp_b[tn], r_c[tm][tn]);
-        }
-      }
-    }
-    __syncthreads();
-  }
-
-  #pragma unroll
-  for (int i = 0; i < TM; i++) {
-    int store_c_gmem_m = by * BM + ty * TM + i;
-    int store_c_gmem_n = bx * BN + tx * TN;
-    int store_c_gmem_addr = store_c_gmem_m * N + store_c_gmem_n;
-    LDST64BITS(c[store_c_gmem_addr]) = LDST64BITS(r_c[i][0]);
-  }
-}
 
 template<const int BM=128, 
          const int BN=128, 
@@ -887,10 +799,6 @@ void hgemm_naive_f16(torch::Tensor a, torch::Tensor b, torch::Tensor c) {
   );
 }
 
-// HGEMM: Block Tile + K Tile, with smem
-// Block Tile (BM, BN) + K Tile (BK=32)
-// grid((N + BN - 1) / BN, (M + BM - 1) / BM), block(BN, BM)
-// a: MxK, b: KxN, c: MxN, compute: c = a * b, all row major  
 void hgemm_sliced_k_f16(torch::Tensor a, torch::Tensor b, torch::Tensor c) {
   CHECK_TORCH_TENSOR_DTYPE(a, torch::kHalf)
   CHECK_TORCH_TENSOR_DTYPE(b, torch::kHalf)
@@ -1020,7 +928,7 @@ void hgemm_t_8x8_sliced_k_f16x4_pack_bcf(torch::Tensor a, torch::Tensor b, torch
   dim3 block(BN/TN, BM/TM);
   dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
 
-  hgemm_t_8x8_sliced_k_f16x4_pack_bcf_kernel<BM, BN, BK, TM, TN><<<grid, block>>>(
+  hgemm_t_8x8_sliced_k_f16x4_pack_bcf_kernel<BM, BN, BK, TM, TN, 4><<<grid, block>>>(
     reinterpret_cast<half*>(a.data_ptr()),
     reinterpret_cast<half*>(b.data_ptr()),
     reinterpret_cast<half*>(c.data_ptr()),
@@ -1028,36 +936,7 @@ void hgemm_t_8x8_sliced_k_f16x4_pack_bcf(torch::Tensor a, torch::Tensor b, torch
   );
 }
 
-// reduce bank conflicts, f16x4 pack, offset, t 8x8
-void hgemm_t_8x8_sliced_k_f16x4_pack_bcf_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c) {
-  CHECK_TORCH_TENSOR_DTYPE(a, torch::kHalf)
-  CHECK_TORCH_TENSOR_DTYPE(b, torch::kHalf)
-  CHECK_TORCH_TENSOR_DTYPE(c, torch::kHalf)
-  const int M = a.size(0);
-  const int K = a.size(1);
-  const int N = b.size(1); 
-  CHECK_TORCH_TENSOR_SHAPE(a, M, K)
-  CHECK_TORCH_TENSOR_SHAPE(b, K, N)
-  CHECK_TORCH_TENSOR_SHAPE(c, M, N)
-  constexpr int BM = 128;
-  constexpr int BN = 128;
-  constexpr int BK = 8; 
-  constexpr int TM = 8;
-  constexpr int TN = 8;
-  constexpr int OFFSET = 4;
-
-  dim3 block(BN/TN, BM/TM);
-  dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
-
-  hgemm_t_8x8_sliced_k_f16x4_pack_bcf_kernel<BM, BN, BK, TM, TN, OFFSET><<<grid, block>>>(
-    reinterpret_cast<half*>(a.data_ptr()),
-    reinterpret_cast<half*>(b.data_ptr()),
-    reinterpret_cast<half*>(c.data_ptr()),
-    M, N, K
-  );
-}
-
-// reduce bank conflicts, t 8x8 fp16x8 pack
+// reduce bank conflicts, t 8x8 fp16x8 pack, pad
 void hgemm_t_8x8_sliced_k_f16x8_pack_bcf(torch::Tensor a, torch::Tensor b, torch::Tensor c) {
   CHECK_TORCH_TENSOR_DTYPE(a, torch::kHalf)
   CHECK_TORCH_TENSOR_DTYPE(b, torch::kHalf)
@@ -1077,7 +956,7 @@ void hgemm_t_8x8_sliced_k_f16x8_pack_bcf(torch::Tensor a, torch::Tensor b, torch
   dim3 block(BN/TN, BM/TM);
   dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
 
-  hgemm_t_8x8_sliced_k_f16x8_pack_bcf_kernel<BM, BN, BK, TM, TN><<<grid, block>>>(
+  hgemm_t_8x8_sliced_k_f16x8_pack_bcf_kernel<BM, BN, BK, TM, TN, 8><<<grid, block>>>(
     reinterpret_cast<half*>(a.data_ptr()),
     reinterpret_cast<half*>(b.data_ptr()),
     reinterpret_cast<half*>(c.data_ptr()),
@@ -1085,95 +964,6 @@ void hgemm_t_8x8_sliced_k_f16x8_pack_bcf(torch::Tensor a, torch::Tensor b, torch
   );
 }
 
-// reduce bank conflicts, t 8x8 fp16x8 pack, offset
-void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c) {
-  CHECK_TORCH_TENSOR_DTYPE(a, torch::kHalf)
-  CHECK_TORCH_TENSOR_DTYPE(b, torch::kHalf)
-  CHECK_TORCH_TENSOR_DTYPE(c, torch::kHalf)
-  const int M = a.size(0);
-  const int K = a.size(1);
-  const int N = b.size(1); 
-  CHECK_TORCH_TENSOR_SHAPE(a, M, K)
-  CHECK_TORCH_TENSOR_SHAPE(b, K, N)
-  CHECK_TORCH_TENSOR_SHAPE(c, M, N)
-  constexpr int BM = 128;
-  constexpr int BN = 128;
-  constexpr int BK = 8; 
-  constexpr int TM = 8;
-  constexpr int TN = 8;
-  constexpr int OFFSET = 8;
-
-  dim3 block(BN/TN, BM/TM);
-  dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
-
-  hgemm_t_8x8_sliced_k_f16x8_pack_bcf_kernel<BM, BN, BK, TM, TN, OFFSET><<<grid, block>>>(
-    reinterpret_cast<half*>(a.data_ptr()),
-    reinterpret_cast<half*>(b.data_ptr()),
-    reinterpret_cast<half*>(c.data_ptr()),
-    M, N, K
-  );
-}
-
-
-// reduce bank conflicts, t 4x4, f16x4 pack
-void hgemm_t_4x4_sliced_k_f16x4_pack_bcf(torch::Tensor a, torch::Tensor b, torch::Tensor c) {
-  CHECK_TORCH_TENSOR_DTYPE(a, torch::kHalf)
-  CHECK_TORCH_TENSOR_DTYPE(b, torch::kHalf)
-  CHECK_TORCH_TENSOR_DTYPE(c, torch::kHalf)
-  const int M = a.size(0);
-  const int K = a.size(1);
-  const int N = b.size(1); 
-  CHECK_TORCH_TENSOR_SHAPE(a, M, K)
-  CHECK_TORCH_TENSOR_SHAPE(b, K, N)
-  CHECK_TORCH_TENSOR_SHAPE(c, M, N)
-  constexpr int BM = 64;
-  constexpr int BN = 64;
-  constexpr int BK = 8; 
-  constexpr int TM = 4;
-  constexpr int TN = 4;
-  constexpr int OFFSET = 0;
-
-  dim3 block(BN/TN, BM/TM);
-  dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
-
-  hgemm_t_4x4_sliced_k_f16x4_pack_bcf_kernel<BM, BN, BK, TM, TN, OFFSET><<<grid, block>>>(
-    reinterpret_cast<half*>(a.data_ptr()),
-    reinterpret_cast<half*>(b.data_ptr()),
-    reinterpret_cast<half*>(c.data_ptr()),
-    M, N, K
-  );
-}
-
-// reduce bank conflicts, t 4x4, f16x4 pack, offset
-void hgemm_t_4x4_sliced_k_f16x4_pack_bcf_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c) {
-  CHECK_TORCH_TENSOR_DTYPE(a, torch::kHalf)
-  CHECK_TORCH_TENSOR_DTYPE(b, torch::kHalf)
-  CHECK_TORCH_TENSOR_DTYPE(c, torch::kHalf)
-  const int M = a.size(0);
-  const int K = a.size(1);
-  const int N = b.size(1); 
-  CHECK_TORCH_TENSOR_SHAPE(a, M, K)
-  CHECK_TORCH_TENSOR_SHAPE(b, K, N)
-  CHECK_TORCH_TENSOR_SHAPE(c, M, N)
-  constexpr int BM = 64;
-  constexpr int BN = 64;
-  constexpr int BK = 8; 
-  constexpr int TM = 4;
-  constexpr int TN = 4;
-  constexpr int OFFSET = 4;
-
-  dim3 block(BN/TN, BM/TM);
-  dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
-
-  hgemm_t_4x4_sliced_k_f16x4_pack_bcf_kernel<BM, BN, BK, TM, TN, OFFSET><<<grid, block>>>(
-    reinterpret_cast<half*>(a.data_ptr()),
-    reinterpret_cast<half*>(b.data_ptr()),
-    reinterpret_cast<half*>(c.data_ptr()),
-    M, N, K
-  );
-}
-
-// double buffers
 void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf(torch::Tensor a, torch::Tensor b, torch::Tensor c) {
   CHECK_TORCH_TENSOR_DTYPE(a, torch::kHalf)
   CHECK_TORCH_TENSOR_DTYPE(b, torch::kHalf)
@@ -1189,12 +979,11 @@ void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf(torch::Tensor a, torch::Tensor b, 
   constexpr int BK = 8; 
   constexpr int TM = 8;
   constexpr int TN = 8;
-  // cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
-
+  
   dim3 block(BN/TN, BM/TM);
   dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
 
-  hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf_kernel<BM, BN, BK, TM, TN><<<grid, block>>>(
+  hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf_kernel<BM, BN, BK, TM, TN, 8><<<grid, block>>>(
     reinterpret_cast<half*>(a.data_ptr()),
     reinterpret_cast<half*>(b.data_ptr()),
     reinterpret_cast<half*>(c.data_ptr()),
@@ -1204,7 +993,6 @@ void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf(torch::Tensor a, torch::Tensor b, 
 
 // from hgemm_async.cu
 void hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf(torch::Tensor a, torch::Tensor b, torch::Tensor c);
-void hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf_async(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void hgemm_t_8x8_sliced_k32_f16x8_pack_dbuf(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void hgemm_t_8x8_sliced_k32_f16x8_pack_dbuf_async(torch::Tensor a, torch::Tensor b, torch::Tensor c);
@@ -1216,50 +1004,26 @@ void hgemm_cublas_tensor_op_row_major(torch::Tensor a, torch::Tensor b, torch::T
 void hgemm_wmma_m16n16k16_naive(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void hgemm_wmma_m16n16k16_mma4x2(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void hgemm_wmma_m16n16k16_mma4x2_warp2x4(torch::Tensor a, torch::Tensor b, torch::Tensor c);
-void hgemm_wmma_m16n16k16_mma4x2_warp2x4_async(torch::Tensor a, torch::Tensor b, torch::Tensor c);
-void hgemm_wmma_m16n16k16_mma4x2_warp2x4_async_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void hgemm_wmma_m16n16k16_mma4x2_warp2x4_dbuf_async(torch::Tensor a, torch::Tensor b, torch::Tensor c);
-void hgemm_wmma_m16n16k16_mma4x2_warp2x4_dbuf_async_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
-void hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_async(torch::Tensor a, torch::Tensor b, torch::Tensor c);
-void hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_async_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
-void hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_dbuf_async(torch::Tensor a, torch::Tensor b, torch::Tensor c);
-void hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_dbuf_async_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
-void hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_dbuf_async(torch::Tensor a, torch::Tensor b, torch::Tensor c);
-void hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_dbuf_async_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void hgemm_wmma_m32n8k16_mma2x4_warp2x4_dbuf_async(torch::Tensor a, torch::Tensor b, torch::Tensor c);
-void hgemm_wmma_m32n8k16_mma2x4_warp2x4_dbuf_async_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
-void hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_rbuf_async(torch::Tensor a, torch::Tensor b, torch::Tensor c);
-void hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_rbuf_async_offset(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 // from hgemm_wmma_stage.cu
-void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages(torch::Tensor a, torch::Tensor b, torch::Tensor c, 
-                                                int stages, bool swizzle, int swizzle_stride);
-void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem(torch::Tensor a, torch::Tensor b, torch::Tensor c, 
-                                                      int stages, bool swizzle, int swizzle_stride);
-void hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem(torch::Tensor a, torch::Tensor b, torch::Tensor c, 
-                                                      int stages, bool swizzle, int swizzle_stride);                                                        
-void hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem(torch::Tensor a, torch::Tensor b, torch::Tensor c, 
-                                                      int stages, bool swizzle, int swizzle_stride);
-void hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_stages_dsmem(torch::Tensor a, torch::Tensor b, torch::Tensor c, 
-                                                        int stages, bool swizzle, int swizzle_stride);      
-void hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_stages_dsmem(torch::Tensor a, torch::Tensor b, torch::Tensor c, 
-                                                        int stages, bool swizzle, int swizzle_stride);
+void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages(torch::Tensor a, torch::Tensor b, torch::Tensor c, int stages, bool swizzle, int swizzle_stride);
+void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem(torch::Tensor a, torch::Tensor b, torch::Tensor c, int stages, bool swizzle, int swizzle_stride);
+void hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem(torch::Tensor a, torch::Tensor b, torch::Tensor c, int stages, bool swizzle, int swizzle_stride);                                                        
+void hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem(torch::Tensor a, torch::Tensor b, torch::Tensor c, int stages, bool swizzle, int swizzle_stride);
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   // CUDA Cores FP16
   TORCH_BINDING_COMMON_EXTENSION(hgemm_naive_f16)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_sliced_k_f16)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_t_4x4_sliced_k_f16x4_pack_bcf)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_t_4x4_sliced_k_f16x4_pack_bcf_offset)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k_f16x4)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k_f16x4_pack)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k_f16x4_bcf)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k_f16x4_pack_bcf)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k_f16x4_pack_bcf_offset)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k_f16x8_pack_bcf)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k_f16x8_pack_bcf_offset)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf)
+  // Copy Async
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf_offset)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf_async)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k32_f16x8_pack_dbuf)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_8x8_sliced_k32_f16x8_pack_dbuf_async)
@@ -1271,26 +1035,12 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_naive)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4_async)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4_async_offset)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4_dbuf_async)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4_dbuf_async_offset)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_async)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_async_offset)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_dbuf_async)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_dbuf_async_offset)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_dbuf_async)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_dbuf_async_offset)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m32n8k16_mma2x4_warp2x4_dbuf_async)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m32n8k16_mma2x4_warp2x4_dbuf_async_offset)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_rbuf_async)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_rbuf_async_offset)
   // stage, thread block swizzle, dsmem
   TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_stages_dsmem)
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_stages_dsmem)
 }
 

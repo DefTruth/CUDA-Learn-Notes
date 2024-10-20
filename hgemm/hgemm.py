@@ -174,7 +174,7 @@ for (M, N, K) in MNKs:
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "(mma4x2+warp2x4+stage2)", c, stages=2)
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "(mma4x2+warp2x4+stage3+dsmem)", c, stages=3)
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "(mma4x2+warp2x4+stage2+dsmem)", c, stages=2)
-        # swizzle
+        # thread block swizzle
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "(mma4x2+warp2x4+stage3+swizzle)", c, stages=3, swizzle=True)
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages, a, b, "(mma4x2+warp2x4+stage2+swizzle)", c, stages=2, swizzle=True)
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem, a, b, "(mma4x2+warp2x4+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
@@ -185,23 +185,13 @@ for (M, N, K) in MNKs:
         # prefer on NVIDIA TRX 3080 Laptop 16GB GDDR6 device.
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "(mma4x4+warp4x4+stage3+dsmem)", c, stages=3)
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "(mma4x4+warp4x4+stage2+dsmem)", c, stages=2)
-        # may not get good performance for warp_tile_k, e.g. warp2x2x2, warp2x4x2 etc.
-        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem, a, b, "(mma4x2+warp4x4+stage3+dsmem)", c, stages=3)
-        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem, a, b, "(mma4x2+warp4x4+stage2+dsmem)", c, stages=2)
-        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_stages_dsmem, a, b, "(mma4x2+warp2x4x2+stage3+dsmem)", c, stages=3)
-        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_stages_dsmem, a, b, "(mma4x2+warp2x4x2+stage2+dsmem)", c, stages=2)
-        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_stages_dsmem, a, b, "(mma4x4+warp2x2x2+stage3+dsmem)", c, stages=3)
-        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_stages_dsmem, a, b, "(mma4x4+warp2x2x2+stage2+dsmem)", c, stages=2)
-        # swizzle
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem, a, b, "(mma4x2+warp4x4+stage3+dsmem)", c, stages=3)
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem, a, b, "(mma4x2+warp4x4+stage2+dsmem)", c, stages=2)
+        # thread block swizzle
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "(mma4x4+warp4x4+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "(mma4x4+warp4x4+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
-        # may not get good performance for warp_tile_k, e.g. warp2x2x2, warp2x4x2 etc.
-        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem, a, b, "(mma4x2+warp4x4+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
-        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem, a, b, "(mma4x2+warp4x4+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
-        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_stages_dsmem, a, b, "(mma4x2+warp2x4x2+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
-        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4x2_stages_dsmem, a, b, "(mma4x2+warp2x4x2+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
-        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_stages_dsmem, a, b, "(mma4x4+warp2x2x2+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
-        # run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp2x2x2_stages_dsmem, a, b, "(mma4x4+warp2x2x2+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem, a, b, "(mma4x2+warp4x4+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
+        run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem, a, b, "(mma4x2+warp4x4+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
     if args.enable_mma_all: # more mma kernel tests.
         print("-" * 68 + "MMA" + "-" * 59)
         pass
