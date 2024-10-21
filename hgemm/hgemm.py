@@ -14,12 +14,15 @@ def get_args():
     parser.add_argument("--K", type=int, default=None, help="Matrix K size")
     parser.add_argument("--warmup", "--w", type=int, default=5, help="Warmup iters")
     parser.add_argument("--iters", "--i", type=int, default=20, help="Benchmark iters")
-    parser.add_argument("--enable-mma-all", "--mma", action="store_true", help="Enable all MMA kernel tests")
-    parser.add_argument("--enable-wmma-all", "--wmma", action="store_true", help="Enable all WMMA kernel tests")
-    parser.add_argument("--enable-cuda-all", "--cuda", action="store_true", help="Enable all CUDA kernel tests")
+    parser.add_argument("--show-all", "--show", action="store_true", help="Show all matrix values ")
+    parser.add_argument("--enable-mma", "--mma", action="store_true", help="Enable MMA kernel tests")
+    parser.add_argument("--enable-wmma", "--wmma", action="store_true", help="Enable WMMA kernel tests")
+    parser.add_argument("--enable-cuda", "--cuda", action="store_true", help="Enable CUDA kernel tests")
+    parser.add_argument("--enable-mma-all", "--mma-all", action="store_true", help="Enable all MMA kernel tests")
+    parser.add_argument("--enable-wmma-all", "--wmma-all", action="store_true", help="Enable all WMMA kernel tests")
+    parser.add_argument("--enable-cuda-all", "--cuda-all", action="store_true", help="Enable all CUDA kernel tests")
     parser.add_argument("--enable-torch", "--torch", action="store_true", help="Enable torch matmul")
     parser.add_argument("--disable-cublas", "--no-cublas", action="store_true", help="Disable cublas hgemm")
-    parser.add_argument("--disable-default", "--no-default", action="store_true", help="Disable default tests")
     return parser.parse_args()
 
 args = get_args()
@@ -29,7 +32,8 @@ print(args)
 print("Loading hgemm lib ...")
 lib = load(name='hgemm_lib', 
            sources=['hgemm.cu', 'hgemm_async.cu', 'hgemm_wmma.cu', 
-                    'hgemm_wmma_stage.cu', 'hgemm_cublas.cu'], 
+                    'hgemm_wmma_stage.cu', 'hgemm_cublas.cu',
+                    'hgemm_mma.cu', 'hgemm_mma_stage.cu'], 
            extra_cuda_cflags=[
                "-O3",
                 "-U__CUDA_NO_HALF_OPERATORS__",
@@ -40,7 +44,8 @@ lib = load(name='hgemm_lib',
                 "--expt-extended-lambda",
                 "--use_fast_math"
             ], 
-           extra_cflags=['-std=c++17'])
+           extra_cflags=['-std=c++17'],
+           verbose=False)
 
 
 MAX_TFLOPS = -1
@@ -52,7 +57,7 @@ def run_benchmark(perf_func: callable,
                   swizzle_stride: int = 1,
                   warmup: int = args.warmup, 
                   iters: int = args.iters,
-                  show_all: bool = False):
+                  show_all: bool = args.show_all):
     global MAX_TFLOPS
 
     M = a.size(0)
@@ -163,9 +168,10 @@ for (M, N, K) in MNKs:
         # CUDA Cores FP16
         run_benchmark(lib.hgemm_naive_f16, a, b, "(naive)",  c)
         run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf, a, b, "(f16x8pack+t8x8+bcf)", c)
-    if not args.disable_default:
+    if args.enable_cuda or args.enable_cuda_all:
         run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf, a, b, "(f16x8pack+t8x8+dbuf)", c)
         run_benchmark(lib.hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf, a, b, "(f16x8pack+t8x8+k16+dbuf)", c)
+    if args.enable_wmma or args.enable_wmma_all:
         print("-" * 68 + "WMMA" + "-" * 58)
         # wmma api, stages, dsmem, swizzle
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2, a, b, "(mma4x2)", c)
@@ -193,8 +199,19 @@ for (M, N, K) in MNKs:
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem, a, b, "(mma4x4+warp4x4+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem, a, b, "(mma4x2+warp4x4+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem, a, b, "(mma4x2+warp4x4+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
-    if args.enable_mma_all: # more mma kernel tests.
+    if args.enable_mma or args.enable_mma_all:
         print("-" * 68 + "MMA" + "-" * 59)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4, a, b, "(mma2x4+warp4x4)", c)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages, a, b, "(mma2x4+warp4x4+stage3)", c, stages=3)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages, a, b, "(mma2x4+warp4x4+stage2)", c, stages=2)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem, a, b, "(mma2x4+warp4x4+stage3+dsmem)", c, stages=3)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem, a, b, "(mma2x4+warp4x4+stage2+dsmem)", c, stages=2)
+        # thread block swizzle
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages, a, b, "(mma2x4+warp4x4+stage3+swizzle)", c, stages=3, swizzle=True)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages, a, b, "(mma2x4+warp4x4+stage2+swizzle)", c, stages=2, swizzle=True)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem, a, b, "(mma2x4+warp4x4+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem, a, b, "(mma2x4+warp4x4+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
+    if args.enable_mma_all: # more mma kernel tests.
         pass
     if not args.disable_cublas:
         run_benchmark(lib.hgemm_cublas_tensor_op_row_major, a, b, "(cublas)", c)
