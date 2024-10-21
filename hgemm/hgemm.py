@@ -124,6 +124,7 @@ def run_benchmark(perf_func: callable,
         print(f"{out_info:>40}: {out_val}, time:{mean_time}ms, "
               f"swizzle: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}")
     if show_all: print(out)
+    time.sleep(0.1)
     return out, mean_time
 
 
@@ -152,7 +153,7 @@ for (M, N, K) in MNKs:
     MAX_TFLOPS = -1
     PERF_COUNT += 1
     print("-" * 130)
-    print(" " * 30 + f"M={M}, N={N}, K={K}, Warmup={args.warmup}, Iters={args.iters}, {PERF_COUNT}/{len(MNKs)}")
+    print(" " * 40 + f"M={M}, N={N}, K={K}, Warmup={args.warmup}, Iters={args.iters}, {PERF_COUNT}/{len(MNKs)}")
     print("-" * 130)
     a = A[:M, :K].contiguous()
     b = B[:K, :N].contiguous()
