@@ -730,8 +730,20 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
         (0 * s_b_stage_offset + lane_smem_b_k * (BN + B_PAD) + 
         lane_smem_b_n) * sizeof(half)
       );
+      // TODO: may use .x4.trans to load 4 matrix for reg double buffers at once?
       LDMATRIX_X2_T(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
                     lane_smem_b_ptr);
+      // int lane_smem_b_k = lane_id % 16;  // 0~15, 0~15
+      // int lane_smem_b_n = warp_smem_b_n; // 0, MMA_N=8
+      // uint32_t lane_smem_b_ptr = (
+      //   smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) * (lane_id / 16) +
+      //   (0 * s_b_stage_offset + lane_smem_b_k * (BN + B_PAD) + 
+      //   lane_smem_b_n) * sizeof(half)
+      // );
+      // // TRICK: I use .x4.trans to load 4 matrix for reg double buffers at once.
+      // LDMATRIX_X4_T(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
+      //               RB[reg_load_idx][j][0],  RB[reg_load_idx][j][1],
+      //               lane_smem_b_ptr);
     }
   }
   
@@ -805,6 +817,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
         (smem_sel * s_b_stage_offset + lane_smem_b_k * (BN + B_PAD) + 
         lane_smem_b_n) * sizeof(half)
       );
+      // TODO: may use .x4.trans to load 4 matrix for reg double buffers at once?
       LDMATRIX_X2_T(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
                     lane_smem_b_ptr);
     }
@@ -841,7 +854,6 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
       }
     }
 
-    
     CP_ASYNC_WAIT_GROUP(K_STAGE-2);
     __syncthreads(); 
 
@@ -874,8 +886,20 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
                            lane_smem_b_k * (BN + B_PAD) + 
                            lane_smem_b_n) * sizeof(half)
       );
+      // TODO: may use .x4.trans to load 4 matrix for reg double buffers at once?
       LDMATRIX_X2_T(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
                     lane_smem_b_ptr);
+      // int lane_smem_b_k = lane_id % 16;  // 0~15, 0~15
+      // int lane_smem_b_n = warp_smem_b_n; // 0, MMA_N=8
+      // uint32_t lane_smem_b_ptr = (
+      //   smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) * (lane_id / 16) +
+      //   (smem_sel_reg * s_b_stage_offset + lane_smem_b_k * (BN + B_PAD) + 
+      //   lane_smem_b_n) * sizeof(half)
+      // );
+      // // may use .x4.trans to load 4 matrix for reg double buffers at once?
+      // LDMATRIX_X4_T(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
+      //               RB[reg_load_idx][j][0],  RB[reg_load_idx][j][1],
+      //               lane_smem_b_ptr);
     }
   }
 
@@ -920,6 +944,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
           (stage_sel * s_b_stage_offset + lane_smem_b_k * (BN + B_PAD) + 
           lane_smem_b_n) * sizeof(half)
         );
+        // TODO: may use .x4.trans to load 4 matrix for reg double buffers at once?
         LDMATRIX_X2_T(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
                       lane_smem_b_ptr);
       }
@@ -988,6 +1013,17 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
         );
         LDMATRIX_X2_T(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
                       lane_smem_b_ptr);
+        // int lane_smem_b_k = lane_id % 16;  // 0~15, 0~15
+        // int lane_smem_b_n = warp_smem_b_n; // 0, MMA_N=8
+        // uint32_t lane_smem_b_ptr = (
+        //   smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) * (lane_id / 16) +
+        //   (stage_sel_reg * s_b_stage_offset + lane_smem_b_k * (BN + B_PAD) + 
+        //   lane_smem_b_n) * sizeof(half)
+        // );
+        // // may use .x4.trans to load 4 matrix for reg double buffers at once?
+        // LDMATRIX_X4_T(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
+        //               RB[reg_load_idx][j][0],  RB[reg_load_idx][j][1],
+        //               lane_smem_b_ptr);
       }
     }
   }
