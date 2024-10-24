@@ -55,7 +55,6 @@ __global__ void hgemm_mma_m16n8k16_naive_kernel(half* A, half* B, half* C,
   __shared__ half s_c[MMA_M][MMA_N]; // 16x8
 
   const int tid = threadIdx.y * blockDim.x + threadIdx.x; // within block
-  const int warp_id = tid / WARP_SIZE; // 0
   const int lane_id = tid % WARP_SIZE; // 0~31
 
   // s_a[16][16], 每行16，每线程load 8，需要2线程，共16行，需2x16=32线程
@@ -73,7 +72,7 @@ __global__ void hgemm_mma_m16n8k16_naive_kernel(half* A, half* B, half* C,
   #pragma unroll
   for (int k = 0; k < NUM_K_TILES; ++k) {
     // gmem_a -> smem_a
-    int load_gmem_a_k = k * MMA_K + load_smem_a_k; // global col of a
+    int load_gmem_a_k = k * BK + load_smem_a_k; // global col of a
     int load_gmem_a_addr = load_gmem_a_m * K + load_gmem_a_k;
     LDST128BITS(s_a[load_smem_a_m][load_smem_a_k]) = (
       LDST128BITS(A[load_gmem_a_addr]));
