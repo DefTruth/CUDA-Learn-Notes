@@ -1015,6 +1015,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
     }
   }
 
+  // collective store with reg reuse & warp shuffle
   for (int i = 0; i < WARP_TILE_M; ++i) {
     // reuse RA[2][4][4] reg here, this may boost 0.3~0.5 TFLOPS up.
     // may not put 'if' in N loop, it will crash the 'pragma unroll' hint ?

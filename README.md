@@ -159,7 +159,7 @@
 | ✔️ [hgemv_k16_f16](./hgemv/hgemv.cu)|f16|f16|[link](./hgemv/)|⭐️⭐️⭐️|  
 | ✔️ [flash_attn_1_fwd_f32](./flash-attn/flash_attn.cu)|f32|f32|[link](./flash-attn)|⭐️⭐️⭐️|  
 | ✔️ [flash_attn_2_fwd_f16_m16n8k16*](./flash-attn/flash_attn_mma.cu)|f16|f16|[link](./flash-attn)|⭐️⭐️⭐️|  
-| ✔️ [hard_nms cpp only](./nms/nms.cc)|f32|/|/|⭐️|  
+| ✔️ [nms_kernel](./nms/nms.cu)|f32|/|[link](./nms)|⭐️⭐️|  
 | ✔️ [notes v1(deprecated)](./notes-v1.cu)|f32|f32|/|⭐️|  
 
 👉TIPS: * means using **Tensor Cores(MMA/WMMA)**, otherwise, using CUDA Cores by default.
