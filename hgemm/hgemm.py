@@ -16,6 +16,7 @@ def get_args():
     parser.add_argument("--iters", "--i", type=int, default=10, help="Benchmark iters")
     parser.add_argument("--show-all", "--show", action="store_true", help="Show all matrix values ")
     parser.add_argument("--enable-mma", "--mma", action="store_true", help="Enable MMA kernel tests")
+    parser.add_argument("--enable-mma-tn", "--mma-tn", action="store_true", help="Enable TN MMA kernel tests")
     parser.add_argument("--enable-wmma", "--wmma", action="store_true", help="Enable WMMA kernel tests")
     parser.add_argument("--enable-cuda", "--cuda", action="store_true", help="Enable CUDA kernel tests")
     parser.add_argument("--enable-mma-all", "--mma-all", action="store_true", help="Enable all MMA kernel tests")
@@ -23,6 +24,7 @@ def get_args():
     parser.add_argument("--enable-cuda-all", "--cuda-all", action="store_true", help="Enable all CUDA kernel tests")
     parser.add_argument("--enable-torch", "--torch", action="store_true", help="Enable torch matmul")
     parser.add_argument("--disable-cublas", "--no-cublas", action="store_true", help="Disable cublas hgemm")
+    parser.add_argument("--disable-cublas-tn", "--no-cublas-tn", action="store_true", help="Disable cublas TN hgemm")
     parser.add_argument("--sleep-duration", "--sleep", type=float, default=0.1, help="Sleep duration")
     parser.add_argument("--swizzle-factor", "--swizzle", type=float, default=0.25, help="Swizzle factor")
     return parser.parse_args()
@@ -35,7 +37,8 @@ print("Loading hgemm lib ...")
 lib = load(name='hgemm_lib', 
            sources=['hgemm.cu', 'hgemm_async.cu', 'hgemm_wmma.cu', 
                     'hgemm_wmma_stage.cu', 'hgemm_cublas.cu',
-                    'hgemm_mma.cu', 'hgemm_mma_stage.cu'], 
+                    'hgemm_mma.cu', 'hgemm_mma_stage.cu',
+                    'hgemm_mma_stage_tn.cu'], 
            extra_cuda_cflags=[
                "-O3",
                 "-U__CUDA_NO_HALF_OPERATORS__",
@@ -65,6 +68,8 @@ def run_benchmark(perf_func: callable,
     M = a.size(0)
     K = a.size(1)
     N = b.size(1)
+    if 'tn' in tag:
+        N = b.size(0)
     if swizzle:
         # make swizzle stride as N/4 or N/2 and multiples of 256
         swizzle_stride = int((int(N * args.swizzle_factor) // 256) * 256)
@@ -217,8 +222,17 @@ for (M, N, K) in MNKs:
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem, a, b, "(mma2x4+warp4x4x2+stage4+dsmem+swizzle)", c, stages=4, swizzle=True)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem, a, b, "(mma2x4+warp4x4x2+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem, a, b, "(mma2x4+warp4x4x2+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
-    if not args.disable_cublas:
-        run_benchmark(lib.hgemm_cublas_tensor_op_row_major, a, b, "(cublas)", c)
+    if (not args.disable_cublas) and any((
+        args.enable_mma, args.enable_mma_all, args.enable_wmma, args.enable_wmma_all, 
+        args.enable_cuda, args.enable_cuda_all, args.enable_torch)):
+        run_benchmark(lib.hgemm_cublas_tensor_op_nn, a, b, "(cublas)", c)
+    if args.enable_mma_tn:
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b.transpose(1, 0), "tn(mma2x4+warp4x4+stage3+dsmem)", c, stages=3)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b.transpose(1, 0), "tn(mma2x4+warp4x4+stage2+dsmem)", c, stages=2)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b.transpose(1, 0), "tn(mma2x4+warp4x4+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b.transpose(1, 0), "tn(mma2x4+warp4x4+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
+        if not args.disable_cublas_tn:
+            run_benchmark(lib.hgemm_cublas_tensor_op_tn, a, b.transpose(1, 0), "tn(cublas)", c)
     if args.enable_torch:
         run_benchmark(partial(torch.matmul, out=c), a, b, "(torch)")
     torch.cuda.synchronize()

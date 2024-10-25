@@ -14,8 +14,8 @@
 
 #include "cublas_v2.h"
 
-void cublas_tensor_op_row_major(half *A, half *B, half *C,  size_t M, 
-                                size_t N, size_t K) {
+// NN: A/B/C All row major
+void cublas_tensor_op_nn(half *A, half *B, half *C,  size_t M, size_t N, size_t K) {
 
   static cublasHandle_t handle = nullptr;
   cublasCreate(&handle);
@@ -36,11 +36,33 @@ void cublas_tensor_op_row_major(half *A, half *B, half *C,  size_t M,
                CUBLAS_COMPUTE_16F,
                CUBLAS_GEMM_DEFAULT_TENSOR_OP);
 
-  // why this line will make cublas slow down?  
   // cublasDestroy(handle);
 }
 
-// TODO: add cublas_tensor_op_col_major
+// TN: A row major MxK, B col major NxK, C row major MxN
+void cublas_tensor_op_tn(half *A, half *B, half *C,  size_t M, size_t N, size_t K) {
+
+  static cublasHandle_t handle = nullptr;
+  cublasCreate(&handle);
+  cublasSetMathMode(handle, CUBLAS_TENSOR_OP_MATH);
+
+  static half alpha = 1.0;
+  static half beta = 0.0;
+
+  cublasGemmEx(handle, 
+               CUBLAS_OP_T, 
+               CUBLAS_OP_N, 
+               N, M, K, 
+               &alpha, 
+               B, CUDA_R_16F, K, 
+               A, CUDA_R_16F, K, 
+               &beta,  
+               C, CUDA_R_16F, N, 
+               CUBLAS_COMPUTE_16F,
+               CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+
+  // cublasDestroy(handle);
+}
 
 // --------------------- PyTorch bindings for custom kernel -----------------------
 #define STRINGFY(str) #str
@@ -58,8 +80,8 @@ if (((T).size(0) != (S0)) || ((T).size(1) != (S1))) { \
   throw std::runtime_error("Tensor size mismatch!");  \
 }
 
-// cublas tensor op with row major B matrix
-void hgemm_cublas_tensor_op_row_major(
+// NN: A/B/C All row major
+void hgemm_cublas_tensor_op_nn(
   torch::Tensor a, torch::Tensor b, torch::Tensor c) {
   CHECK_TORCH_TENSOR_DTYPE(a, torch::kHalf)
   CHECK_TORCH_TENSOR_DTYPE(b, torch::kHalf)
@@ -71,7 +93,7 @@ void hgemm_cublas_tensor_op_row_major(
   CHECK_TORCH_TENSOR_SHAPE(b, K, N)
   CHECK_TORCH_TENSOR_SHAPE(c, M, N)
 
-  cublas_tensor_op_row_major(
+  cublas_tensor_op_nn(
     reinterpret_cast<half*>(a.data_ptr()),
     reinterpret_cast<half*>(b.data_ptr()),
     reinterpret_cast<half*>(c.data_ptr()),
@@ -79,4 +101,23 @@ void hgemm_cublas_tensor_op_row_major(
   );
 }
 
-// TODO: add cublas_tensor_op_col_major
+// TN: A row major MxK, B col major NxK, C row major MxN
+void hgemm_cublas_tensor_op_tn(
+  torch::Tensor a, torch::Tensor b, torch::Tensor c) {
+  CHECK_TORCH_TENSOR_DTYPE(a, torch::kHalf)
+  CHECK_TORCH_TENSOR_DTYPE(b, torch::kHalf)
+  CHECK_TORCH_TENSOR_DTYPE(c, torch::kHalf)
+  const int M = a.size(0);
+  const int K = a.size(1);
+  const int N = b.size(0); 
+  CHECK_TORCH_TENSOR_SHAPE(a, M, K)
+  CHECK_TORCH_TENSOR_SHAPE(b, N, K)
+  CHECK_TORCH_TENSOR_SHAPE(c, M, N)
+
+  cublas_tensor_op_tn(
+    reinterpret_cast<half*>(a.data_ptr()),
+    reinterpret_cast<half*>(b.data_ptr()),
+    reinterpret_cast<half*>(c.data_ptr()),
+    M, N, K
+  );
+}
