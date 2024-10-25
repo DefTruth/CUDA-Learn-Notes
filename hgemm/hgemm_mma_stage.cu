@@ -274,20 +274,6 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel(
       int store_gmem_c_addr_1 = (store_lane_gmem_c_m + 8) * N + store_lane_gmem_c_n;
       LDST32BITS(C[store_gmem_c_addr_0]) = LDST32BITS(RC[i][j][0]); 
       LDST32BITS(C[store_gmem_c_addr_1]) = LDST32BITS(RC[i][j][1]); 
-      // TODO: How to use LDST128BITS here? __shfl_sync -> lane 0 -> store 8 half.
-      // thus, we only need 8 memory issues with 128 bits after shfl_sync.
-      // uint32_t r_store_c_0[4], r_store_c_1[4];
-      // r_store_c_0[0] = RC[i][j][0]; r_store_c_1[0] = RC[i][j][1];
-      // r_store_c_0[1] = __shfl_sync((0xffffffff), RC[i][j][0], lane_id + 1);
-      // r_store_c_0[2] = __shfl_sync((0xffffffff), RC[i][j][0], lane_id + 2);
-      // r_store_c_0[3] = __shfl_sync((0xffffffff), RC[i][j][0], lane_id + 3);
-      // r_store_c_1[1] = __shfl_sync((0xffffffff), RC[i][j][1], lane_id + 1);
-      // r_store_c_1[2] = __shfl_sync((0xffffffff), RC[i][j][1], lane_id + 2);
-      // r_store_c_1[3] = __shfl_sync((0xffffffff), RC[i][j][1], lane_id + 3);
-      // if (lane_id % 4 == 0) {
-      //   LDST128BITS(C[store_gmem_c_addr_0]) = LDST128BITS(r_store_c_0[0]); 
-      //   LDST128BITS(C[store_gmem_c_addr_1]) = LDST128BITS(r_store_c_1[0]); 
-      // } 
     }
   }
 }
@@ -345,7 +331,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_kernel(
       RC[i][j][1] = 0;
     }
   }
-
+  
   // may avoid cvta overhead ? only cvta smem base ptr once for cp.async.
   uint32_t smem_a_base_ptr = __cvta_generic_to_shared(s_a);
   uint32_t smem_b_base_ptr = __cvta_generic_to_shared(s_b);
@@ -407,10 +393,9 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_kernel(
     CP_ASYNC_CG(load_smem_b_ptr, &B[load_gmem_b_addr], 16);
     CP_ASYNC_COMMIT_GROUP();
     
-    // ldmatrix for s_a, ldmatrix.trans for s_b.
     uint32_t RA[WARP_TILE_M][4];
     uint32_t RB[WARP_TILE_N][2];
-
+    // ldmatrix for s_a, ldmatrix.trans for s_b.
     // smem -> reg
     #pragma unroll
     for (int i = 0; i < WARP_TILE_M; ++i) {
@@ -459,16 +444,16 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_kernel(
     CP_ASYNC_WAIT_GROUP(0);
     __syncthreads(); 
   }
-
+  
   // processing last (K_STAGE-1) k iters.
   {
     #pragma unroll
     for (int k = 0; k < (K_STAGE - 1); k++) {
-      int stage_sel = ((NUM_K_TILES - (K_STAGE - 1) + k) % K_STAGE);
-      // ldmatrix for s_a, ldmatrix.trans for s_b.
       uint32_t RA[WARP_TILE_M][4];
       uint32_t RB[WARP_TILE_N][2];
 
+      int stage_sel = ((NUM_K_TILES - (K_STAGE - 1) + k) % K_STAGE);
+      // ldmatrix for s_a, ldmatrix.trans for s_b.
       // smem -> reg
       #pragma unroll
       for (int i = 0; i < WARP_TILE_M; ++i) {
@@ -512,6 +497,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_kernel(
 
 #if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 90)
   if (COLLECTIVE_STORE) {
+    // The following code has not been tested because I do not have a GPU with sm>=90
     // reg -> smem(stmatrix) -> gmem(cp.async.bulk), MMA_MxMMA_N=16x8
     // NOTE: need [MMA_M][MMA_N] per warp to avoid overlap between warps.
     __shared__ half s_c[MMA_TILE_M][MMA_TILE_N][MMA_M][MMA_N]; // (2*4)*16*8*2=2KB
@@ -557,44 +543,51 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_kernel(
     }
   }
 #else 
-#warning "for sm<90, can not use stmatrix, force disable collective store!"
-  #pragma unroll
-  for (int i = 0; i < WARP_TILE_M; ++i) {
-    #pragma unroll
-    for (int j = 0; j < WARP_TILE_N; ++j) {
-      int store_warp_smem_c_m = warp_m * (MMA_M * WARP_TILE_M) + i * MMA_M;
-      int store_warp_smem_c_n = warp_n * (MMA_N * WARP_TILE_N) + j * MMA_N;
-      // mapping lane smem index -> global index.
-      // [16][8], https://docs.nvidia.com/cuda/parallel-thread-execution/index.html
-      // #matrix-fragments-for-mma-m16n8k16-with-floating-point-type
-      // [0~7][0~3 u32 -> 0~7 f16], [8~15][0~3 u32 -> 0~7 f16]
-      int store_lane_gmem_c_m = by * BM + store_warp_smem_c_m + lane_id / 4;
-      int store_lane_gmem_c_n = bx * BN + store_warp_smem_c_n + (lane_id % 4) * 2;
-      int store_gmem_c_addr_0 = store_lane_gmem_c_m * N + store_lane_gmem_c_n;
-      int store_gmem_c_addr_1 = (store_lane_gmem_c_m + 8) * N + store_lane_gmem_c_n;
-      LDST32BITS(C[store_gmem_c_addr_0]) = LDST32BITS(RC[i][j][0]); 
-      LDST32BITS(C[store_gmem_c_addr_1]) = LDST32BITS(RC[i][j][1]); 
-      // TODO: How to use LDST128BITS here? __shfl_sync -> lane 0 -> store 8 half.
+#warning "stmatrix need sm>=90, force use __shfl_sync for collective store!"
+  {
+    for (int i = 0; i < WARP_TILE_M; ++i) {
+      // How to use LDST128BITS here? __shfl_sync -> lane 0 -> store 8 half.
       // thus, we only need 8 memory issues with 128 bits after shfl_sync.
-      // uint32_t r_store_c_0[4], r_store_c_1[4];
-      // r_store_c_0[0] = RC[i][j][0]; r_store_c_1[0] = RC[i][j][1];
-      // r_store_c_0[1] = __shfl_sync((0xffffffff), RC[i][j][0], lane_id + 1);
-      // r_store_c_0[2] = __shfl_sync((0xffffffff), RC[i][j][0], lane_id + 2);
-      // r_store_c_0[3] = __shfl_sync((0xffffffff), RC[i][j][0], lane_id + 3);
-      // r_store_c_1[1] = __shfl_sync((0xffffffff), RC[i][j][1], lane_id + 1);
-      // r_store_c_1[2] = __shfl_sync((0xffffffff), RC[i][j][1], lane_id + 2);
-      // r_store_c_1[3] = __shfl_sync((0xffffffff), RC[i][j][1], lane_id + 3);
-      // if (lane_id % 4 == 0) {
-      //   LDST128BITS(C[store_gmem_c_addr_0]) = LDST128BITS(r_store_c_0[0]); 
-      //   LDST128BITS(C[store_gmem_c_addr_1]) = LDST128BITS(r_store_c_1[0]); 
-      // } 
+      // may reuse RA[4][4] as RC0 ? only new RC1[4][4].
+      uint32_t RC0[WARP_TILE_N][4];
+      uint32_t RC1[WARP_TILE_N][4];
+      #pragma unroll
+      for (int j = 0; j < WARP_TILE_N; ++j) {
+        // How to use LDST128BITS here? __shfl_sync -> lane 0 -> store 8 half.
+        // thus, we only need 8 memory issues with 128 bits after shfl_sync.
+        RC0[j][0] = RC[i][j][0];
+        RC1[j][0] = RC[i][j][1];
+        RC0[j][1] = __shfl_sync((0xffffffff), RC[i][j][0], lane_id + 1);
+        RC0[j][2] = __shfl_sync((0xffffffff), RC[i][j][0], lane_id + 2);
+        RC0[j][3] = __shfl_sync((0xffffffff), RC[i][j][0], lane_id + 3);
+        RC1[j][1] = __shfl_sync((0xffffffff), RC[i][j][1], lane_id + 1);
+        RC1[j][2] = __shfl_sync((0xffffffff), RC[i][j][1], lane_id + 2);
+        RC1[j][3] = __shfl_sync((0xffffffff), RC[i][j][1], lane_id + 3);
+      }
+
+      if (lane_id % 4 == 0) {
+        int store_warp_smem_c_m = warp_m * (MMA_M * WARP_TILE_M) + i * MMA_M;
+        int store_lane_gmem_c_m = by * BM + store_warp_smem_c_m + lane_id / 4;
+        #pragma unroll
+        for (int j = 0; j < WARP_TILE_N; ++j) {
+          int store_warp_smem_c_n = warp_n * (MMA_N * WARP_TILE_N) + j * MMA_N;
+          int store_lane_gmem_c_n = bx * BN + store_warp_smem_c_n;
+          int store_gmem_c_addr_0 = store_lane_gmem_c_m * N + store_lane_gmem_c_n;
+          int store_gmem_c_addr_1 = (store_lane_gmem_c_m + 8) * N + store_lane_gmem_c_n;
+          LDST128BITS(C[store_gmem_c_addr_0]) = LDST128BITS(RC0[j][0]); 
+          LDST128BITS(C[store_gmem_c_addr_1]) = LDST128BITS(RC1[j][0]); 
+        }
+      }
     }
   }
 #endif
 }
 
-// K32, 将K维度按照stage维度折半进行保存stages=3, warp_tile_k=2, [3*2][BM][16], 减少bank conflicts.
-// 128x128, mma2x4, warp4x4(64,32,32), stages, block swizzle, dsmem, k32 with reg double buffers
+// In order to reduce bank conflicts, we will save the K(16x2=32) 
+// dimension by half according to the stage dimension. For example, 
+// stages=3, warp_tile_k=2, it will be saved as [3*2][BM][16].
+// 128x128, mma2x4, warp4x4(64,32,32), stages, block swizzle, dsmem, 
+// k32 with reg double buffers
 template<const int MMA_M=16, 
          const int MMA_N=8, 
          const int MMA_K=16,
@@ -609,7 +602,8 @@ template<const int MMA_M=16,
          const bool BLOCK_SWIZZLE=false>
 __global__ void  __launch_bounds__(256) 
 hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
-  half* A, half* B, half* C, int M, int N, int K) {
+  const half* __restrict__ A, const half* __restrict__ B, half* __restrict__ C, 
+  int M, int N, int K) {
   // BLOCK_SWIZZLE 0/1 control use block swizzle or not.
   const int bx = ((int) BLOCK_SWIZZLE) * blockIdx.z * gridDim.x + blockIdx.x;
   const int by = blockIdx.y;
@@ -723,18 +717,16 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
     #pragma unroll
     for (int j = 0; j < WARP_TILE_N; ++j) {
       int warp_smem_b_n = warp_n * (MMA_N * WARP_TILE_N) + j * MMA_N;
-      int lane_smem_b_k = lane_id % 16;  // 0~15
+      int lane_smem_b_k = lane_id % 16;  // 0~15, 0~15
       int lane_smem_b_n = warp_smem_b_n; // 0, MMA_N=8
       uint32_t lane_smem_b_ptr = (
         smem_b_base_ptr + 
         (0 * s_b_stage_offset + lane_smem_b_k * (BN + B_PAD) + 
         lane_smem_b_n) * sizeof(half)
       );
-      // TODO: may use .x4.trans to load 4 matrix for reg double buffers at once?
+      // may use .x4.trans to load 4 matrix for reg double buffers at once?
       LDMATRIX_X2_T(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
                     lane_smem_b_ptr);
-      // int lane_smem_b_k = lane_id % 16;  // 0~15, 0~15
-      // int lane_smem_b_n = warp_smem_b_n; // 0, MMA_N=8
       // uint32_t lane_smem_b_ptr = (
       //   smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) * (lane_id / 16) +
       //   (0 * s_b_stage_offset + lane_smem_b_k * (BN + B_PAD) + 
@@ -817,7 +809,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
         (smem_sel * s_b_stage_offset + lane_smem_b_k * (BN + B_PAD) + 
         lane_smem_b_n) * sizeof(half)
       );
-      // TODO: may use .x4.trans to load 4 matrix for reg double buffers at once?
+      // may use .x4.trans to load 4 matrix for reg double buffers at once?
       LDMATRIX_X2_T(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
                     lane_smem_b_ptr);
     }
@@ -879,18 +871,16 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
     #pragma unroll
     for (int j = 0; j < WARP_TILE_N; ++j) {
       int warp_smem_b_n = warp_n * (MMA_N * WARP_TILE_N) + j * MMA_N;
-      int lane_smem_b_k = lane_id % 16;  // 0~15
+      int lane_smem_b_k = lane_id % 16;  // 0~15, 0~15
       int lane_smem_b_n = warp_smem_b_n; // 0, MMA_N=8
       uint32_t lane_smem_b_ptr = (
         smem_b_base_ptr + (smem_sel_reg * s_b_stage_offset + 
                            lane_smem_b_k * (BN + B_PAD) + 
                            lane_smem_b_n) * sizeof(half)
       );
-      // TODO: may use .x4.trans to load 4 matrix for reg double buffers at once?
+      // may use .x4.trans to load 4 matrix for reg double buffers at once?
       LDMATRIX_X2_T(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
                     lane_smem_b_ptr);
-      // int lane_smem_b_k = lane_id % 16;  // 0~15, 0~15
-      // int lane_smem_b_n = warp_smem_b_n; // 0, MMA_N=8
       // uint32_t lane_smem_b_ptr = (
       //   smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) * (lane_id / 16) +
       //   (smem_sel_reg * s_b_stage_offset + lane_smem_b_k * (BN + B_PAD) + 
@@ -944,7 +934,6 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
           (stage_sel * s_b_stage_offset + lane_smem_b_k * (BN + B_PAD) + 
           lane_smem_b_n) * sizeof(half)
         );
-        // TODO: may use .x4.trans to load 4 matrix for reg double buffers at once?
         LDMATRIX_X2_T(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
                       lane_smem_b_ptr);
       }
@@ -1004,7 +993,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
       #pragma unroll
       for (int j = 0; j < WARP_TILE_N; ++j) {
         int warp_smem_b_n = warp_n * (MMA_N * WARP_TILE_N) + j * MMA_N;
-        int lane_smem_b_k = lane_id % 16;  // 0~15
+        int lane_smem_b_k = lane_id % 16;  // 0~15, 0~15
         int lane_smem_b_n = warp_smem_b_n; // 0, MMA_N=8
         uint32_t lane_smem_b_ptr = (
           smem_b_base_ptr + (stage_sel_reg * s_b_stage_offset + 
@@ -1013,8 +1002,6 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
         );
         LDMATRIX_X2_T(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
                       lane_smem_b_ptr);
-        // int lane_smem_b_k = lane_id % 16;  // 0~15, 0~15
-        // int lane_smem_b_n = warp_smem_b_n; // 0, MMA_N=8
         // uint32_t lane_smem_b_ptr = (
         //   smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) * (lane_id / 16) +
         //   (stage_sel_reg * s_b_stage_offset + lane_smem_b_k * (BN + B_PAD) + 
@@ -1028,36 +1015,35 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
     }
   }
 
-  #pragma unroll
   for (int i = 0; i < WARP_TILE_M; ++i) {
+    // reuse RA[2][4][4] reg here, this may boost 0.3~0.5 TFLOPS up.
+    // may not put 'if' in N loop, it will crash the 'pragma unroll' hint ?
     #pragma unroll
     for (int j = 0; j < WARP_TILE_N; ++j) {
-      int store_warp_smem_c_m = warp_m * (MMA_M * WARP_TILE_M) + i * MMA_M;
-      int store_warp_smem_c_n = warp_n * (MMA_N * WARP_TILE_N) + j * MMA_N;
-      // mapping lane smem index -> global index.
-      // [16][8], https://docs.nvidia.com/cuda/parallel-thread-execution/index.html
-      // #matrix-fragments-for-mma-m16n8k16-with-floating-point-type
-      // [0~7][0~3 u32 -> 0~7 f16], [8~15][0~3 u32 -> 0~7 f16]
-      int store_lane_gmem_c_m = by * BM + store_warp_smem_c_m + lane_id / 4;
-      int store_lane_gmem_c_n = bx * BN + store_warp_smem_c_n + (lane_id % 4) * 2;
-      int store_gmem_c_addr_0 = store_lane_gmem_c_m * N + store_lane_gmem_c_n;
-      int store_gmem_c_addr_1 = (store_lane_gmem_c_m + 8) * N + store_lane_gmem_c_n;
-      // LDST32BITS(C[store_gmem_c_addr_0]) = LDST32BITS(RC[i][j][0]); 
-      // LDST32BITS(C[store_gmem_c_addr_1]) = LDST32BITS(RC[i][j][1]); 
-      // TODO: How to use LDST128BITS here? __shfl_sync -> lane 0 -> store 8 half.
+      // How to use LDST128BITS here? __shfl_sync -> lane 0 -> store 8 half.
       // thus, we only need 8 memory issues with 128 bits after shfl_sync.
-      uint32_t r_store_c_0[4], r_store_c_1[4];
-      r_store_c_0[0] = RC[i][j][0]; r_store_c_1[0] = RC[i][j][1];
-      r_store_c_0[1] = __shfl_sync((0xffffffff), RC[i][j][0], lane_id + 1);
-      r_store_c_0[2] = __shfl_sync((0xffffffff), RC[i][j][0], lane_id + 2);
-      r_store_c_0[3] = __shfl_sync((0xffffffff), RC[i][j][0], lane_id + 3);
-      r_store_c_1[1] = __shfl_sync((0xffffffff), RC[i][j][1], lane_id + 1);
-      r_store_c_1[2] = __shfl_sync((0xffffffff), RC[i][j][1], lane_id + 2);
-      r_store_c_1[3] = __shfl_sync((0xffffffff), RC[i][j][1], lane_id + 3);
-      if (lane_id % 4 == 0) {
-        LDST128BITS(C[store_gmem_c_addr_0]) = LDST128BITS(r_store_c_0[0]); 
-        LDST128BITS(C[store_gmem_c_addr_1]) = LDST128BITS(r_store_c_1[0]); 
-      } 
+      RA[0][j][0] = RC[i][j][0]; 
+      RA[1][j][0] = RC[i][j][1];
+      RA[0][j][1] = __shfl_sync((0xffffffff), RC[i][j][0], lane_id + 1);
+      RA[0][j][2] = __shfl_sync((0xffffffff), RC[i][j][0], lane_id + 2);
+      RA[0][j][3] = __shfl_sync((0xffffffff), RC[i][j][0], lane_id + 3);
+      RA[1][j][1] = __shfl_sync((0xffffffff), RC[i][j][1], lane_id + 1);
+      RA[1][j][2] = __shfl_sync((0xffffffff), RC[i][j][1], lane_id + 2);
+      RA[1][j][3] = __shfl_sync((0xffffffff), RC[i][j][1], lane_id + 3);
+    }
+
+    if (lane_id % 4 == 0) {
+      int store_warp_smem_c_m = warp_m * (MMA_M * WARP_TILE_M) + i * MMA_M;
+      int store_lane_gmem_c_m = by * BM + store_warp_smem_c_m + lane_id / 4;
+      #pragma unroll
+      for (int j = 0; j < WARP_TILE_N; ++j) {
+        int store_warp_smem_c_n = warp_n * (MMA_N * WARP_TILE_N) + j * MMA_N;
+        int store_lane_gmem_c_n = bx * BN + store_warp_smem_c_n;
+        int store_gmem_c_addr_0 = store_lane_gmem_c_m * N + store_lane_gmem_c_n;
+        int store_gmem_c_addr_1 = (store_lane_gmem_c_m + 8) * N + store_lane_gmem_c_n;
+        LDST128BITS(C[store_gmem_c_addr_0]) = LDST128BITS(RA[0][j][0]); 
+        LDST128BITS(C[store_gmem_c_addr_1]) = LDST128BITS(RA[1][j][0]); 
+      }
     }
   }
 }
