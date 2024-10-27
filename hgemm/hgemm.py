@@ -14,6 +14,7 @@ def get_args():
     parser.add_argument("--K", type=int, default=None, help="Matrix K size")
     parser.add_argument("--warmup", "--w", type=int, default=2, help="Warmup iters")
     parser.add_argument("--iters", "--i", type=int, default=10, help="Benchmark iters")
+    parser.add_argument("--verbose", "--v", action="store_true", help="Verbose")
     parser.add_argument("--show-all", "--show", action="store_true", help="Show all matrix values ")
     parser.add_argument("--enable-mma", "--mma", action="store_true", help="Enable MMA kernel tests")
     parser.add_argument("--enable-mma-tn", "--mma-tn", action="store_true", help="Enable TN MMA kernel tests")
@@ -47,10 +48,14 @@ lib = load(name='hgemm_lib',
                 "-U__CUDA_NO_BFLOAT16_CONVERSIONS__",
                 "--expt-relaxed-constexpr",
                 "--expt-extended-lambda",
-                "--use_fast_math"
+                "--use_fast_math",
+                # diag 177: variable was declared but never referenced
+                "-diag-suppress 177",
+                # show registers, smem, cmem, lmem, gmem usage
+                "-Xptxas -v",
             ], 
            extra_cflags=['-std=c++17'],
-           verbose=False)
+           verbose=args.verbose)
 
 
 MAX_TFLOPS = -1
