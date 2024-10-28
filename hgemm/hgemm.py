@@ -15,7 +15,9 @@ def get_args():
     parser.add_argument("--warmup", "--w", type=int, default=2, help="Warmup iters")
     parser.add_argument("--iters", "--i", type=int, default=10, help="Benchmark iters")
     parser.add_argument("--verbose", "--v", action="store_true", help="Verbose")
-    parser.add_argument("--show-all", "--show", action="store_true", help="Show all matrix values ")
+    parser.add_argument("--reduce-reg", "--rr", action="store_true", help="Reduce registers")
+    parser.add_argument("--show-matrix", "--show-m", action="store_true", help="Show output matrix values")
+    parser.add_argument("--show-all-info", "--show-a", action="store_true", help="Show all the profile info")
     parser.add_argument("--enable-mma", "--mma", action="store_true", help="Enable MMA kernel tests")
     parser.add_argument("--enable-mma-tn", "--mma-tn", action="store_true", help="Enable TN MMA kernel tests")
     parser.add_argument("--enable-wmma", "--wmma", action="store_true", help="Enable WMMA kernel tests")
@@ -27,7 +29,7 @@ def get_args():
     parser.add_argument("--disable-cublas", "--no-cublas", action="store_true", help="Disable cublas hgemm")
     parser.add_argument("--disable-cublas-tn", "--no-cublas-tn", action="store_true", help="Disable cublas TN hgemm")
     parser.add_argument("--sleep-duration", "--sleep", type=float, default=0.1, help="Sleep duration")
-    parser.add_argument("--swizzle-factor", "--swizzle", type=float, default=0.25, help="Swizzle factor")
+    parser.add_argument("--swizzle-factor", "--swizzle", type=float, default=None, help="Swizzle factor")
     return parser.parse_args()
 
 args = get_args()
@@ -51,8 +53,23 @@ lib = load(name='hgemm_lib',
                 "--use_fast_math",
                 # diag 177: variable was declared but never referenced
                 "-diag-suppress 177",
-                # show registers, smem, cmem, lmem, gmem usage
+                # registers, smem, cmem, stack, gmem usage
+                # registers: 寄存器，访问速度最快。Ada Lovelace架构每个SM的寄存器文件大小
+                # 为256KB，这相当于65536个32位寄存器，65536/256=256。一个SM可以同时执行多
+                # 个block，对一个Kernel，同时存在于一个SM中的Block和Warp数量取决于SM中可用
+                # 且所需的寄存器和共享内存数量。每个Thread需要的寄存器越多，那么SM中的Warp就
+                # 越少。即减少Thread所需寄存器数量，即可增加SM中的Warp数。每个Block需要的共
+                # 享内存越多，那么SM中可以被同时处理的Block就会变少。即减少每个Block所需的共
+                # 享内存，即可同时处理更多Block。SM内的资源没办法处理一个完整Block，Kernel
+                # 将无法启动。
+                # cmem: 常量内存，被缓存，访问速度快。
+                # stack frame: 由于寄存器的数量有限，当需要使用的变量数量超过可用寄存器数量时，
+                # 编译器会将某些变量从寄存器“溢出”到栈上，这个过程称为spill。访问栈上的数据比
+                # 访问寄存器慢得多。
+                # spill stores: 指的是在执行过程中，数据因为寄存器不足而被存储到了栈上。
+                # spill loads: 则是指将之前溢出到栈上的数据重新加载回寄存器。
                 "-Xptxas -v",
+                # "-maxrregcount=128 -Xptxas -dlcm=cg" if args.reduce_reg else ""
             ], 
            extra_cflags=['-std=c++17'],
            verbose=args.verbose)
@@ -67,7 +84,8 @@ def run_benchmark(perf_func: callable,
                   swizzle_stride: int = 1,
                   warmup: int = args.warmup, 
                   iters: int = args.iters,
-                  show_all: bool = args.show_all):
+                  show_matrix: bool = args.show_matrix,
+                  only_show_improved: bool = not args.show_all_info):
     global MAX_TFLOPS
 
     M = a.size(0)
@@ -77,7 +95,11 @@ def run_benchmark(perf_func: callable,
         N = b.size(0)
     if swizzle:
         # make swizzle stride as N/4 or N/2 and multiples of 256
-        swizzle_stride = int((int(N * args.swizzle_factor) // 256) * 256)
+        if args.swizzle_factor is None:
+            swizzle_factor = 0.5 if N <= 4096 else 0.25
+        else:
+            swizzle_factor = args.swizzle_factor
+        swizzle_stride = int((int(N * swizzle_factor) // 256) * 256)
         swizzle_stride = swizzle_stride if swizzle_stride >= 256 else 1
         swizzle = swizzle if swizzle_stride >= 256 else False
     else:
@@ -134,9 +156,10 @@ def run_benchmark(perf_func: callable,
         print(f"{out_info:>42}: {out_val}, time:{mean_time}ms, "
               f"swizzle: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}(+{improve:.2f}%)")
     else:
-        print(f"{out_info:>42}: {out_val}, time:{mean_time}ms, "
-              f"swizzle: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}")
-    if show_all: print(out)
+        if not only_show_improved or "cublas" in tag:
+            print(f"{out_info:>42}: {out_val}, time:{mean_time}ms, "
+                  f"swizzle: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}")
+    if show_matrix: print(out)
     time.sleep(args.sleep_duration)
     return out, mean_time
 
@@ -220,6 +243,9 @@ for (M, N, K) in MNKs:
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem, a, b, "(mma2x4+warp4x4x2+stage3+dsmem)", c, stages=3)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem, a, b, "(mma2x4+warp4x4x2+stage2+dsmem)", c, stages=2)
     if args.enable_mma_all: # more mma kernel tests.
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_rr, a, b, "(mma2x4+warp4x4x2+stage4+dsmem+rr)", c, stages=4)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_rr, a, b, "(mma2x4+warp4x4x2+stage3+dsmem+rr)", c, stages=3)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_rr, a, b, "(mma2x4+warp4x4x2+stage2+dsmem+rr)", c, stages=2)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_x4, a, b, "(mma2x4+warp4x4x2+stage4+dsmem+x4)", c, stages=4)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_x4, a, b, "(mma2x4+warp4x4x2+stage3+dsmem+x4)", c, stages=3)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_x4, a, b, "(mma2x4+warp4x4x2+stage2+dsmem+x4)", c, stages=2)
@@ -233,6 +259,9 @@ for (M, N, K) in MNKs:
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem, a, b, "(mma2x4+warp4x4x2+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem, a, b, "(mma2x4+warp4x4x2+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
     if args.enable_mma_all:
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_rr, a, b, "(mma2x4+warp4x4x2+stage4+dsmem+swizzle+rr)", c, stages=4, swizzle=True)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_rr, a, b, "(mma2x4+warp4x4x2+stage3+dsmem+swizzle+rr)", c, stages=3, swizzle=True)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_rr, a, b, "(mma2x4+warp4x4x2+stage2+dsmem+swizzle+rr)", c, stages=2, swizzle=True)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_x4, a, b, "(mma2x4+warp4x4x2+stage4+dsmem+swizzle+x4)", c, stages=4, swizzle=True)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_x4, a, b, "(mma2x4+warp4x4x2+stage3+dsmem+swizzle+x4)", c, stages=3, swizzle=True)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_x4, a, b, "(mma2x4+warp4x4x2+stage2+dsmem+swizzle+x4)", c, stages=2, swizzle=True)
