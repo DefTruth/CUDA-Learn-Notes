@@ -13,7 +13,21 @@
 
 <img width="1438" alt="image" src="https://github.com/user-attachments/assets/0c5e5125-586f-43fa-8e8b-e2c61c1afbbe">
 
-## 0x00 📖 CUDA Kernel目录 (面试常考题目)  
+## HGEMM Supported Matrix
+
+|CUDA Cores|Sliced K(Loop over K)|Tile Block|Tile Thread|
+|:---:|:---:|:---:|:---:|
+|✅|✅|✅|✅|
+|**WMMA(m16n16k16)**|**MMA(m16n8k16)**|**Pack LDST**|**SMEM Padding**|
+|✅|✅|✅|✅|
+|**Copy Async**|**Tile MMA(More Threads)**|**Tile Warp(More Values)**|**Multi Stages**|  
+|✅|✅|✅|✅|
+|**Reg Double Buffers**|**Block Swizzle**|**Warp Swizzle**|**Collective Store(Shuffle)**|
+|✅|✅|✅|✅|
+|**Row Major(NN)**|**Col Major(TN)**|**SMEM Swizzle**|...|
+|✅|✅|❔|...|
+
+## 0x00 📖 CUDA Kernel目录 (面试常考题目)   
 - / = not supported now.  
 - ✔️ = known work and already supported now.
 - ❔ = in my plan, but not coming soon, maybe a few weeks later.
