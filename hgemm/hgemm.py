@@ -12,6 +12,7 @@ def get_args():
     parser.add_argument("--M", type=int, default=None, help="Matrix M size")
     parser.add_argument("--N", type=int, default=None, help="Matrix N size")
     parser.add_argument("--K", type=int, default=None, help="Matrix K size")
+    parser.add_argument("--MNK", type=int, default=None, help="Matrix M=N=K size")
     parser.add_argument("--warmup", "--w", type=int, default=2, help="Warmup iters")
     parser.add_argument("--iters", "--i", type=int, default=10, help="Benchmark iters")
     parser.add_argument("--verbose", "--v", action="store_true", help="Verbose")
@@ -73,7 +74,6 @@ lib = load(name='hgemm_lib',
             ], 
            extra_cflags=['-std=c++17'],
            verbose=args.verbose)
-
 
 MAX_TFLOPS = -1
 
@@ -167,6 +167,11 @@ def run_benchmark(perf_func: callable,
 Ms = [1024, 2048, 4096, 8192, 16384]
 Ns = [1024, 2048, 4096, 8192, 16384]
 Ks = [512,  1024, 2048, 4096, 8192]
+if args.MNK:
+    Ms = [args.MNK]
+    Ns = [args.MNK]
+    Ks = [args.MNK]
+# prefer different M, N, K
 if args.M and args.N and args.K:
     Ms = [args.M]
     Ns = [args.N]

@@ -27,6 +27,8 @@
 |**Row Major(NN)**|**Col Major(TN)**|**SMEM Swizzle**|...|
 |✅|✅|❔|...|
 
+Welcome to 🌟👆🏻star & submit a PR to this repo to support me!
+
 ## 0x00 📖 CUDA Kernel目录 (面试常考题目)   
 - / = not supported now.  
 - ✔️ = known work and already supported now.
