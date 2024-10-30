@@ -13,7 +13,7 @@
 
 <img width="1438" alt="image" src="https://github.com/user-attachments/assets/0c5e5125-586f-43fa-8e8b-e2c61c1afbbe">
 
-<h3 align="center">📖 HGEMM/SGEMM Supported Matrix </h3>
+### 📖 HGEMM/SGEMM Supported Matrix
 
 |CUDA Cores|Sliced K(Loop over K)|Tile Block|Tile Thread|
 |:---:|:---:|:---:|:---:|
@@ -26,8 +26,6 @@
 |✔️|✔️|✔️|✔️|
 |**Row Major(NN)**|**Col Major(TN)**|**SGEMM TF32**|**SMEM Swizzle**|
 |✔️|✔️|✔️|❔|
-
-<p align="center">🎉 Welcome to 🌟👆🏻star & submit a PR to this repo, as it is the simplest way to support me. </p>
 
 ## 📖 CUDA Kernel目录 (面试常考题目)   
 - / = not supported now.  
