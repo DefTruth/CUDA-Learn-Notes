@@ -1912,13 +1912,19 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_rr_kernel(
   }
 }
 
-// TODO: smem swizzle per 8x8 submatrix(not per line, 8 half values per line) 
+// TODO: smem swizzle per 4x8 submatrix(not per line, 8 half values per line) 
+// In CUTLASS, each group of four threads is assigned a specific address in 
+// shared memory. This approach allows avoiding conflicts when reading from 
+// and writing to shared memory without increasing the shared memory usage. 
+// https://developer.download.nvidia.cn/video/gputechconf/gtc/2019/presentation
+// /s9593-cutensor-high-performance-tensor-operations-in-cuda-v2.pdf
 // A matrix smem, MMA_MxMMA_K=16x16; B matrix smem, MMA_KxMMA_N=16x8; PTX layout.
 // reference:
 // https://zhuanlan.zhihu.com/p/638522893
 // https://zhuanlan.zhihu.com/p/696231622
 // https://www.zhihu.com/question/600927104/answer/3029266372
-// https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#warp-level-matrix-load-instruction-ldmatrix
+// https://docs.nvidia.com/cuda/parallel-thread-execution/index.html
+// #warp-level-matrix-load-instruction-ldmatrix
 
 
 // --------------------- PyTorch bindings for custom kernel -----------------------

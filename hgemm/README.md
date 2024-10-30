@@ -4,15 +4,15 @@
 
 |CUDA Cores|Sliced K(Loop over K)|Tile Block|Tile Thread|
 |:---:|:---:|:---:|:---:|
-|✅|✅|✅|✅|
-|**WMMA(m16n16k16)**|**MMA(m16n8k16)**|**Pack LDST**|**SMEM Padding**|
-|✅|✅|✅|✅|
+|✔️|✔️|✔️|✔️|
+|**WMMA(m16n16k16)**|**MMA(m16n8k16)**|**Pack LDST(128 bits)**|**SMEM Padding**|
+|✔️|✔️|✔️|✔️|
 |**Copy Async**|**Tile MMA(More Threads)**|**Tile Warp(More Values)**|**Multi Stages**|  
-|✅|✅|✅|✅|
-|**Reg Double Buffers**|**Block Swizzle**|**Warp Swizzle**|**Collective Store(Shuffle)**|
-|✅|✅|✅|✅|
+|✔️|✔️|✔️|✔️|
+|**Reg Double Buffers**|**Block Swizzle**|**Warp Swizzle**|**Collective Store(Reg Reuse&Warp Shuffle)**|
+|✔️|✔️|✔️|✔️|
 |**Row Major(NN)**|**Col Major(TN)**|**SMEM Swizzle**|...|
-|✅|✅|❔|...|
+|✔️|✔️|❔|...|
 
 <details>
 <summary> 🔑️ 点击查看所有支持的HGEMM Kernels! </summary>  
@@ -167,8 +167,15 @@ python3 hgemm.py --M 4096 --N 4096 --K 4096 --mma-all --wmma-all --cuda-all
 
 ### PyTorch HGEMM Profile
 
-在Ada架构下，PyTorch 2.4对FP16使用matmul时，会调用ampere_fp16_s1688gemm_fp16_128x128_ldg8_f2f_stages_32x1_nn kernel，内部实际使用HMMA(Tensor Cores)进行计算，在3080上profile发现使用sm80_xmma_gemm_f16f16_f16f32_f32_nn_n_tilesize96x64x32_stage3_warpsize2x2x1_tensor16x8x16_kernel。因此，只有实现使用Tensor Cores的HGEMM，才有可能接近PyTorch/cuBLAS的性能。
-
+在Ada架构下，PyTorch 2.4对FP16使用matmul时，会调用:
+```C++
+ampere_fp16_s1688gemm_fp16_128x128_ldg8_f2f_stages_32x1_nn_kernel
+```
+内部实际使用HMMA(Tensor Cores)进行计算，在3080上profile发现使用:
+```C++
+sm80_xmma_gemm_f16f16_f16f32_f32_nn_n_tilesize96x64x32_stage3_warpsize2x2x1_tensor16x8x16_kernel
+```
+因此，只有实现使用Tensor Cores的HGEMM，才有可能接近PyTorch/cuBLAS的性能。
 ```bash
 ncu -o hgemm.prof -f python3 prof.py
 nsys profile --stats=true -t cuda,osrt,nvtx -o hgemm.prof --force-overwrite true python3 prof.py
@@ -183,8 +190,10 @@ nsys profile --stats=true -t cuda,osrt,nvtx -o hgemm.prof --force-overwrite true
 ...
 ```
 
-### 共享内存 Bank Conflicts
+### SMEM Padding  
 
+#### Bank Conflicts的产生
+  
 含义：在访问shared memory时，因多个线程读写同一个Bank中的不同数据地址时，导致shared memory 并发读写 退化 成顺序读写的现象叫做Bank Conflict；
 
 ![](https://github.com/PaddleJitLab/CUDATutorial/blob/develop/docs/09_optimize_reduce/02_bank_conflict/images/ef322be7c3e5b6b9be69d2b90e88083f50569a58a97129f348e483b946ab4edf.png)
@@ -206,6 +215,18 @@ cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
 
 本仓库实现的HGEMM Double Buffers策略如下：1）主循环从bk = 1 开始，第一次数据加载在主循环之前，最后一次计算在主循环之后，这是pipeline 的特点决定的；2）由于计算和下一次访存使用的Shared Memory不同，因此主循环中每次循环只需要一次__syncthreads()即可，对比非double buffers版本，总共节省了 ((K + BK - 1) / BK) - 1 次block内的同步操作。比如，bk=1时，HFMA计算使用的是s_a[0]和s_b[0]，因此，和s_a[1]和s_b[1]的加载是没有依赖关系的。HFMA计算，从global内存到s_a[1]和s_b[1]和HFMA计算可以并行。s_a[1]和s_b[1]用于加载下一块BK需要的数据到共享内存；3）由于GPU不能向CPU那样支持乱序执行，主循环中需要先将下一次循环计算需要的Gloabal Memory中的数据load 到寄存器，然后进行本次计算，之后再将load到寄存器中的数据写到Shared Memory，这样在LDG指令向Global Memory做load时，不会影响后续HFMA及其它运算指令的 launch 执行，也就达到了Double Buffers的目的，具体代码见[hgemm.cu](./hgemm.cu)。
 
+### Tile Block
+
+TODO
+
+### Tile Thread
+
+TODO
+
+### Pack LDST 128 bits
+
+TODO
+
 ### Async Copy
 
 TODO
@@ -214,16 +235,33 @@ TODO
 
 TODO
 
+### Tensor Cores(WMMA/MMA)
+
+TODO
+
+### Tile MMA/Warp
+
+TODO 
+
 ### Thread Block Swizze 
 
 TODO
 
 ### Warp Swizzle
 
+TODO
+
 ### Reg Double Buffers
 
 TODO
 
+### Collective Store(Reg Reuse&Warp Shuffle)
+
+TODO
+
+### SMEM Swizzle/Permuted
+
+TODO
 
 ## 参考文献 
 
