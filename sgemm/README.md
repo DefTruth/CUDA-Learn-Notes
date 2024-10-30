@@ -1,5 +1,20 @@
 # SGEMM 
 
+## HGEMM/SGEMM Supported Matrix
+
+|CUDA Cores|Sliced K(Loop over K)|Tile Block|Tile Thread|
+|:---:|:---:|:---:|:---:|
+|✔️|✔️|✔️|✔️|
+|**WMMA(m16n16k16)**|**MMA(m16n8k16)**|**Pack LDST(128 bits)**|**SMEM Padding**|
+|✔️|✔️|✔️|✔️|
+|**Copy Async**|**Tile MMA(More Threads)**|**Tile Warp(More Values)**|**Multi Stages**|  
+|✔️|✔️|✔️|✔️|
+|**Reg Double Buffers**|**Block Swizzle**|**Warp Swizzle**|**Collective Store(Reg Reuse&Warp Shfl)**|
+|✔️|✔️|✔️|✔️|
+|**Row Major(NN)**|**Col Major(TN)**|**SGEMM TF32**|**SMEM Swizzle/Permuted**|
+|✔️|✔️|✔️|❔|
+
+
 ## 0x00 说明
 
 包含以下内容：
@@ -15,7 +30,7 @@
 - [X] PyTorch bindings
 
 ## 目前性能
-目前在L20上，CUDA Cores FP32(L20 FP32/TF32理论算力为59.8 TFLOPS) 的实现能达到cuBLAS大概85%~90%左右的性能(TFLOPS)，部分size下会超过cuBLAS。已知问题为bank conflicts没有完全消除，目前通过padding的方式缓解bank conflicts会导致shared memory浪费，也会影响SM occupancy。而Tensor Cores TF32的实现，只能达到cuBLAS TF32大概80%左右的性能，尚有较大差距。目前未手工实现Warp swizzle(受限于WMMA API的灵活性以及本人的能力)，后续将会尝试通过MMA PTX实现warp swizzle。另外，当前TF32的实现依赖额外的FP32转TF32的kernel，对整体性能有影响。
+目前在L20上，CUDA Cores FP32(L20 FP32/TF32理论算力为59.8 TFLOPS) 的实现能达到cuBLAS大概85%~90%左右的性能(TFLOPS)，部分size下会超过cuBLAS。已知问题为bank conflicts没有完全消除，目前通过padding的方式缓解bank conflicts会导致shared memory浪费，也会影响SM occupancy。而Tensor Cores TF32的实现，只能达到cuBLAS TF32大概80%左右的性能，尚有较大差距。目前未手工实现smem swizzle(受限于WMMA API的灵活性以及本人的能力)，后续将会尝试通过MMA PTX实现smem swizzle/permuted。另外，当前TF32的实现依赖额外的FP32转TF32的kernel，对整体性能有影响。
 
 ## 共享内存 Bank Conflicts
 
