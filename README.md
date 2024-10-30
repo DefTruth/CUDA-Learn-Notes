@@ -22,7 +22,7 @@
 |✔️|✔️|✔️|✔️|
 |**Copy Async**|**Tile MMA(More Threads)**|**Tile Warp(More Values)**|**Multi Stages**|  
 |✔️|✔️|✔️|✔️|
-|**Reg Double Buffers**|**Block Swizzle**|**Warp Swizzle**|**Collective Store(Reg Reuse&Warp Shfl)**|
+|**Reg Double Buffers**|**Block Swizzle**|**Warp Swizzle**|**Collective Store(Shfl)**|
 |✔️|✔️|✔️|✔️|
 |**Row Major(NN)**|**Col Major(TN)**|**SGEMM TF32**|**SMEM Swizzle/Permuted**|
 |✔️|✔️|✔️|❔|
@@ -173,7 +173,7 @@
 | ✔️ [hgemv_k16_f16](./hgemv/hgemv.cu)|f16|f16|[link](./hgemv/)|⭐️⭐️⭐️|  
 | ✔️ [flash_attn_1_fwd_f32](./flash-attn/flash_attn.cu)|f32|f32|[link](./flash-attn)|⭐️⭐️⭐️|  
 | ✔️ [flash_attn_2_fwd_f16_m16n8k16*](./flash-attn/flash_attn_mma.cu)|f16|f16|[link](./flash-attn)|⭐️⭐️⭐️|  
-| ✔️ [nms_kernel](./nms/nms.cu)|f32|/|[link](./nms)|⭐️⭐️|  
+| ✔️ [nms_f32](./nms/nms.cu)|f32|/|[link](./nms)|⭐️⭐️|  
 | ✔️ [notes v1(deprecated)](./notes-v1.cu)|f32|f32|/|⭐️|  
 
 👉TIPS: * means using **Tensor Cores(MMA/WMMA)**, otherwise, using CUDA Cores by default.
