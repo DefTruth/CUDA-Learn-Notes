@@ -24,8 +24,10 @@
 |✔️|✔️|✔️|✔️|
 |**Reg Double Buffers**|**Block Swizzle**|**Warp Swizzle**|**Collective Store(Shfl)**|
 |✔️|✔️|✔️|✔️|
-|**Row Major(NN)**|**Col Major(TN)**|**SGEMM TF32**|**SMEM Swizzle/Permuted**|
+|**Row Major(NN)**|**Col Major(TN)**|**SGEMM TF32**|**SMEM Swizzle(Permute)**|
 |✔️|✔️|✔️|❔|
+
+Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's default Tensor Cores math algorithm `CUBLAS_GEMM_DEFAULT_TENSOR_OP`, the `HGEMM (WMMA and MMA)` implemented in this repo can achieve approximately `95%~99%` of its performance. Please check [hgemm benchmark](./hgemm) for more details.
 
 ## 📖 CUDA Kernel目录 (面试常考题目)   
 - / = not supported now.  
