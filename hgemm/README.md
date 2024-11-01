@@ -44,6 +44,20 @@
 
 </details>
 
+## 测试命令
+
+```bash
+# 只测试Ada架构 不指定默认编译所有架构 耗时较长: Volta, Ampere, Ada, Hopper, ...
+export TORCH_CUDA_ARCH_LIST=Ada 
+python3 hgemm.py --wmma # test defalut wmma kernels for all MNK
+python3 hgemm.py --mma  # test defalut mma kernels for all MNK
+python3 hgemm.py --M 16384 --N 16384 --K 8192 --i 10 --wmma # test default wmma kernels for specific MNK
+python3 hgemm.py --M 16384 --N 16384 --K 8192 --i 10 --mma # test default mma kernels for specific MNK
+python3 hgemm.py --wmma-all # test all wmma kernels for all MNK
+python3 hgemm.py --mma-all # test all mma kernels for all MNK
+python3 hgemm.py --cuda-all --wmma-all --mma-all # test all kernels for all MNK
+```
+
 ## 目前性能  
 
 ### NVIDIA L20  
@@ -144,73 +158,6 @@ python3 hgemm.py --wmma-all
 ----------------------------------------------------------------------------------------------------------------------------------
 ```
 
-## 测试命令
-
-```bash
-# 只测试Ada架构 不指定默认编译所有架构 耗时较长: Volta, Ampere, Ada, Hopper, ...
-export TORCH_CUDA_ARCH_LIST=Ada 
-python3 hgemm.py --wmma # test defalut wmma kernels for all MNK
-python3 hgemm.py --mma  # test defalut mma kernels for all MNK
-python3 hgemm.py --M 16384 --N 16384 --K 8192 --i 10 --wmma # test default wmma kernels for specific MNK
-python3 hgemm.py --M 16384 --N 16384 --K 8192 --i 10 --mma # test default mma kernels for specific MNK
-python3 hgemm.py --wmma-all # test all wmma kernels for all MNK
-python3 hgemm.py --mma-all # test all mma kernels for all MNK
-python3 hgemm.py --cuda-all --wmma-all --mma-all # test all kernels for all MNK
-```
-以下测试示例数据机器为NVIDIA L20。
-
-- 示例1:
-```bash
-python3 hgemm.py --M 16384 --N 16384 --K 8192 --i 10 --mma
-----------------------------------------------------------------------------------------------------------------------------------
-                                        M=16384, N=16384, K=8192, Warmup=2, Iters=10, 1/1
-----------------------------------------------------------------------------------------------------------------------------------
---------------------------------------------------------------------MMA-----------------------------------------------------------
-                          (mma2x4+warp4x4): ['-135.5    ', '-20.21875 '], time:45.22497ms, swizzle: NOOP, TFLOPS: 97.25 (+0.00%)
-           (mma2x4+warp4x4+stage3+swizzle): ['-135.5    ', '-20.21875 '], time:39.16373ms, swizzle: 4096, TFLOPS: 112.30(+15.48%)
-           (mma2x4+warp4x4+stage2+swizzle): ['-135.5    ', '-20.21875 '], time:38.40122ms, swizzle: 4096, TFLOPS: 114.53(+1.99%)
-     (mma2x4+warp4x4+stage2+dsmem+swizzle): ['-135.5    ', '-20.21875 '], time:38.20776ms, swizzle: 4096, TFLOPS: 115.11(+0.51%)
-                                  (cublas): ['-135.5    ', '-20.21875 '], time:37.60526ms, swizzle: NOOP, TFLOPS: 116.95(+1.60%)
-----------------------------------------------------------------------------------------------------------------------------------
-```
-- 示例2:
-```bash
-python3 hgemm.py --M 4096 --N 4096 --K 4096 --mma-all
-----------------------------------------------------------------------------------------------------------------------------------
-                                        M=4096, N=4096, K=4096, Warmup=2, Iters=10, 1/1
-----------------------------------------------------------------------------------------------------------------------------------
---------------------------------------------------------------------MMA-----------------------------------------------------------
-                          (mma2x4+warp4x4): ['-64.6875  ', '-33.90625 '], time:1.413774ms, swizzle: NOOP, TFLOPS: 97.21 (+0.00%)
-                   (mma2x4+warp4x4+stage3): ['-64.6875  ', '-33.90625 '], time:1.343679ms, swizzle: NOOP, TFLOPS: 102.29(+5.22%)
-                   (mma2x4+warp4x4+stage2): ['-64.6875  ', '-33.90625 '], time:1.326227ms, swizzle: NOOP, TFLOPS: 103.63(+1.32%)
-           (mma2x4+warp4x4x2+stage4+dsmem): ['-64.6875  ', '-33.90625 '], time:1.324486ms, swizzle: NOOP, TFLOPS: 103.77(+0.13%)
-           (mma2x4+warp4x4x2+stage2+dsmem): ['-64.6875  ', '-33.90625 '], time:1.299619ms, swizzle: NOOP, TFLOPS: 105.75(+1.91%)
-        (mma2x4+warp4x4x2+stage2+dsmem+rr): ['-64.6875  ', '-33.90625 '], time:1.299595ms, swizzle: NOOP, TFLOPS: 105.76(+0.00%)
-                                  (cublas): ['-64.6875  ', '-33.90625 '], time:1.289343ms, swizzle: NOOP, TFLOPS: 106.60(+0.80%)
-----------------------------------------------------------------------------------------------------------------------------------
-```
-- 示例3：
-```bash
-python3 hgemm.py --M 4096 --N 4096 --K 4096 --mma-all --wmma-all --cuda-all
-----------------------------------------------------------------------------------------------------------------------------------
-                                        M=4096, N=4096, K=4096, Warmup=2, Iters=10, 1/1
-----------------------------------------------------------------------------------------------------------------------------------
-                                   (naive): ['55.40625  ', '-128.625  '], time:37.67290ms, swizzle: NOOP, TFLOPS: 3.65  (+0.00%)
-                      (f16x8pack+t8x8+bcf): ['55.40625  ', '-128.625  '], time:2.820539ms, swizzle: NOOP, TFLOPS: 48.73 (+1235.66%)
-                     (f16x8pack+t8x8+dbuf): ['55.40625  ', '-128.625  '], time:2.819323ms, swizzle: NOOP, TFLOPS: 48.75 (+0.04%)
-                 (f16x8pack+t8x8+k16+dbuf): ['55.40625  ', '-128.625  '], time:2.628445ms, swizzle: NOOP, TFLOPS: 52.29 (+7.26%)
---------------------------------------------------------------------WMMA----------------------------------------------------------
-                         (wmma4x2+warp2x4): ['56.03125  ', '-129.125  '], time:1.816916ms, swizzle: NOOP, TFLOPS: 75.64 (+44.67%)
-                  (wmma4x2+warp2x4+stage3): ['56.03125  ', '-129.125  '], time:1.354646ms, swizzle: NOOP, TFLOPS: 101.46(+34.12%)
-                  (wmma4x2+warp2x4+stage2): ['56.03125  ', '-129.125  '], time:1.343059ms, swizzle: NOOP, TFLOPS: 102.33(+0.86%)
-            (wmma4x2+warp2x4+stage3+dsmem): ['56.03125  ', '-129.125  '], time:1.342296ms, swizzle: NOOP, TFLOPS: 102.39(+0.06%)
-          (wmma4x2+warp2x4+stage2+swizzle): ['56.03125  ', '-129.125  '], time:1.323080ms, swizzle: 2048, TFLOPS: 103.88(+1.45%)
---------------------------------------------------------------------MMA-----------------------------------------------------------
-           (mma2x4+warp4x4x2+stage2+dsmem): ['56.03125  ', '-129.125  '], time:1.299333ms, swizzle: NOOP, TFLOPS: 105.78(+1.83%)
-                                  (cublas): ['56.03125  ', '-129.125  '], time:1.289367ms, swizzle: NOOP, TFLOPS: 106.59(+0.77%)
-----------------------------------------------------------------------------------------------------------------------------------
-```
-
 ## 性能优化笔记
 
 ### PyTorch HGEMM Profile
@@ -263,6 +210,9 @@ cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
 
 本仓库实现的HGEMM Double Buffers策略如下：1）主循环从bk = 1 开始，第一次数据加载在主循环之前，最后一次计算在主循环之后，这是pipeline 的特点决定的；2）由于计算和下一次访存使用的Shared Memory不同，因此主循环中每次循环只需要一次__syncthreads()即可，对比非double buffers版本，总共节省了 ((K + BK - 1) / BK) - 1 次block内的同步操作。比如，bk=1时，HFMA计算使用的是s_a[0]和s_b[0]，因此，和s_a[1]和s_b[1]的加载是没有依赖关系的。HFMA计算，从global内存到s_a[1]和s_b[1]和HFMA计算可以并行。s_a[1]和s_b[1]用于加载下一块BK需要的数据到共享内存；3）由于GPU不能向CPU那样支持乱序执行，主循环中需要先将下一次循环计算需要的Gloabal Memory中的数据load 到寄存器，然后进行本次计算，之后再将load到寄存器中的数据写到Shared Memory，这样在LDG指令向Global Memory做load时，不会影响后续HFMA及其它运算指令的 launch 执行，也就达到了Double Buffers的目的，具体代码见[hgemm.cu](./hgemm.cu)。
 
+<details>
+<summary> 🔑️ 更多性能优化笔记(TODO) ！Click here! </summary>    
+
 ### Tile Block
 
 TODO
@@ -310,6 +260,8 @@ TODO
 ### SMEM Swizzle/Permuted
 
 TODO
+
+</details>
 
 ## 参考文献 
 
