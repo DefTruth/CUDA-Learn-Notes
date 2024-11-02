@@ -13,6 +13,8 @@ def get_args():
     parser.add_argument("--N", type=int, default=None, help="Matrix N size")
     parser.add_argument("--K", type=int, default=None, help="Matrix K size")
     parser.add_argument("--MNK", type=int, default=None, help="Matrix M=N=K size")
+    parser.add_argument("--MMNK", type=int, default=16384, help="Matrix MAX M=M=N=K size")
+    parser.add_argument("--SEP", type=int, default=512, help="Matrix MAX M=M=N=K size")
     parser.add_argument("--warmup", "--w", type=int, default=2, help="Warmup iters")
     parser.add_argument("--iters", "--i", type=int, default=10, help="Benchmark iters")
     parser.add_argument("--verbose", "--v", action="store_true", help="Verbose")
@@ -31,6 +33,10 @@ def get_args():
     parser.add_argument("--disable-cublas-tn", "--no-cublas-tn", action="store_true", help="Disable cublas TN hgemm")
     parser.add_argument("--sleep-duration", "--sleep", type=float, default=0.1, help="Sleep duration")
     parser.add_argument("--swizzle-factor", "--swizzle", type=float, default=None, help="Swizzle factor")
+    parser.add_argument("--no-default", action="store_true", help="Disable default tests")
+    parser.add_argument("--plot-flops", "--plot", action="store_true", help="Plot TFLOPS")
+    parser.add_argument("--exclude-tags", "--exclude", type=str, default=None, help="Exclude tag for plot, sperated by comma")
+    parser.add_argument("--save-tag", "--tag", type=str, default=None, help="Save tag for plot")
     return parser.parse_args()
 
 args = get_args()
@@ -76,6 +82,8 @@ lib = load(name='hgemm_lib',
            verbose=args.verbose)
 
 MAX_TFLOPS = -1
+STATIS_INFO: dict[str, list[float]] = {}
+STATIS_INFO["MNK"] = []
 
 def run_benchmark(perf_func: callable, 
                   a: torch.Tensor, b: torch.Tensor,
@@ -161,12 +169,60 @@ def run_benchmark(perf_func: callable,
                   f"swizzle: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}")
     if show_matrix: print(out)
     time.sleep(args.sleep_duration)
+    if args.plot_flops:
+        STATIS_INFO[tag] = STATIS_INFO.get(tag, [])
+        STATIS_INFO[tag].append(TFLOPS)
     return out, mean_time
 
 
-Ms = [1024, 2048, 4096, 8192, 16384]
-Ns = [1024, 2048, 4096, 8192, 16384]
-Ks = [512,  1024, 2048, 4096, 8192]
+def plot_tflops():
+    import matplotlib.pyplot as plt
+    import numpy as np
+    fig, ax = plt.subplots(figsize=(16, 9))
+    ax.set_title(f"My HGEMM TFLOPS(CUDA Learn Notes), Warmup={args.warmup}, Iters={args.iters}")
+    ax.set_xlabel("M=N=K")
+    ax.set_ylabel("TFLOPS")
+    ax.grid(True)
+    # MNK要斜着展示
+    ax.set_xticks(np.arange(0, len(STATIS_INFO["MNK"]), 1))
+    ax.set_xticklabels(STATIS_INFO["MNK"], rotation=45, ha='right')
+    exclude_tags = args.exclude_tags.split(",") if args.exclude_tags else []
+    exclude_tags.append("MNK")
+    exclude_tags = set(exclude_tags)
+
+    def should_exclude(tag: str) -> bool:
+        for etag in exclude_tags:
+            if etag in tag:
+                return True
+        return False
+    
+    for tag, tflops in STATIS_INFO.items():
+        if should_exclude(tag): 
+            continue
+        if "cublas" in tag:
+            ax.plot(tflops, label=tag, linestyle='dashed')
+        else:
+            ax.plot(tflops, label=tag)
+
+    ax.legend()
+    if args.save_tag:
+        plt.savefig(f"{args.save_tag}", dpi=300)
+        print(f"plot hgemm TFLOPS done, saved as {args.save_tag}")
+    else:
+        plt.savefig("hgemm.png", dpi=300)
+        print("plot hgemm TFLOPS done, saved as hgemm.png")
+
+
+
+def get_MNKs(sep: int = 512):
+    Ms = list(range(sep, args.MMNK + sep, sep))
+    Ns = list(range(sep, args.MMNK + sep, sep))
+    Ks = list(range(sep, args.MMNK + sep, sep))
+    return Ms, Ns, Ks
+
+
+Ms, Ns, Ks = get_MNKs(args.SEP)
+STATIS_INFO["MNK"] = Ms
 if args.MNK:
     Ms = [args.MNK]
     Ns = [args.MNK]
@@ -187,14 +243,13 @@ C = torch.randn((MAX_M, MAX_N), dtype=torch.half).cuda()
 torch.cuda.synchronize()
 end = time.time()
 print(f"pre allocate for fast profiling done, time: {(end - start) * 1000} ms")
-MNKs = [(M, N, K) for M in Ms for N in Ns for K in Ks]
 
 PERF_COUNT = 0
-for (M, N, K) in MNKs:
+for (M, N, K) in zip(Ms, Ns, Ks):
     MAX_TFLOPS = -1
     PERF_COUNT += 1
     print("-" * 130)
-    print(" " * 40 + f"M={M}, N={N}, K={K}, Warmup={args.warmup}, Iters={args.iters}, {PERF_COUNT}/{len(MNKs)}")
+    print(" " * 40 + f"M={M}, N={N}, K={K}, Warmup={args.warmup}, Iters={args.iters}, {PERF_COUNT}/{len(Ms)}")
     print("-" * 130)
     a = A[:M, :K].contiguous()
     b = B[:K, :N].contiguous()
@@ -204,10 +259,10 @@ for (M, N, K) in MNKs:
         # CUDA Cores FP16
         run_benchmark(lib.hgemm_naive_f16, a, b, "(naive)",  c)
         run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf, a, b, "(f16x8pack+t8x8+bcf)", c)
-    if args.enable_cuda or args.enable_cuda_all:
+    if (args.enable_cuda or args.enable_cuda_all) and (not args.no_default):
         run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf, a, b, "(f16x8pack+t8x8+dbuf)", c)
         run_benchmark(lib.hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf, a, b, "(f16x8pack+t8x8+k16+dbuf)", c)
-    if args.enable_wmma or args.enable_wmma_all:
+    if (args.enable_wmma or args.enable_wmma_all) and (not args.no_default):
         print("-" * 68 + "WMMA" + "-" * 58)
         # wmma api, stages, dsmem, swizzle
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2, a, b, "(wmma4x2)", c)
@@ -240,7 +295,7 @@ for (M, N, K) in MNKs:
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4, a, b, "(mma2x4+warp4x4)", c)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages, a, b, "(mma2x4+warp4x4+stage3)", c, stages=3)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages, a, b, "(mma2x4+warp4x4+stage2)", c, stages=2)
-    if args.enable_mma or args.enable_mma_all:
+    if (args.enable_mma or args.enable_mma_all) and (not args.no_default):
         if not args.enable_mma_all: print("-" * 68 + "MMA" + "-" * 59)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem, a, b, "(mma2x4+warp4x4+stage3+dsmem)", c, stages=3)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem, a, b, "(mma2x4+warp4x4+stage2+dsmem)", c, stages=2)
@@ -254,7 +309,7 @@ for (M, N, K) in MNKs:
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_x4, a, b, "(mma2x4+warp4x4x2+stage4+dsmem+x4)", c, stages=4)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_x4, a, b, "(mma2x4+warp4x4x2+stage3+dsmem+x4)", c, stages=3)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_x4, a, b, "(mma2x4+warp4x4x2+stage2+dsmem+x4)", c, stages=2)
-    if args.enable_mma or args.enable_mma_all:
+    if (args.enable_mma or args.enable_mma_all) and (not args.no_default):
         # thread block swizzle
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages, a, b, "(mma2x4+warp4x4+stage3+swizzle)", c, stages=3, swizzle=True)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages, a, b, "(mma2x4+warp4x4+stage2+swizzle)", c, stages=2, swizzle=True)
@@ -287,3 +342,9 @@ for (M, N, K) in MNKs:
             run_benchmark(lib.hgemm_cublas_tensor_op_tn, a, b.transpose(1, 0), "tn(cublas)", c)
     torch.cuda.synchronize()
     print("-" * 130)
+
+if args.plot_flops:
+    try:
+        plot_tflops()
+    except Exception as e:
+        print(f"plot hgemm TFLOPS failed, {e}")
