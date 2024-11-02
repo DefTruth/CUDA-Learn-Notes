@@ -153,8 +153,6 @@ python3 hgemm.py --mma-all --wmma-all --cuda-all
 
 ![](./NVIDIA_GeForce_RTX_3080_Laptop_GPU_WSL2.png)
 
-![](./rtx-3080-laptop.png)
-
 ```bash
 python3 hgemm.py --wmma-all
 ----------------------------------------------------------------------------------------------------------------------------------
