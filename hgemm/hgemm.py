@@ -35,6 +35,8 @@ def get_args():
     parser.add_argument("--swizzle-factor", "--swizzle", type=float, default=None, help="Swizzle factor")
     parser.add_argument("--no-default", action="store_true", help="Disable default tests")
     parser.add_argument("--plot-flops", "--plot", action="store_true", help="Plot TFLOPS")
+    parser.add_argument("--plot-topk", "--topk", type=int, default=8, help="Plot top k TFLOPS")
+    parser.add_argument("--no-hint-top1", "--no-hint", action="store_true", help="Hint top 1 TFLOPS")
     parser.add_argument("--exclude-tags", "--exclude", type=str, default=None, help="Exclude tag for plot, sperated by comma")
     parser.add_argument("--save-tag", "--tag", type=str, default=None, help="Save tag for plot")
     return parser.parse_args()
@@ -84,6 +86,8 @@ lib = load(name='hgemm_lib',
 MAX_TFLOPS = -1
 STATIS_INFO: dict[str, list[float]] = {}
 STATIS_INFO["MNK"] = []
+TOATL_TFLOPS: dict[str, float] = {}
+CUBLAS_TOTAL_TFLOPS = 0
 
 def run_benchmark(perf_func: callable, 
                   a: torch.Tensor, b: torch.Tensor,
@@ -172,18 +176,48 @@ def run_benchmark(perf_func: callable,
     if args.plot_flops:
         STATIS_INFO[tag] = STATIS_INFO.get(tag, [])
         STATIS_INFO[tag].append(TFLOPS)
+        if "cublas" not in tag:
+            TOATL_TFLOPS[tag] = TOATL_TFLOPS.get(tag, 0) + TFLOPS
+        else:
+            global CUBLAS_TOTAL_TFLOPS
+            CUBLAS_TOTAL_TFLOPS += TFLOPS
     return out, mean_time
+
+
+def get_device_name():
+    device_name = torch.cuda.get_device_name(torch.cuda.current_device())
+    # we will run GPU on WSL2, so add WSL2 tag.
+    if "Laptop" in device_name:
+        device_name += " WSL2"
+    return device_name
+
+
+def get_device_capability():
+    return torch.cuda.get_device_capability(torch.cuda.current_device())
+
+
+def get_topk_tflops():
+    topk_tflops = sorted(TOATL_TFLOPS.items(), key=lambda x: x[1], 
+                         reverse=True)
+    print("-" * 130)
+    print(" " * 42 + f"HGEMM TOTAL TFLOPS, {get_device_name()}")
+    print("-" * 130)
+    for tag, tflops in list(topk_tflops)[::-1]:
+        print(f"{tag:>42}: {tflops:<10.2f} TFLOPS")
+    print(f"{'(cublas)':>42}: {CUBLAS_TOTAL_TFLOPS:<10.2f} TFLOPS")    
+    print("-" * 130)
+    return dict(topk_tflops[:args.plot_topk]).keys()
 
 
 def plot_tflops():
     import matplotlib.pyplot as plt
     import numpy as np
-    fig, ax = plt.subplots(figsize=(16, 9))
-    ax.set_title(f"My HGEMM TFLOPS(CUDA Learn Notes), Warmup={args.warmup}, Iters={args.iters}")
+    _, ax = plt.subplots(figsize=(16, 9))
+    plt.subplots_adjust(left=0.03, right=0.99, top=0.95, bottom=0.05)
+    ax.set_title(f"My HGEMM vs cuBLAS, {get_device_name()}, Warmup={args.warmup}, Iters={args.iters}")
     ax.set_xlabel("M=N=K")
     ax.set_ylabel("TFLOPS")
     ax.grid(True)
-    # MNK要斜着展示
     ax.set_xticks(np.arange(0, len(STATIS_INFO["MNK"]), 1))
     ax.set_xticklabels(STATIS_INFO["MNK"], rotation=45, ha='right')
     exclude_tags = args.exclude_tags.split(",") if args.exclude_tags else []
@@ -196,32 +230,40 @@ def plot_tflops():
                 return True
         return False
     
+    topk_tflops = get_topk_tflops()
+    is_top_1 = True
     for tag, tflops in STATIS_INFO.items():
-        if should_exclude(tag): 
+        if (should_exclude(tag)) or (tag not in topk_tflops 
+                                     and "cublas" not in tag):
             continue
         if "cublas" in tag:
-            ax.plot(tflops, label=tag, linestyle='dashed')
+            ax.plot(tflops, label=tag, linewidth=3)
         else:
-            ax.plot(tflops, label=tag)
+            if is_top_1 and not args.no_hint_top1:
+                ax.plot(tflops, label=tag, linewidth=4)
+                is_top_1 = False
+            else:
+                ax.plot(tflops, label=tag, linestyle='--')
 
     ax.legend()
     if args.save_tag:
         plt.savefig(f"{args.save_tag}", dpi=300)
         print(f"plot hgemm TFLOPS done, saved as {args.save_tag}")
     else:
-        plt.savefig("hgemm.png", dpi=300)
-        print("plot hgemm TFLOPS done, saved as hgemm.png")
+        device_name = get_device_name().replace(" ", "_")
+        save_tag = f"{device_name}.png"
+        plt.savefig(save_tag, dpi=300)
+        print(f"plot hgemm TFLOPS done, saved as {save_tag}")
 
 
-
-def get_MNKs(sep: int = 512):
+def get_mnk(sep: int = args.SEP):
     Ms = list(range(sep, args.MMNK + sep, sep))
     Ns = list(range(sep, args.MMNK + sep, sep))
     Ks = list(range(sep, args.MMNK + sep, sep))
     return Ms, Ns, Ks
 
 
-Ms, Ns, Ks = get_MNKs(args.SEP)
+Ms, Ns, Ks = get_mnk()
 STATIS_INFO["MNK"] = Ms
 if args.MNK:
     Ms = [args.MNK]
