@@ -66,6 +66,24 @@ python3 hgemm.py --mma-all --plot --topk 8
 
 ## 目前性能  
 
+### NVIDIA GeForce RTX 3080 Laptop   
+
+在NVIDIA GeForce RTX 3080 Laptop上测试，使用mma4x4_warp4x4（16 WMMA m16n16k16 ops, warp tile 64x64）以及Thread block swizzle，大部分case能持平甚至超过cuBLAS，使用Windows WSL2 + RTX 3080 Laptop进行测试。
+
+![](./NVIDIA_GeForce_RTX_3080_Laptop_GPU_WSL2.png)
+
+```bash
+python3 hgemm.py --wmma-all
+----------------------------------------------------------------------------------------------------------------------------------
+                              M=16384, N=16384, K=8192, Warmup=5, Iters=20, 27/27
+----------------------------------------------------------------------------------------------------------------------------------
+           (wmma4x4+warp4x4+stage3+dsmem): ['68.375    ', '-2.234375 '], time:96.91984ms, swizzle: NOOP, TFLOPS: 45.38 (+0.00%)
+           (wmma4x4+warp4x4+stage2+dsmem): ['68.375    ', '-2.234375 '], time:102.8722ms, swizzle: NOOP, TFLOPS: 42.75
+   (wmma4x4+warp4x4+stage3+dsmem+swizzle): ['68.375    ', '-2.234375 '], time:85.65800ms, swizzle: 4096, TFLOPS: 51.34 (+13.15%)
+   (wmma4x4+warp4x4+stage2+dsmem+swizzle): ['68.375    ', '-2.234375 '], time:95.70884ms, swizzle: 4096, TFLOPS: 45.95
+                                 (cublas): ['68.375    ', '-2.234375 '], time:104.2092ms, swizzle: NOOP, TFLOPS: 42.20
+----------------------------------------------------------------------------------------------------------------------------------
+```
 ### NVIDIA L20  
 
 目前最优的实现，在L20上（理论Tensor Cores FP16算力为 119.5 TFLOPS），使用WMMA API能达到cuBLAS大概95%~98%左右的性能(105-113 TFLOPS vs 105-115 TFLOPS)，使用MMA API能达到115 TFLOPS，部分case会超越cuBLAS。已知问题为bank conflicts没有完全消除，目前通过padding的方式缓解bank conflicts会导致shared memory浪费，也会影响SM occupancy。并且尚未手工实现smem swizzle/permute(受限于WMMA API的灵活性以及row major的layout)，后续将会尝试通过MMA PTX实现smem swizzle/permute。
@@ -147,24 +165,6 @@ python3 hgemm.py --mma-all --wmma-all --cuda-all
 ----------------------------------------------------------------------------------------------------------------------------------
 ```
 
-### NVIDIA GeForce RTX 3080 Laptop   
-
-在NVIDIA GeForce RTX 3080 Laptop上测试，使用mma4x4_warp4x4（16 WMMA m16n16k16 ops, warp tile 64x64）以及Thread block swizzle，大部分case能持平甚至超过cuBLAS，不过Laptop由于我是在WSL测试的，性能数据不稳定，这部分看看就好，别太当真。
-
-![](./NVIDIA_GeForce_RTX_3080_Laptop_GPU_WSL2.png)
-
-```bash
-python3 hgemm.py --wmma-all
-----------------------------------------------------------------------------------------------------------------------------------
-                              M=16384, N=16384, K=8192, Warmup=5, Iters=20, 27/27
-----------------------------------------------------------------------------------------------------------------------------------
-           (wmma4x4+warp4x4+stage3+dsmem): ['68.375    ', '-2.234375 '], time:96.91984ms, swizzle: NOOP, TFLOPS: 45.38 (+0.00%)
-           (wmma4x4+warp4x4+stage2+dsmem): ['68.375    ', '-2.234375 '], time:102.8722ms, swizzle: NOOP, TFLOPS: 42.75
-   (wmma4x4+warp4x4+stage3+dsmem+swizzle): ['68.375    ', '-2.234375 '], time:85.65800ms, swizzle: 4096, TFLOPS: 51.34 (+13.15%)
-   (wmma4x4+warp4x4+stage2+dsmem+swizzle): ['68.375    ', '-2.234375 '], time:95.70884ms, swizzle: 4096, TFLOPS: 45.95
-                                 (cublas): ['68.375    ', '-2.234375 '], time:104.2092ms, swizzle: NOOP, TFLOPS: 42.20
-----------------------------------------------------------------------------------------------------------------------------------
-```
 
 ## 性能优化笔记
 
