@@ -66,29 +66,13 @@ python3 hgemm.py --mma-all --plot --topk 8
 
 ## 目前性能  
 
-### NVIDIA GeForce RTX 3080 Laptop   
-
-在NVIDIA GeForce RTX 3080 Laptop上测试，使用mma4x4_warp4x4（16 WMMA m16n16k16 ops, warp tile 64x64）以及Thread block swizzle，大部分case能持平甚至超过cuBLAS，使用Windows WSL2 + RTX 3080 Laptop进行测试。
-
-![](./NVIDIA_GeForce_RTX_3080_Laptop_GPU_WSL2.png)
-
-```bash
-python3 hgemm.py --wmma-all
-----------------------------------------------------------------------------------------------------------------------------------
-                              M=16384, N=16384, K=8192, Warmup=5, Iters=20, 27/27
-----------------------------------------------------------------------------------------------------------------------------------
-           (wmma4x4+warp4x4+stage3+dsmem): ['68.375    ', '-2.234375 '], time:96.91984ms, swizzle: NOOP, TFLOPS: 45.38 (+0.00%)
-           (wmma4x4+warp4x4+stage2+dsmem): ['68.375    ', '-2.234375 '], time:102.8722ms, swizzle: NOOP, TFLOPS: 42.75
-   (wmma4x4+warp4x4+stage3+dsmem+swizzle): ['68.375    ', '-2.234375 '], time:85.65800ms, swizzle: 4096, TFLOPS: 51.34 (+13.15%)
-   (wmma4x4+warp4x4+stage2+dsmem+swizzle): ['68.375    ', '-2.234375 '], time:95.70884ms, swizzle: 4096, TFLOPS: 45.95
-                                 (cublas): ['68.375    ', '-2.234375 '], time:104.2092ms, swizzle: NOOP, TFLOPS: 42.20
-----------------------------------------------------------------------------------------------------------------------------------
-```
 ### NVIDIA L20  
 
 目前最优的实现，在L20上（理论Tensor Cores FP16算力为 119.5 TFLOPS），使用WMMA API能达到cuBLAS大概95%~98%左右的性能(105-113 TFLOPS vs 105-115 TFLOPS)，使用MMA API能达到115 TFLOPS，部分case会超越cuBLAS。已知问题为bank conflicts没有完全消除，目前通过padding的方式缓解bank conflicts会导致shared memory浪费，也会影响SM occupancy。并且尚未手工实现smem swizzle/permute(受限于WMMA API的灵活性以及row major的layout)，后续将会尝试通过MMA PTX实现smem swizzle/permute。
 
 <div id="NV-L20"></div>
+
+![L20](https://github.com/user-attachments/assets/a0039200-cd9e-4ae6-be13-422fff75dd2b)
 
 - WMMA: Up to 113.76 TFLOPS, 113.83/119.5=95.25% TFLOPS utilization, 113.83/116.25=97.91% cuBLAS performance.
 - MMA: Up to 115.12 TFLOPS, 115.12/119.5=96.33% TFLOPS utilization, 115.12/116.25=99.03% cuBLAS performance.
@@ -120,6 +104,9 @@ python3 hgemm.py --mma-all --wmma-all --cuda-all
 
 ### NVIDIA GeForce RTX 4090
 在NVIDIA RTX 4090上(FP16 Tensor Cores算力为330 TFLOPS)，WMMA(m16n16k16)性能表现比MMA(m16n8k16)要更好，大分部MNK下，本仓库的实现能达到cuBLAS 95%~99%的性能，某些case能超过cuBLAS。就本仓库的实现而言，在RTX 4090上，大规模矩阵乘(MNK>=8192)，WMMA表现更优，小规模矩阵乘，MMA表现更优。
+
+![4090](https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a)
+
 ```bash
 ----------------------------------------------------------------------------------------------------------------------------------
                                         M=16384, N=16384, K=8192, Warmup=2, Iters=10, 1/1
@@ -162,6 +149,25 @@ python3 hgemm.py --mma-all --wmma-all --cuda-all
     (wmma4x2+warp2x4+stage3+dsmem+swizzle): ['-9.0      ', '-144.875  '], time:0.702190ms, swizzle: 2048, TFLOPS: 195.73(+0.05%)
             (wmma4x4+warp4x4+stage3+dsmem): ['-9.0      ', '-144.875  '], time:0.556564ms, swizzle: NOOP, TFLOPS: 246.94(+26.17%)
                                   (cublas): ['-9.0      ', '-144.875  '], time:0.539851ms, swizzle: NOOP, TFLOPS: 254.59(+3.10%)
+----------------------------------------------------------------------------------------------------------------------------------
+```
+
+### NVIDIA GeForce RTX 3080 Laptop   
+
+在NVIDIA GeForce RTX 3080 Laptop上测试，使用mma4x4_warp4x4（16 WMMA m16n16k16 ops, warp tile 64x64）以及Thread block swizzle，大部分case能持平甚至超过cuBLAS，使用Windows WSL2 + RTX 3080 Laptop进行测试。
+
+![](./NVIDIA_GeForce_RTX_3080_Laptop_GPU_WSL2.png)
+
+```bash
+python3 hgemm.py --wmma-all
+----------------------------------------------------------------------------------------------------------------------------------
+                              M=16384, N=16384, K=8192, Warmup=5, Iters=20, 27/27
+----------------------------------------------------------------------------------------------------------------------------------
+           (wmma4x4+warp4x4+stage3+dsmem): ['68.375    ', '-2.234375 '], time:96.91984ms, swizzle: NOOP, TFLOPS: 45.38 (+0.00%)
+           (wmma4x4+warp4x4+stage2+dsmem): ['68.375    ', '-2.234375 '], time:102.8722ms, swizzle: NOOP, TFLOPS: 42.75
+   (wmma4x4+warp4x4+stage3+dsmem+swizzle): ['68.375    ', '-2.234375 '], time:85.65800ms, swizzle: 4096, TFLOPS: 51.34 (+13.15%)
+   (wmma4x4+warp4x4+stage2+dsmem+swizzle): ['68.375    ', '-2.234375 '], time:95.70884ms, swizzle: 4096, TFLOPS: 45.95
+                                 (cublas): ['68.375    ', '-2.234375 '], time:104.2092ms, swizzle: NOOP, TFLOPS: 42.20
 ----------------------------------------------------------------------------------------------------------------------------------
 ```
 

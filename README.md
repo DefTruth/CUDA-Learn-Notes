@@ -11,7 +11,9 @@
 
 🎉 **Modern CUDA Learn Notes with PyTorch** for **Beginners**: **fp32/tf32, fp16/bf16, fp8/int8, Tensor/CUDA Cores**, flash_attn, rope, embedding, sgemm, sgemv, hgemm, hgemv, warp/block reduce, dot prod, elementwise, sigmoid, relu, gelu, softmax, layernorm, rmsnorm, hist and some CUDA optimization techniques (pack LDST, cp.async, warp gemv, sliced_k/split_k/pipeline gemm, bank conflicts reduce, WMMA/MMA, block/warp swizzle, etc).
 
+<!---
 <img width="1438" alt="image" src="https://github.com/user-attachments/assets/0c5e5125-586f-43fa-8e8b-e2c61c1afbbe">
+--->
 
 ### 📖 HGEMM/SGEMM Supported Matrix
 
@@ -29,7 +31,9 @@
 
 Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's default Tensor Cores math algorithm `CUBLAS_GEMM_DEFAULT_TENSOR_OP`, the `HGEMM (WMMA and MMA)` implemented in this repo can achieve approximately `95%~98%` of its performance. Please check [hgemm benchmark](./hgemm) for more details.
 
-![](./hgemm/NVIDIA_GeForce_RTX_3080_Laptop_GPU_WSL2.png)
+![L20](https://github.com/user-attachments/assets/a0039200-cd9e-4ae6-be13-422fff75dd2b)
+
+![4090](https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a)
 
 ## 📖 CUDA Kernel目录 (面试常考题目)   
 - / = not supported now.  
