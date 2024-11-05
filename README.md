@@ -5,7 +5,7 @@
   <img src=https://img.shields.io/github/watchers/DefTruth/cuda-learn-note?color=9cc >
   <img src=https://img.shields.io/github/forks/DefTruth/cuda-learn-note.svg?style=social >
   <img src=https://img.shields.io/github/stars/DefTruth/cuda-learn-note.svg?style=social >
-  <img src=https://img.shields.io/badge/Release-v2.4-brightgreen.svg >
+  <img src=https://img.shields.io/badge/Release-v2.5-brightgreen.svg >
   <img src=https://img.shields.io/badge/License-GPLv3.0-turquoise.svg >
  </div>   
 
@@ -33,7 +33,9 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 
 ![L20](https://github.com/user-attachments/assets/a0039200-cd9e-4ae6-be13-422fff75dd2b)
 
+<!---
 ![4090](https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a)
+--->
 
 ## 📖 CUDA Kernel目录 (面试常考题目)   
 - / = not supported now.  
