@@ -72,7 +72,12 @@ python3 hgemm.py --mma-all --plot --topk 8
 
 <div id="NV-L20"></div>
 
+
+<!---
 ![L20](https://github.com/user-attachments/assets/a0039200-cd9e-4ae6-be13-422fff75dd2b)
+--->
+
+![L20](./NVIDIA_L20.png)
 
 - WMMA: Up to 113.76 TFLOPS, 113.83/119.5=95.25% TFLOPS utilization, 113.83/116.25=97.91% cuBLAS performance.
 - MMA: Up to 115.12 TFLOPS, 115.12/119.5=96.33% TFLOPS utilization, 115.12/116.25=99.03% cuBLAS performance.
@@ -105,7 +110,11 @@ python3 hgemm.py --mma-all --wmma-all --cuda-all
 ### NVIDIA GeForce RTX 4090
 在NVIDIA RTX 4090上(FP16 Tensor Cores算力为330 TFLOPS)，WMMA(m16n16k16)性能表现比MMA(m16n8k16)要更好，大分部MNK下，本仓库的实现能达到cuBLAS 95%~99%的性能，某些case能超过cuBLAS。就本仓库的实现而言，在RTX 4090上，大规模矩阵乘(MNK>=8192)，WMMA表现更优，小规模矩阵乘，MMA表现更优。
 
+<!---
 ![4090](https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a)
+--->
+
+![4090](./NVIDIA_GeForce_RTX_4090.png)
 
 ```bash
 ----------------------------------------------------------------------------------------------------------------------------------
