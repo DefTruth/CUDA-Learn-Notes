@@ -26,8 +26,8 @@
 |✔️|✔️|✔️|✔️|
 |**Reg Double Buffers**|**Block Swizzle**|**Warp Swizzle**|**Collective Store(Shfl)**|
 |✔️|✔️|✔️|✔️|
-|**Row Major(NN)**|**Col Major(TN)**|**SGEMM TF32**|**SMEM Swizzle(Permute)**|
-|✔️|✔️|✔️|❔|
+|**Row Major(NN)**|**Col Major(TN)**|**SGEMM TF32**|...|
+|✔️|✔️|✔️|...|
 
 Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's default Tensor Cores math algorithm `CUBLAS_GEMM_DEFAULT_TENSOR_OP`, the `HGEMM (WMMA and MMA)` implemented in this repo can achieve approximately `95%~98%` of its performance. Please check [hgemm benchmark](./hgemm) for more details.
 
@@ -194,6 +194,7 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 
 |📖 类型-标题|📖 作者|
 |:---|:---| 
+|[[分布式训推][张量/序列并行]📖图解DeepSpeed-Ulysses & Megatron-LM TP/SP](https://zhuanlan.zhihu.com/p/5750410146)|@DefTruth|
 |[[VLM推理优化][InternVL系列]📖InternLM2/.../InternVL1.5系列笔记: 核心点解析](https://zhuanlan.zhihu.com/p/702481058)|@DefTruth|
 |[[LLM推理优化][TensorRT-LLM][5w字]📖TensorRT-LLM部署调优-指北](https://zhuanlan.zhihu.com/p/699333691)|@DefTruth|
 |[[LLM推理优化][KV Cache优化]📖GQA/YOCO/CLA/MLKV: 层内和层间KV Cache共享](https://zhuanlan.zhihu.com/p/697311739)|@DefTruth|
