@@ -9,9 +9,22 @@
   <img src=https://img.shields.io/badge/License-GPLv3.0-turquoise.svg >
  </div>   
 
-🎉 **Modern CUDA Learn Notes with PyTorch** for **Beginners**: **fp32/tf32, fp16/bf16, fp8/int8, Tensor/CUDA Cores**, flash_attn, rope, embedding, sgemm, sgemv, hgemm, hgemv, warp/block reduce, dot prod, elementwise, sigmoid, relu, gelu, softmax, layernorm, rmsnorm, hist and some CUDA optimization techniques (pack LDST, cp.async, warp gemv, sliced_k/split_k/pipeline gemm, bank conflicts reduce, WMMA/MMA, block/warp swizzle, etc).
+<div id="contents"></div>  
+
+🎉 This repo aims to build a **Modern CUDA Learn Notes with PyTorch** for **Beginners**, including **Tensor/CUDA Cores, tf32, fp16/bf16, fp8/int8**, [📖100+ CUDA Kernels🔥](#cuda-kernel), [📖30+ LLM/VLM Blogs🔥](#my-blogs-part-1), [📖40+ CV/C++/...Blogs🔥](#my-blogs-part-2), [📖50+ CUDA/CuTe/...Blogs🔥](#other-blogs) and [📖HGEMM/SGEMM🔥](#hgemm-sgemm) which has been fully optimized with some CUDA techs (pack, tiling, cp.async, MMA, swizzle, etc). Welcome to 🌟👆🏻star this repo to support me!
 
 <!---
+## 📒 Introduction
+
+## 📒 Contents
+<div id="contents"></div>  
+
+- [📖HGEMM/SGEMM Supported Matrix🔥🔥🔥🔥](#hgemm-sgemm)
+- [📖100+ 必看CUDA Kernel(面试常考题目)🔥🔥🔥🔥](#cuda-kernel)
+- [📖20+ 大模型|多模态|Diffusion|推理优化文章(本人作者)🔥🔥](#my-blogs-part-1)
+- [📖40+ CV推理部署|C++|算法|技术随笔文章(本人作者)🔥🔥](#my-blogs-part-2)
+- [📖50+ CUTLASS|CuTe|NCCL|CUDA|文章推荐(其他作者)🔥🔥](#other-blogs)
+
 <img width="1438" alt="image" src="https://github.com/user-attachments/assets/0c5e5125-586f-43fa-8e8b-e2c61c1afbbe">
 --->
 
@@ -38,16 +51,6 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 <!---
 ![4090](https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a)
 --->
-
-## 📖 Contents [©️back](#contents)
-
-<div id="contents"></div>  
-
-- [📖HGEMM/SGEMM Supported Matrix🔥🔥🔥🔥](#hgemm-sgemm)
-- [📖100+ 必看CUDA Kernel(面试常考题目)🔥🔥🔥🔥](#cuda-kernel)
-- [📖20+ 大模型|多模态|Diffusion|推理优化文章(本人作者)🔥🔥](#my-blogs-part-1)
-- [📖40+ CV推理部署|C++|算法|技术随笔文章(本人作者)🔥🔥](#my-blogs-part-2)
-- [📖50+ CUTLASS|CuTe|NCCL|CUDA|文章推荐(其他作者)🔥🔥](#other-blogs)
 
 ## 📖 100+ CUDA Kernel (面试常考题目) [©️back](#contents)
 - / = not supported now.  
