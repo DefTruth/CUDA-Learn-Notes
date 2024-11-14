@@ -367,7 +367,7 @@ GNU General Public License v3.0
 
 <div id="Contribute"></div>  
 
-How to contribute? please check [🌤🌤CONTRIBUTE🎉🎉](https://github.com/DefTruth/CUDA-Learn-Notes/issues/50). Welcome to 🌟👆🏻star & submit a PR to this repo!
+How to contribute? please check [🌤🌤CONTRIBUTE🎉🎉](https://github.com/DefTruth/CUDA-Learn-Notes/issues/50). 
 
 <div align='center'>
 <a href="https://star-history.com/#DefTruth/CUDA-Learn-Notes&Date">
