@@ -11,7 +11,7 @@
 
 <div id="contents"></div>  
 
-🎉 **Modern CUDA Learn Notes with PyTorch** for **Beginners**, including **Tensor/CUDA Cores, TF32, F16/BF16, F8**, [📖100+ CUDA Kernels🔥](#cuda-kernel) with PyTorch bindings, [📖30+ LLM/VLM🔥](#my-blogs-part-1), [📖40+ CV/C++/...🔥](#my-blogs-part-2), [📖50+ CUDA/CuTe/...🔥](#other-blogs) Blogs and [📖HGEMM/SGEMM🔥](#hgemm-sgemm) which has been fully optimized with some CUDA techs, see [📖HGEMM/SGEMM Supported Matrix👇](#hgemm-sgemm). Welcome to 🌟👆🏻star this repo to support me!
+🎉 **Modern CUDA Learn Notes with PyTorch** for Beginners, including **Tensor/CUDA Cores, TF32/F16/F8...**, [📖150+ CUDA Kernels🔥🔥](#cuda-kernel) with PyTorch bindings, [📖30+ LLM/VLM🔥](#my-blogs-part-1), [📖40+ CV/C++...🔥](#my-blogs-part-2), [📖50+ CUDA/CuTe...🔥](#other-blogs) Blogs and [📖HGEMM/SGEMM🔥🔥](#hgemm-sgemm) which has been fully optimized with some CUDA techs, see [📖HGEMM/SGEMM Supported Matrix👇](#hgemm-sgemm). Welcome to 🌟👆🏻star this repo to support me!
 
 <div id="hgemm-sgemm"></div>  
 
@@ -52,7 +52,7 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 ![4090](https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a)
 --->
 
-## 📖 100+ CUDA Kernel (面试常考题目) [👆🏻©️back](#contents)
+## 📖 150+ CUDA Kernels 🔥🔥 (面试常考题目) [👆🏻©️back](#contents)
 - / = not supported now.  
 - ✔️ = known work and already supported now.
 - ❔ = in my plan, but not coming soon, maybe a few weeks later.
