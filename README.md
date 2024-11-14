@@ -60,11 +60,7 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 --->
 
 ## 📖 150+ CUDA Kernels 🔥🔥 (面试常考题目) [👆🏻©️back](#contents)
-- / = not supported now.  
-- ✔️ = known work and already supported now.
-- ❔ = in my plan, but not coming soon, maybe a few weeks later.
-- **workflow**: custom **CUDA** kernel impl -> **PyTorch** python binding -> Run tests.
-- How to contribute? please check [🌤🌤Kernel Trace & 目标 & 代码规范 & 致谢🎉🎉](https://github.com/DefTruth/CUDA-Learn-Notes/issues/50) 
+**workflow**: custom **CUDA** kernel impl -> **PyTorch** python binding -> Run tests. How to contribute? please check [🌤🌤Kernel Trace & 目标 & 代码规范 & 致谢🎉🎉](https://github.com/DefTruth/CUDA-Learn-Notes/issues/50) 
 
 <div id="cuda-kernel"></div>  
 
@@ -210,7 +206,8 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 | ✔️ [nms_f32](./nms/nms.cu)|f32|/|[link](./nms)|⭐️⭐️|  
 | ✔️ [notes v1(deprecated)](./notes-v1.cu)|f32|f32|/|⭐️|  
 
-👉TIPS: * means using **Tensor Cores(MMA/WMMA)**, otherwise, using CUDA Cores by default.
+👉TIPS: * means using **Tensor Cores(MMA/WMMA)**, otherwise, using CUDA Cores by default; / = not supported now; ✔️ = known work and already supported now; ❔ = in my plan, but not coming soon, maybe a few weeks later.
+
 
 ## 📖 博客目录
 
