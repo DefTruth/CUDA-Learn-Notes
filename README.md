@@ -52,12 +52,12 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 ![4090](https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a)
 --->
 
-## 📖 100+ CUDA Kernel (面试常考题目)
+## 📖 100+ CUDA Kernel (面试常考题目) [👆🏻©️back](#contents)
 - / = not supported now.  
 - ✔️ = known work and already supported now.
 - ❔ = in my plan, but not coming soon, maybe a few weeks later.
 - **workflow**: custom **CUDA** kernel impl -> **PyTorch** python binding -> Run tests.
-- How to contribute? please check [🌤🌤Kernel Trace & 目标 & 代码规范 & 致谢🎉🎉](https://github.com/DefTruth/CUDA-Learn-Notes/issues/50) [©️back](#contents)
+- How to contribute? please check [🌤🌤Kernel Trace & 目标 & 代码规范 & 致谢🎉🎉](https://github.com/DefTruth/CUDA-Learn-Notes/issues/50) 
 
 <div id="cuda-kernel"></div>  
 
@@ -209,7 +209,7 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 
 <div id="my-blogs-part-1"></div>  
 
-### 📖 大模型|多模态|Diffusion|推理优化 (本人作者) [©️back](#contents)
+### 📖 大模型|多模态|Diffusion|推理优化 (本人作者) [👆🏻©️back](#contents)
 
 |📖 类型-标题|📖 作者|
 |:---|:---| 
@@ -238,7 +238,7 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 |[[LLM推理优化][LLM Infra整理]📖PagedAttention论文新鲜出炉](https://zhuanlan.zhihu.com/p/617015570)|@DefTruth|
 
 
-### 📖 CV推理部署|C++|算法|技术随笔 (本人作者) [©️back](#contents)
+### 📖 CV推理部署|C++|算法|技术随笔 (本人作者) [👆🏻©️back](#contents)
 
 <div id="my-blogs-part-2"></div>  
 
@@ -290,7 +290,7 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 | [[技术随笔][ML]📖200页:《统计学习方法：李航》笔记 -从原理到实现](https://zhuanlan.zhihu.com/p/461520847)|@DefTruth|  
 
 
-### 📖 CUTLASS|CuTe|NCCL|CUDA|文章推荐 (其他作者) [©️back](#contents)
+### 📖 CUTLASS|CuTe|NCCL|CUDA|文章推荐 (其他作者) [👆🏻©️back](#contents)
 
 <div id="other-blogs"></div>  
 
@@ -355,17 +355,17 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 
 💡说明: 大佬们写的文章实在是太棒了，学到了很多东西。欢迎大家提PR推荐更多优秀的文章！
 
-## ©️License [©️back](#contents)
+## ©️License [👆🏻©️back](#contents)
 
 <div id="License"></div>  
 
 GNU General Public License v3.0
 
-## 🎉Contribute [©️back](#contents)
+## 🎉Contribute [👆🏻©️back](#contents)
 
 <div id="Contribute"></div>  
 
-Welcome to 🌟👆🏻star & submit a PR to this repo!
+How to contribute? please check [🌤🌤Kernel Trace & 目标 & 代码规范 & 致谢🎉🎉](https://github.com/DefTruth/CUDA-Learn-Notes/issues/50). Welcome to 🌟👆🏻star & submit a PR to this repo!
 
 <div align='center'>
 <a href="https://star-history.com/#DefTruth/CUDA-Learn-Notes&Date">
@@ -380,7 +380,7 @@ Welcome to 🌟👆🏻star & submit a PR to this repo!
 <details>
 <summary>📖 References </summary>
 
-## References [©️back](#contents)
+## References [👆🏻©️back](#contents)
 - [flash-attention-minimal](https://github.com/tspeterkim/flash-attention-minimal)
 - [tiny-flash-attention](https://github.com/66RING/tiny-flash-attention)
 - [cute-gemm](https://github.com/reed-lau/cute-gemm)
