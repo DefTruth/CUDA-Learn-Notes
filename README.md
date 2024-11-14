@@ -11,7 +11,27 @@
 
 <div id="contents"></div>  
 
-🎉 This repo aims to build a **Modern CUDA Learn Notes with PyTorch** for **Beginners**, including **Tensor/CUDA Cores, tf32, fp16/bf16, fp8/int8**, [📖100+ CUDA Kernels🔥](#cuda-kernel), [📖30+ LLM/VLM Blogs🔥](#my-blogs-part-1), [📖40+ CV/C++/...Blogs🔥](#my-blogs-part-2), [📖50+ CUDA/CuTe/...Blogs🔥](#other-blogs) and [📖HGEMM/SGEMM🔥](#hgemm-sgemm) which has been fully optimized with some CUDA techs (pack, tiling, cp.async, MMA, swizzle, etc). Welcome to 🌟👆🏻star this repo to support me!
+🎉 **Modern CUDA Learn Notes with PyTorch** for **Beginners**, including **Tensor/CUDA Cores, tf32, fp16/bf16, fp8/int8**, [📖100+ CUDA Kernels🔥](#cuda-kernel) with PyTorch bindings, [📖30+ LLM/VLM Blogs🔥](#my-blogs-part-1), [📖40+ CV/C++/...Blogs🔥](#my-blogs-part-2), [📖50+ CUDA/CuTe/...Blogs🔥](#other-blogs) and [📖HGEMM/SGEMM🔥](#hgemm-sgemm) which has been fully optimized with some CUDA optimization techs (pack LDST, tiling, cp.async, MMA, swizzle, etc), please check [📖HGEMM/SGEMM Supported Matrix👇](#hgemm-sgemm) below for more details. Welcome to 🌟👆🏻star this repo to support me!
+
+<div id="hgemm-sgemm"></div>  
+
+|CUDA Cores|Sliced K(Loop over K)|Tile Block|Tile Thread|
+|:---:|:---:|:---:|:---:|
+|✔️|✔️|✔️|✔️|
+|WMMA(m16n16k16)|MMA(m16n8k16)|Pack LDST(128 bits)|SMEM Padding|
+|✔️|✔️|✔️|✔️|
+|Copy Async|Tile MMA(More Threads)|Tile Warp(More Values)|Multi Stages|  
+|✔️|✔️|✔️|✔️|
+|Reg Double Buffers|Block Swizzle|Warp Swizzle|Collective Store(Shfl)|
+|✔️|✔️|✔️|✔️|
+|Row Major(NN)|Col Major(TN)|SGEMM TF32|SMEM Swizzle(Permute)|
+|✔️|✔️|✔️|...|
+
+Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's default Tensor Cores math algorithm `CUBLAS_GEMM_DEFAULT_TENSOR_OP`, the `HGEMM (WMMA and MMA)` implemented in this repo can achieve approximately `95%~98%` of its performance. Please check [hgemm benchmark](./hgemm) for more details.
+
+![L20](./hgemm/NVIDIA_L20.png)
+
+![4090](hgemm/NVIDIA_GeForce_RTX_4090.png)
 
 <!---
 ## 📒 Introduction
@@ -28,36 +48,16 @@
 <img width="1438" alt="image" src="https://github.com/user-attachments/assets/0c5e5125-586f-43fa-8e8b-e2c61c1afbbe">
 --->
 
-### 📖 HGEMM/SGEMM Supported Matrix [©️back](#contents)
-
-<div id="hgemm-sgemm"></div>  
-
-|CUDA Cores|Sliced K(Loop over K)|Tile Block|Tile Thread|
-|:---:|:---:|:---:|:---:|
-|✔️|✔️|✔️|✔️|
-|**WMMA(m16n16k16)**|**MMA(m16n8k16)**|**Pack LDST(128 bits)**|**SMEM Padding**|
-|✔️|✔️|✔️|✔️|
-|**Copy Async**|**Tile MMA(More Threads)**|**Tile Warp(More Values)**|**Multi Stages**|  
-|✔️|✔️|✔️|✔️|
-|**Reg Double Buffers**|**Block Swizzle**|**Warp Swizzle**|**Collective Store(Shfl)**|
-|✔️|✔️|✔️|✔️|
-|**Row Major(NN)**|**Col Major(TN)**|**SGEMM TF32**|...|
-|✔️|✔️|✔️|...|
-
-Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's default Tensor Cores math algorithm `CUBLAS_GEMM_DEFAULT_TENSOR_OP`, the `HGEMM (WMMA and MMA)` implemented in this repo can achieve approximately `95%~98%` of its performance. Please check [hgemm benchmark](./hgemm) for more details.
-
-![L20](./hgemm/NVIDIA_L20.png)
-
 <!---
 ![4090](https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a)
 --->
 
-## 📖 100+ CUDA Kernel (面试常考题目) [©️back](#contents)
+## 📖 100+ CUDA Kernel (面试常考题目)
 - / = not supported now.  
 - ✔️ = known work and already supported now.
 - ❔ = in my plan, but not coming soon, maybe a few weeks later.
 - **workflow**: custom **CUDA** kernel impl -> **PyTorch** python binding -> Run tests.
-- How to contribute? please check [🌤🌤Kernel Trace & 目标 & 代码规范 & 致谢🎉🎉](https://github.com/DefTruth/CUDA-Learn-Notes/issues/50) 
+- How to contribute? please check [🌤🌤Kernel Trace & 目标 & 代码规范 & 致谢🎉🎉](https://github.com/DefTruth/CUDA-Learn-Notes/issues/50) [©️back](#contents)
 
 <div id="cuda-kernel"></div>  
 
