@@ -60,7 +60,7 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 --->
 
 ## 📖 150+ CUDA Kernels 🔥🔥 (面试常考题目) [👆🏻©️back](#contents)
-**Workflow**: custom **CUDA** kernel impl -> **PyTorch** Python bindings -> Run tests on Python. 👉TIPS: * means using **Tensor Cores**, otherwise, using CUDA Cores; / = not supported; ✔️ = supported; ❔ = in my plan.
+**Workflow**: custom **CUDA** kernel impl -> **PyTorch** Python bindings -> Run tests. 👉TIPS: `*` = **Tensor Cores(WMMA/MMA)**, otherwise, CUDA Cores; `/` = not supported; `✔️` = supported; `❔` = in my plan.
 
 <div id="cuda-kernel"></div>  
 
