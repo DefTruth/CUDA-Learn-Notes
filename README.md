@@ -60,7 +60,7 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 --->
 
 ## 📖 150+ CUDA Kernels 🔥🔥 (面试常考题目) [👆🏻©️back](#contents)
-**Workflow**: custom **CUDA** kernel impl -> **PyTorch** python binding -> Run tests.
+**Workflow**: custom **CUDA** kernel impl -> **PyTorch** Python bindings(pybind11) -> Run tests on Python.
 
 <div id="cuda-kernel"></div>  
 
