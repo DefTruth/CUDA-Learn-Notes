@@ -60,7 +60,7 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 --->
 
 ## 📖 150+ CUDA Kernels 🔥🔥 (面试常考题目) [👆🏻©️back](#contents)
-**workflow**: custom **CUDA** kernel impl -> **PyTorch** python binding -> Run tests. How to contribute? please check [🌤🌤Kernel Trace & 目标 & 代码规范 & 致谢🎉🎉](https://github.com/DefTruth/CUDA-Learn-Notes/issues/50) 
+**Workflow**: custom **CUDA** kernel impl -> **PyTorch** python binding -> Run tests.
 
 <div id="cuda-kernel"></div>  
 
