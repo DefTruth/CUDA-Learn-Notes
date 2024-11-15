@@ -16,7 +16,7 @@
 
 <div id="contents"></div>  
 
-🎉 **Modern CUDA Learn Notes with PyTorch** for Beginners: It includes **Tensor/CUDA Cores, TF32/F16/BF16/F8**, [📖150+ CUDA Kernels🔥🔥](#cuda-kernel) with PyTorch bindings, [📖30+ LLM/VLM🔥](#my-blogs-part-1), [📖40+ CV/C++...🔥](#my-blogs-part-2), [📖50+ CUDA/CuTe...🔥](#other-blogs) Blogs and [📖HGEMM/SGEMM🔥🔥](#hgemm-sgemm) which has been fully optimized, check [📖HGEMM/SGEMM Supported Matrix👇](#hgemm-sgemm) for more details. Welcome to 🌟👆🏻star this repo to support me, many thanks ~ 🎉🎉
+📚 **Modern CUDA Learn Notes with PyTorch** for Beginners: It includes **Tensor/CUDA Cores, TF32/F16/BF16/F8**, [📖150+ CUDA Kernels🔥🔥](#cuda-kernel) with PyTorch bindings, [📖30+ LLM/VLM🔥](#my-blogs-part-1), [📖40+ CV/C++...🔥](#my-blogs-part-2), [📖50+ CUDA/CuTe...🔥](#other-blogs) Blogs and [📖HGEMM/SGEMM🔥🔥](#hgemm-sgemm) which has been fully optimized, check [📖HGEMM/SGEMM Supported Matrix👇](#hgemm-sgemm) for more details. Welcome to 🌟👆🏻star this repo to support me, many thanks ~ 🎉🎉
 
 <div id="hgemm-sgemm"></div>  
 
