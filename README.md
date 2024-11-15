@@ -1,6 +1,7 @@
 ![cuda-learn-note](https://github.com/DefTruth/CUDA-Learn-Note/assets/31974251/882271fe-ab60-4b0e-9440-2e0fa3c0fb6f)   
 
 <div align='center'>
+  <img src=https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg >
   <img src=https://img.shields.io/badge/Language-CUDA-brightgreen.svg >
   <img src=https://img.shields.io/github/watchers/DefTruth/cuda-learn-note?color=9cc >
   <img src=https://img.shields.io/github/forks/DefTruth/cuda-learn-note.svg?style=social >
@@ -20,7 +21,7 @@
   <img src='https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a' height="225px" width="400px">
 </div> 
 
-Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's default Tensor Cores math algorithm `CUBLAS_GEMM_DEFAULT_TENSOR_OP`, the `HGEMM (WMMA/MMA)` implemented in this repo(`light blue`🔵) can achieve `95%~99%` of its(`orange`🟠) performance. Please check [hgemm benchmark](./hgemm) for more details.
+Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's default Tensor Cores math algorithm `CUBLAS_GEMM_DEFAULT_TENSOR_OP`, the `HGEMM (WMMA/MMA)` implemented in this repo(`blue`🔵) can achieve `95%~99%` of its(`orange`🟠) performance. Please check [hgemm benchmark](./hgemm) for more details.
 
 |CUDA Cores|Sliced K(Loop over K)|Tile Block|Tile Thread|
 |:---:|:---:|:---:|:---:|
