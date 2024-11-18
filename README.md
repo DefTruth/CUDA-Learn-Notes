@@ -1,6 +1,6 @@
 
 
-<div align='center'>
+<div align='left'>
   <img src='https://github.com/user-attachments/assets/b2578723-b7a7-4d8f-bcd1-5008947b808a' >
 </div> 
 
@@ -20,7 +20,7 @@
 
 <div id="hgemm-sgemm"></div>  
 
-<div align='center'>
+<div align='left'>
   <img src='https://github.com/user-attachments/assets/a0039200-cd9e-4ae6-be13-422fff75dd2b' height="225px" width="400px">
   <img src='https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a' height="225px" width="400px">
 </div> 
