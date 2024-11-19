@@ -24,9 +24,8 @@ __global__ void embedding_f32_kernel(const int *idx, float *weight, float *outpu
 
 __global__ void embedding_f32x4_kernel(const int *idx, float *weight, float *output, int n, int emb_size)
 {
-  int tx = threadIdx.x;
+  int tx = threadIdx.x * 4;
   int bx = blockIdx.x;
-  int tid = bx * blockDim.x + tx;
   int offset = idx[bx] * emb_size;
   output[bx * emb_size + tx] = weight[offset + tx];
   output[bx * emb_size + tx + 1] = weight[offset + tx + 1];
@@ -54,9 +53,8 @@ __global__ void embedding_f16_kernel(const int *idx, half *weight, half *output,
 
 __global__ void embedding_f16x8_kernel(const int *idx, half *weight, half *output, int n, int emb_size)
 {
-  int tx = threadIdx.x;
+  int tx = threadIdx.x * 8;
   int bx = blockIdx.x;
-  int tid = bx * blockDim.x + tx;
   int offset = idx[bx] * emb_size;
   output[bx * emb_size + tx] = weight[offset + tx];
   output[bx * emb_size + tx + 1] = weight[offset + tx + 1];
