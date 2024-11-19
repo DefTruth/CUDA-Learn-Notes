@@ -386,9 +386,9 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn(
   CHECK_TORCH_TENSOR_DTYPE(c, torch::kHalf)
   const int M = a.size(0);
   const int K = a.size(1);
-  const int N = b.size(0); 
+  const int N = b.size(1); 
   CHECK_TORCH_TENSOR_SHAPE(a, M, K)
-  CHECK_TORCH_TENSOR_SHAPE(b, N, K)
+  CHECK_TORCH_TENSOR_SHAPE(b, K, N)
   CHECK_TORCH_TENSOR_SHAPE(c, M, N)
   constexpr int MMA_M = 16;
   constexpr int MMA_N = 8;

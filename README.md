@@ -201,7 +201,7 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 | ✔️ [hgemm_mma_m16n8k16...mma2x4*](./hgemm/hgemm_mma.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
 | ✔️ [hgemm_mma_m16n8k16...stages*](./hgemm/hgemm_mma_stage.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
 | ✔️ [hgemm_mma_m16n8k16...swizzle*](./hgemm/hgemm_mma_stage.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
-| ✔️ [hgemm_mma_stages_tn_cute*](./hgemm/hgemm_mma_stage_tn_cute.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
+| ✔️ [hgemm_mma_stages{swizzle}...cute*](./hgemm/hgemm_mma_stage_tn_cute.cu)|f16|f16|[link](./hgemm/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k32_f32](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k128_f32x4](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
 | ✔️ [sgemv_k16_f32](./sgemv/sgemv.cu)|f32|f32|[link](./sgemv/)|⭐️⭐️⭐️|  
@@ -303,6 +303,8 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 
 <div id="other-blogs"></div>  
 
+💡说明: 本小节整理一些自己比较喜欢的文章。欢迎大家提PR推荐更多优秀的文章！
+
 |📖 类型-标题|📖 作者|
 |:---|:---| 
 | [[cute系列详解][入门]📖cutlass cute 101](https://zhuanlan.zhihu.com/p/660379052)|@朱小霖|
@@ -362,7 +364,6 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 | [[Tensor Cores]📖CUDA Ampere Tensor Core HGEMM 矩阵乘法优化](https://zhuanlan.zhihu.com/p/555339335)|@nicholaswilde|
 | [[GPU通信架构][精解]📖NVIDIA GPGPU（四）- 通信架构](https://zhuanlan.zhihu.com/p/680262016)|@Bruce|
 
-💡说明: 大佬们写的文章实在是太棒了，学到了很多东西。欢迎大家提PR推荐更多优秀的文章！
 
 ## ©️License ([©️back👆🏻](#contents))
 
@@ -386,10 +387,7 @@ How to contribute? please check [🌤🌤CONTRIBUTE🎉🎉](https://github.com/
 </a>  
 </div>
 
-<details>
-<summary>📖 References </summary>
-
-## References ([©️back👆🏻](#contents))
+## 📖 References ([©️back👆🏻](#contents))
 - [flash-attention-minimal](https://github.com/tspeterkim/flash-attention-minimal)
 - [tiny-flash-attention](https://github.com/66RING/tiny-flash-attention)
 - [cute-gemm](https://github.com/reed-lau/cute-gemm)
@@ -399,5 +397,3 @@ How to contribute? please check [🌤🌤CONTRIBUTE🎉🎉](https://github.com/
 - [cuda-tensorcore-hgemm](https://github.com/nicolaswilde/cuda-tensorcore-hgemm)
 - [How_to_optimize_in_GPU](https://github.com/Liu-xiandong/How_to_optimize_in_GPU/tree/master/sgemv)
 - [cute_gemm](https://github.com/weishengying/cute_gemm)
-
-</details>

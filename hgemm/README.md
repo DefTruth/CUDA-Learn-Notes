@@ -40,16 +40,21 @@
 - [X] hgemm_mma_m16n8k16_mma2x4_warp4x4(MMA, Tile MMA/Warp, pack)
 - [X] hgemm_mma_m16n8k16_mma2x4_warp4x4_stages(MMA, Tile MMA/Warp, Copy Async, Stages, Pad, Block swizzle)
 - [X] hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages(MMA, Tile MMA/Warp, Copy Async, Stages, Pad, Block swizzle, Warp swizzle, Reg Double Buffers, Collective Store with Reg Reuse & Warp Shuffle) 
+- [X] hgemm_mma_stages_tn_cute(MMA, Tile MMA/Warp, Copy Async, Stages, SMEM Swizzle) 
 - [X] PyTorch bindings
 
 </details>
 
 ## 测试命令
 
+**CUTLASS**: 更新CUTLASS依赖库
+```bash
+git submodule update --init --recursive --force
+```
+
 **Python**: 支持python脚本直接测试
 
 ```bash
-git submodule update --init --recursive --force
 # 只测试Ada架构 不指定默认编译所有架构 耗时较长: Volta, Ampere, Ada, Hopper, ...
 export TORCH_CUDA_ARCH_LIST=Ada 
 python3 hgemm.py --wmma # test defalut wmma kernels for all MNK
@@ -59,14 +64,15 @@ python3 hgemm.py --M 16384 --N 16384 --K 8192 --i 10 --mma # test default mma ke
 python3 hgemm.py --wmma-all # test all wmma kernels for all MNK
 python3 hgemm.py --mma-all # test all mma kernels for all MNK
 python3 hgemm.py --cuda-all --wmma-all --mma-all # test all kernels for all MNK
-python3 hgemm.py --cute-tn --no-default # test cute hgemm with smem swizzle for all MNK
+python3 hgemm.py --cute-tn --no-default # test cute hgemm kernels with smem swizzle for all MNK
 ```
 如果需要绘制TFLOPS曲线图，需要先安装matplotlib，并指定--plot-flops（或--plot）选项:
 ```bash
 python3 -m pip install matplotlib
 # topk指定只绘制性能最好的topk个kernel
 python3 hgemm.py --mma-all --plot --topk 8
-python3 hgemm.py --cute-tn --no-default --plot # test cute hgemm with smem swizzle for all MNK
+# test default mma kernels & cute hgemm kernels with smem swizzle for all MNK
+python3 hgemm.py --cute-tn --mma --plot 
 ```
 
 **C++**: C++测试目前仅支持CuTe HGEMM，C++ bin方式测试的性能数据会略优于python测试方式，可能是torch binding引入了一定的开销。
@@ -103,7 +109,7 @@ M N K =  16128  16128  16128, Time =   0.07299379   0.07302472   0.07304806 s, A
 
 ### NVIDIA L20  
 
-目前最优的实现，在L20上（理论Tensor Cores FP16算力为 119.5 TFLOPS），使用WMMA API能达到cuBLAS大概95%~98%左右的性能(105-113 TFLOPS vs 105-115 TFLOPS)，使用MMA API能达到115 TFLOPS，部分case会超越cuBLAS。目前通过padding和smem swizzle的方式缓解bank conflicts。对于NN layout，使用smem padding缓解bank conflicts；对于TN layout，通过cutlass cute的smem swizzle/permuted消除bank conflicts。
+目前最优的实现，在L20上（理论Tensor Cores FP16算力为 119.5 TFLOPS），整体上能达到cuBLAS大概99%左右的性能。使用WMMA API能达到cuBLAS大概95%~98%左右的性能(105-113 TFLOPS vs 105-115 TFLOPS)，使用MMA API能达到115 TFLOPS，部分case会超越cuBLAS。CuTe版本的HGEMM性能基本持平cuBLAS，部分case会超越cuBLAS，能达到116-117 TFLOPS。目前通过padding和smem swizzle的方式缓解bank conflicts。对于NN layout，使用smem padding缓解bank conflicts；对于TN layout，通过cutlass cute的smem swizzle/permuted消除bank conflicts。
 
 <div id="NV-L20"></div>
 

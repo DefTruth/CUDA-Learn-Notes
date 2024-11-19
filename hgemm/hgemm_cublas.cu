@@ -109,9 +109,9 @@ void hgemm_cublas_tensor_op_tn(
   CHECK_TORCH_TENSOR_DTYPE(c, torch::kHalf)
   const int M = a.size(0);
   const int K = a.size(1);
-  const int N = b.size(0); 
+  const int N = b.size(1); 
   CHECK_TORCH_TENSOR_SHAPE(a, M, K)
-  CHECK_TORCH_TENSOR_SHAPE(b, N, K)
+  CHECK_TORCH_TENSOR_SHAPE(b, K, N)
   CHECK_TORCH_TENSOR_SHAPE(c, M, N)
 
   cublas_tensor_op_tn(

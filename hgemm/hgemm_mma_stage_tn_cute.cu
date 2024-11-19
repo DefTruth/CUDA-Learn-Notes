@@ -413,7 +413,8 @@ if (((T).size(0) != (S0)) || ((T).size(1) != (S1))) { \
     M, N, K                                         \
   );
 
-// TODO: add stages param
+
+// TODO: support thread block swizzle
 void hgemm_mma_stages_tn_cute(
   torch::Tensor a, torch::Tensor b, torch::Tensor c,
   int stages, bool swizzle, int swizzle_stride) {
@@ -423,9 +424,9 @@ void hgemm_mma_stages_tn_cute(
   CHECK_TORCH_TENSOR_DTYPE(c, torch::kHalf)
   const int M = a.size(0);
   const int K = a.size(1);
-  const int N = b.size(0); 
+  const int N = b.size(1); 
   CHECK_TORCH_TENSOR_SHAPE(a, M, K)
-  CHECK_TORCH_TENSOR_SHAPE(b, N, K)
+  CHECK_TORCH_TENSOR_SHAPE(b, K, N)
   CHECK_TORCH_TENSOR_SHAPE(c, M, N)
 
   switch (stages) {

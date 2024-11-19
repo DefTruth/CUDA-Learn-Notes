@@ -43,6 +43,7 @@ def get_args():
     parser.add_argument("--no-plot-best", "--no-best", action="store_true", help="Not Plot best TFLOPS")
     parser.add_argument("--exclude-tags", "--exclude", type=str, default=None, help="Exclude tag for plot, sperated by comma")
     parser.add_argument("--save-dir", "--dir", type=str, default="./", help="Save dir for plot")
+    parser.add_argument("--save-tag", "--tag", type=str, default=None, help="Save name for plot")
     return parser.parse_args()
 
 
@@ -133,6 +134,7 @@ STATIS_INFO: dict[str, list[float]] = {}
 STATIS_INFO["MNK"] = []
 TOATL_TFLOPS: dict[str, float] = {}
 CUBLAS_TOTAL_TFLOPS = 0
+CUBLAS_TN_TOTAL_TFLOPS = 0
 
 
 def make_block_swizzle_stride(N: int, K: int):
@@ -163,9 +165,7 @@ def run_benchmark(perf_func: callable,
 
     M = a.size(0)
     K = a.size(1)
-    N = b.size(1)
-    if 'tn' in tag:
-        N = b.size(0)
+    N = b.size(1) # TN still has shape [K,N]
     if swizzle:
         swizzle_stride = make_block_swizzle_stride(N, K)
         swizzle = swizzle if swizzle_stride >= 256 else False
@@ -221,11 +221,11 @@ def run_benchmark(perf_func: callable,
             improve = 0
         MAX_TFLOPS = TFLOPS
         print(f"{out_info:>42}: {out_val}, time:{mean_time}ms, "
-              f"swizzle: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}(+{improve:.2f}%)")
+              f"swizzle<block>: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}(+{improve:.2f}%)")
     else:
         if not only_show_improved or "cublas" in tag:
             print(f"{out_info:>42}: {out_val}, time:{mean_time}ms, "
-                  f"swizzle: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}")
+                  f"swizzle<block>: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}")
     if show_matrix: print(out)
     if args.plot_flops:
         STATIS_INFO[tag] = STATIS_INFO.get(tag, [])
@@ -234,7 +234,11 @@ def run_benchmark(perf_func: callable,
             TOATL_TFLOPS[tag] = TOATL_TFLOPS.get(tag, 0) + TFLOPS
         else:
             global CUBLAS_TOTAL_TFLOPS
-            CUBLAS_TOTAL_TFLOPS += TFLOPS
+            global CUBLAS_TN_TOTAL_TFLOPS
+            if tag == "tn(cublas)":
+                CUBLAS_TN_TOTAL_TFLOPS += TFLOPS
+            else:
+                CUBLAS_TOTAL_TFLOPS += TFLOPS
 
     torch.cuda.synchronize()
     time.sleep(args.sleep_duration)
@@ -244,13 +248,16 @@ def run_benchmark(perf_func: callable,
 def get_topk_tflops():
     topk_tflops = sorted(TOATL_TFLOPS.items(), key=lambda x: x[1], 
                          reverse=True)
-    print("-" * 130)
-    print(" " * 32 + f"THE TOTAL TFLOPS OF {len(topk_tflops)} HGEMM ALGO ON {get_device_name()} DEVICE")
-    print("-" * 130)
+    print("-" * 140)
+    print(" " * 42 + f"THE TOTAL TFLOPS OF {len(topk_tflops)} HGEMM ALGO ON {get_device_name()} DEVICE")
+    print("-" * 140)
     for tag, tflops in list(topk_tflops)[::-1]:
         print(f"{tag:>45}: {tflops:>20.2f} TFLOPS")
-    print(f"{'(cublas)':>45}: {CUBLAS_TOTAL_TFLOPS:>20.2f} TFLOPS")    
-    print("-" * 130)
+    if CUBLAS_TN_TOTAL_TFLOPS > 1:
+        print(f"{'tn(cublas)':>45}: {CUBLAS_TN_TOTAL_TFLOPS:>20.2f} TFLOPS")    
+    if CUBLAS_TOTAL_TFLOPS > 1:
+        print(f"{'(cublas)':>45}: {CUBLAS_TOTAL_TFLOPS:>20.2f} TFLOPS")    
+    print("-" * 140)
     return list(dict(topk_tflops[:args.plot_topk]).keys())
 
 
@@ -295,21 +302,25 @@ def plot_tflops():
             return True
         return False
     
-    # draw by topk order
     for tag, tflops in STATIS_INFO.items():
         if skip_it(tag): 
             continue
-        if "cublas" in tag:
+        if tag == "(cublas)":
             ax.plot(tflops, label=tag, linewidth=3, color='orange')
+        elif tag == "tn(cublas)":
+            ax.plot(tflops, label=tag, linewidth=2, color='green')
         else:
             if "best" in tag and not args.no_plot_best:
-                ax.plot(tflops, label=tag, linewidth=4, color='blue')
+                ax.plot(tflops, label=tag, linewidth=3, color='blue')
             else:
                 ax.plot(tflops, label=tag, linestyle='--')
 
     ax.legend()
     device_name = get_device_name().replace(" ", "_")
-    save_tag = f"{args.save_dir}/{device_name}.png"
+    if args.save_tag:
+        save_tag = f"{args.save_dir}/{device_name}_{args.save_tag}.png"
+    else:
+        save_tag = f"{args.save_dir}/{device_name}.png"
     plt.savefig(save_tag, dpi=300)
     print(f"plot hgemm TFLOPS done, saved as {save_tag}")
 
@@ -319,6 +330,13 @@ def get_mnk(sep: int = args.SEP):
     Ns = list(range(sep, args.MMNK + sep, sep))
     Ks = list(range(sep, args.MMNK + sep, sep))
     return Ms, Ns, Ks
+
+
+def row2col(x: torch.Tensor):
+    # convert a row major tensor -> col major with contiguous storage
+    x_trans = x.t()
+    x_col_major = x_trans.reshape(x.shape)
+    return x_col_major.contiguous() # must be a contiguous tensor
 
 
 Ms, Ns, Ks = get_mnk()
@@ -348,12 +366,13 @@ PERF_COUNT = 0
 for (M, N, K) in zip(Ms, Ns, Ks):
     MAX_TFLOPS = -1
     PERF_COUNT += 1
-    print("-" * 130)
+    print("-" * 140)
     print(" " * 40 + f"M={M}, N={N}, K={K}, Warmup={args.warmup}, Iters={args.iters}, {PERF_COUNT}/{len(Ms)}")
-    print("-" * 130)
+    print("-" * 140)
     a = A[:M, :K].contiguous()
     b = B[:K, :N].contiguous()
     c = C[:M, :N].contiguous()
+    b_col_major = row2col(b)
     torch.cuda.synchronize()
     if args.enable_cuda_all: # more cuda cores kernel tests.
         # CUDA Cores FP16
@@ -363,7 +382,7 @@ for (M, N, K) in zip(Ms, Ns, Ks):
         run_benchmark(lib.hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf, a, b, "(f16x8pack+t8x8+dbuf)", c)
         run_benchmark(lib.hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf, a, b, "(f16x8pack+t8x8+k16+dbuf)", c)
     if (args.enable_wmma or args.enable_wmma_all) and (not args.no_default):
-        print("-" * 68 + "WMMA" + "-" * 58)
+        print("-" * 68 + "WMMA" + "-" * 68)
         # wmma api, stages, dsmem, swizzle
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2, a, b, "(wmma4x2)", c)
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp2x4, a, b, "(wmma4x2+warp2x4)", c)
@@ -391,12 +410,12 @@ for (M, N, K) in zip(Ms, Ns, Ks):
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem, a, b, "(wmma4x2+warp4x4+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
         run_benchmark(lib.hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem, a, b, "(wmma4x2+warp4x4+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
     if args.enable_mma_all: # more mma kernel tests.
-        print("-" * 68 + "MMA" + "-" * 59)
+        print("-" * 68 + "MMA" + "-" * 69)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4, a, b, "(mma2x4+warp4x4)", c)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages, a, b, "(mma2x4+warp4x4+stage3)", c, stages=3)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages, a, b, "(mma2x4+warp4x4+stage2)", c, stages=2)
     if (args.enable_mma or args.enable_mma_all) and (not args.no_default):
-        if not args.enable_mma_all: print("-" * 68 + "MMA" + "-" * 59)
+        if not args.enable_mma_all: print("-" * 68 + "MMA" + "-" * 69)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem, a, b, "(mma2x4+warp4x4+stage3+dsmem)", c, stages=3)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem, a, b, "(mma2x4+warp4x4+stage2+dsmem)", c, stages=2)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem, a, b, "(mma2x4+warp4x4x2+stage4+dsmem)", c, stages=4)
@@ -425,29 +444,30 @@ for (M, N, K) in zip(Ms, Ns, Ks):
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_x4, a, b, "(mma2x4+warp4x4x2+stage4+dsmem+swizzle+x4)", c, stages=4, swizzle=True)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_x4, a, b, "(mma2x4+warp4x4x2+stage3+dsmem+swizzle+x4)", c, stages=3, swizzle=True)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_x4, a, b, "(mma2x4+warp4x4x2+stage2+dsmem+swizzle+x4)", c, stages=2, swizzle=True)
+    # TN layout: A row major with shape [M,K], B col major with shape [K,N]
+    if any((args.enable_mma_tn, args.enable_cute_tn)):
+        print("-" * 68 + "TN" + "-" * 70)
+    if args.enable_mma_tn:
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b_col_major, "tn(mma2x4+warp4x4+stage3+dsmem)", c, stages=3)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b_col_major, "tn(mma2x4+warp4x4+stage2+dsmem)", c, stages=2)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b_col_major, "tn(mma2x4+warp4x4+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
+        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b_col_major, "tn(mma2x4+warp4x4+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
+    if args.enable_cute_tn:
+        run_benchmark(lib.hgemm_mma_stages_tn_cute, a, b_col_major, "tn(cute+swizzle<smem>+stage4)", c, stages=4)
+        run_benchmark(lib.hgemm_mma_stages_tn_cute, a, b_col_major, "tn(cute+swizzle<smem>+stage3)", c, stages=3)
+        run_benchmark(lib.hgemm_mma_stages_tn_cute, a, b_col_major, "tn(cute+swizzle<smem>+stage2)", c, stages=2)
+    # TN layout cublas
+    if not args.disable_cublas_tn and any((args.enable_mma_tn, args.enable_cute_tn)):
+        run_benchmark(lib.hgemm_cublas_tensor_op_tn, a, b_col_major, "tn(cublas)", c)
+    # NN layout cublas/torch
     if (not args.disable_cublas) and any((
         args.enable_mma, args.enable_mma_all, args.enable_wmma, args.enable_wmma_all, 
         args.enable_cuda, args.enable_cuda_all, args.enable_torch)):
         run_benchmark(lib.hgemm_cublas_tensor_op_nn, a, b, "(cublas)", c)
     if args.enable_torch:
         run_benchmark(partial(torch.matmul, out=c), a, b, "(torch)")
-    # TN layout: A row major with shape [M,K], B col major with shape [N,K]
-    if any((args.enable_mma_tn, args.enable_cute_tn)):
-        MAX_TFLOPS = -1
-        print("-" * 68 + "TN" + "-" * 60)
-    if args.enable_mma_tn:
-        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b.transpose(1, 0), "tn(mma2x4+warp4x4+stage3+dsmem)", c, stages=3)
-        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b.transpose(1, 0), "tn(mma2x4+warp4x4+stage2+dsmem)", c, stages=2)
-        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b.transpose(1, 0), "tn(mma2x4+warp4x4+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
-        run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b.transpose(1, 0), "tn(mma2x4+warp4x4+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
-    if args.enable_cute_tn:
-        run_benchmark(lib.hgemm_mma_stages_tn_cute, a, b.transpose(1, 0), "tn(cute+swizzle<smem>+stage4)", c, stages=4)
-        run_benchmark(lib.hgemm_mma_stages_tn_cute, a, b.transpose(1, 0), "tn(cute+swizzle<smem>+stage3)", c, stages=3)
-        run_benchmark(lib.hgemm_mma_stages_tn_cute, a, b.transpose(1, 0), "tn(cute+swizzle<smem>+stage2)", c, stages=2)
-    if not args.disable_cublas_tn and any((args.enable_mma_tn, args.enable_cute_tn)):
-        run_benchmark(lib.hgemm_cublas_tensor_op_tn, a, b.transpose(1, 0), "tn(cublas)", c)
     torch.cuda.synchronize()
-    print("-" * 130)
+    print("-" * 140)
 
 if args.plot_flops:
     plot_tflops()
