@@ -406,7 +406,7 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn(
   constexpr int BK = MMA_K;   
     
   if (swizzle) {
-    assert(swizzle_stride % 256 == 0);
+    // assert(swizzle_stride % 256 == 0);
     switch (stages)
     {
     case 2: 

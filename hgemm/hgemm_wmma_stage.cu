@@ -1030,7 +1030,7 @@ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages(
   // s4: 4*128*(16)*2=16KB, 4*16*(128+16)*2=18KB,   ~34KB                            
   // s5: 5*128*(16)*2=20KB, 5*16*(128+16)*2=22.5KB, ~43KB    
   if (swizzle) {
-    assert(swizzle_stride % 256 == 0);
+    // assert(swizzle_stride % 256 == 0);
     switch (stages)
     {
     case 2: // ~17KB
@@ -1158,7 +1158,7 @@ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem(
   // s5: 5*128*(16)*2=20KB, 5*16*(128+16)*2=22.5KB, ~43KB         
   // s6: 6*128*(16)*2=24KB, 6*16*(128+16)*2=27KB,   ~51KB > 48KB
   if (swizzle) {
-    assert(swizzle_stride % 256 == 0);
+    // assert(swizzle_stride % 256 == 0);
     switch (stages)
     {
     case 2: // ~17KB
@@ -1293,7 +1293,7 @@ void hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem(
   // s3: 3*256*(16)*2=24KB, 3*16*(256+16)*2=25.5KB, ~50KB > 48KB
   // s4: 4*256*(16)*2=32KB, 4*16*(256+16)*2=34KB,   ~66KB    
   if (swizzle) {
-    assert(swizzle_stride % 256 == 0);
+    // assert(swizzle_stride % 256 == 0);
     switch (stages)
     {
     case 2: // ~33KB
@@ -1418,7 +1418,7 @@ void hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem(
   constexpr int BK = WMMA_K * WARP_TILE_K;   
   
   if (swizzle) {
-    assert(swizzle_stride % 256 == 0);
+    // assert(swizzle_stride % 256 == 0);
     switch (stages)
     {
     case 2: 

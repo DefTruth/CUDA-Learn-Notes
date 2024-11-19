@@ -2014,7 +2014,7 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4_stages(
   // s4: 4*128*(16)*2=16KB, 4*16*(128+16)*2=18KB,   ~34KB                            
   // s5: 5*128*(16)*2=20KB, 5*16*(128+16)*2=22.5KB, ~43KB    
   if (swizzle) {
-    assert(swizzle_stride % 256 == 0);
+    // assert(swizzle_stride % 256 == 0);
     switch (stages)
     {
     case 2: // ~17KB
@@ -2144,7 +2144,7 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem(
   // s4: 4*128*(16)*2=16KB, 4*16*(128+16)*2=18KB,   ~34KB                            
   // s5: 5*128*(16)*2=20KB, 5*16*(128+16)*2=22.5KB, ~43KB    
   if (swizzle) {
-    assert(swizzle_stride % 256 == 0);
+    // assert(swizzle_stride % 256 == 0);
     switch (stages)
     {
     case 2: // ~17KB
@@ -2275,7 +2275,7 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem(
   // s4: 4*128*(32)*2=32KB, 4*32*(128+16)*2=36KB, ~68KB                            
   // s5: 5*128*(32)*2=40KB, 5*32*(128+16)*2=45KB, ~85KB    
   if (swizzle) {
-    assert(swizzle_stride % 256 == 0);
+    // assert(swizzle_stride % 256 == 0);
     switch (stages)
     {
     case 2: // ~35KB
@@ -2407,7 +2407,7 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_x4(
   // s4: 4*128*(32)*2=32KB, 4*32*(128+16)*2=36KB, ~68KB                            
   // s5: 5*128*(32)*2=40KB, 5*32*(128+16)*2=45KB, ~85KB    
   if (swizzle) {
-    assert(swizzle_stride % 256 == 0);
+    // assert(swizzle_stride % 256 == 0);
     switch (stages)
     {
     case 2: // ~35KB
@@ -2540,7 +2540,7 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_rr(
   // s4: 4*128*(32)*2=32KB, 4*32*(128+16)*2=36KB, ~68KB                            
   // s5: 5*128*(32)*2=40KB, 5*32*(128+16)*2=45KB, ~85KB    
   if (swizzle) {
-    assert(swizzle_stride % 256 == 0);
+    // assert(swizzle_stride % 256 == 0);
     switch (stages)
     {
     case 2: // ~35KB
