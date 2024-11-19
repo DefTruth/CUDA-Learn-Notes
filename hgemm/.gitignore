@@ -16,3 +16,5 @@ __pycache__
 *.ncu*
 *.sqlite*
 *.engine
+*.bin
+*.out

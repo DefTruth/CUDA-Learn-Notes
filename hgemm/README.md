@@ -11,8 +11,8 @@
 |✔️|✔️|✔️|✔️|
 |**Reg Double Buffers**|**Block Swizzle**|**Warp Swizzle**|**Collective Store(Reg Reuse&Warp Shfl)**|
 |✔️|✔️|✔️|✔️|
-|**Row Major(NN)**|**Col Major(TN)**|**SGEMM TF32**|**SMEM Swizzle/Permuted**|
-|✔️|✔️|✔️|❔|
+|**Row Major(NN)**|**Col Major(TN)**|**SGEMM TF32**|**SMEM Swizzle(CuTe)**|
+|✔️|✔️|✔️|✔️|
 
 <details>
 <summary> 🔑️ 点击查看所有支持的HGEMM Kernels! </summary>  
@@ -46,7 +46,10 @@
 
 ## 测试命令
 
+**Python**: 支持python脚本直接测试
+
 ```bash
+git submodule update --init --recursive --force
 # 只测试Ada架构 不指定默认编译所有架构 耗时较长: Volta, Ampere, Ada, Hopper, ...
 export TORCH_CUDA_ARCH_LIST=Ada 
 python3 hgemm.py --wmma # test defalut wmma kernels for all MNK
@@ -56,19 +59,51 @@ python3 hgemm.py --M 16384 --N 16384 --K 8192 --i 10 --mma # test default mma ke
 python3 hgemm.py --wmma-all # test all wmma kernels for all MNK
 python3 hgemm.py --mma-all # test all mma kernels for all MNK
 python3 hgemm.py --cuda-all --wmma-all --mma-all # test all kernels for all MNK
+python3 hgemm.py --cute-tn --no-default # test cute hgemm with smem swizzle for all MNK
 ```
 如果需要绘制TFLOPS曲线图，需要先安装matplotlib，并指定--plot-flops（或--plot）选项:
 ```bash
 python3 -m pip install matplotlib
 # topk指定只绘制性能最好的topk个kernel
-python3 hgemm.py --mma-all --plot --topk 8 
+python3 hgemm.py --mma-all --plot --topk 8
+python3 hgemm.py --cute-tn --no-default --plot # test cute hgemm with smem swizzle for all MNK
+```
+
+**C++**: C++测试目前仅支持CuTe HGEMM，C++ bin方式测试的性能数据会略优于python测试方式，可能是torch binding引入了一定的开销。
+```bash
+make
+./hgemm_cute.bin
+# NVIDIA L20
+algo = CUTE HGEMM Stages 2
+M N K =    256    256    256, Time =   0.00001946   0.00002007   0.00002048 s, AVG Performance =     1.6718 Tflops
+M N K =    512    512    512, Time =   0.00003174   0.00003277   0.00003379 s, AVG Performance =     8.1920 Tflops
+M N K =    768    768    768, Time =   0.00004506   0.00004608   0.00004710 s, AVG Performance =    19.6608 Tflops
+M N K =   1024   1024   1024, Time =   0.00005837   0.00005929   0.00006042 s, AVG Performance =    36.2202 Tflops
+M N K =   9216   9216   9216, Time =   0.01371546   0.01371679   0.01371853 s, AVG Performance =   114.1314 Tflops
+M N K =   9472   9472   9472, Time =   0.01458586   0.01458924   0.01460531 s, AVG Performance =   116.4991 Tflops
+M N K =   9728   9728   9728, Time =   0.01597747   0.01597931   0.01598157 s, AVG Performance =   115.2239 Tflops
+M N K =   9984   9984   9984, Time =   0.01741721   0.01742008   0.01743462 s, AVG Performance =   114.2598 Tflops
+M N K =  10240  10240  10240, Time =   0.01839923   0.01840046   0.01840230 s, AVG Performance =   116.7081 Tflops
+M N K =  10496  10496  10496, Time =   0.01993421   0.01993523   0.01993728 s, AVG Performance =   116.0059 Tflops
+M N K =  10752  10752  10752, Time =   0.02151629   0.02151956   0.02153472 s, AVG Performance =   115.5219 Tflops
+M N K =  11008  11008  11008, Time =   0.02315571   0.02315663   0.02315878 s, AVG Performance =   115.2073 Tflops
+M N K =  11264  11264  11264, Time =   0.02484634   0.02484808   0.02484941 s, AVG Performance =   115.0311 Tflops
+M N K =  11520  11520  11520, Time =   0.02659226   0.02659430   0.02659840 s, AVG Performance =   114.9738 Tflops
+M N K =  11776  11776  11776, Time =   0.02780057   0.02780426   0.02781082 s, AVG Performance =   117.4660 Tflops
+M N K =  12032  12032  12032, Time =   0.03024179   0.03024701   0.03025818 s, AVG Performance =   115.1757 Tflops
+M N K =  12288  12288  12288, Time =   0.03214848   0.03215698   0.03217306 s, AVG Performance =   115.3980 Tflops
+M N K =  12544  12544  12544, Time =   0.03410842   0.03411661   0.03412173 s, AVG Performance =   115.7104 Tflops
+M N K =  12800  12800  12800, Time =   0.03612979   0.03613184   0.03613491 s, AVG Performance =   116.0833 Tflops
+M N K =  13056  13056  13056, Time =   0.03820134   0.03820769   0.03821671 s, AVG Performance =   116.4956 Tflops
+M N K =  15872  15872  15872, Time =   0.06917632   0.06927145   0.06936883 s, AVG Performance =   115.4438 Tflops
+M N K =  16128  16128  16128, Time =   0.07299379   0.07302472   0.07304806 s, AVG Performance =   114.8951 Tflops
 ```
 
 ## 目前性能  
 
 ### NVIDIA L20  
 
-目前最优的实现，在L20上（理论Tensor Cores FP16算力为 119.5 TFLOPS），使用WMMA API能达到cuBLAS大概95%~98%左右的性能(105-113 TFLOPS vs 105-115 TFLOPS)，使用MMA API能达到115 TFLOPS，部分case会超越cuBLAS。已知问题为bank conflicts没有完全消除，目前通过padding的方式缓解bank conflicts会导致shared memory浪费，也会影响SM occupancy。并且尚未手工实现smem swizzle/permute(受限于WMMA API的灵活性以及row major的layout)，后续将会尝试通过MMA PTX实现smem swizzle/permute。
+目前最优的实现，在L20上（理论Tensor Cores FP16算力为 119.5 TFLOPS），使用WMMA API能达到cuBLAS大概95%~98%左右的性能(105-113 TFLOPS vs 105-115 TFLOPS)，使用MMA API能达到115 TFLOPS，部分case会超越cuBLAS。目前通过padding和smem swizzle的方式缓解bank conflicts。对于NN layout，使用smem padding缓解bank conflicts；对于TN layout，通过cutlass cute的smem swizzle/permuted消除bank conflicts。
 
 <div id="NV-L20"></div>
 
@@ -227,7 +262,7 @@ NVIDIA的[文章](https://developer.nvidia.com/blog/using-shared-memory-cuda-cc/
 ```C
 cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
 ```
-本项目目前通过padding的方式缓解bank conflicts会导致shared memory浪费，也会影响SM occupancy。并且尚未手工实现smem swizzle/permute(受限于WMMA API的灵活性以及row major的layout)，后续将会尝试通过MMA PTX实现smem swizzle/permute。
+目前通过padding和smem swizzle的方式缓解bank conflicts。对于NN layout，使用smem padding缓解bank conflicts；对于TN layout，通过cutlass cute的smem swizzle/permuted消除bank conflicts。
 
 ### 双缓冲 Double Buffers
 

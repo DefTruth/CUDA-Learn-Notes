@@ -1,3 +1,4 @@
+import os
 import torch
 import time 
 from torch.utils.cpp_extension import load
@@ -30,6 +31,8 @@ def get_args():
     parser.add_argument("--enable-wmma-all", "--wmma-all", action="store_true", help="Enable all WMMA kernel tests")
     parser.add_argument("--enable-cuda-all", "--cuda-all", action="store_true", help="Enable all CUDA kernel tests")
     parser.add_argument("--enable-torch", "--torch", action="store_true", help="Enable torch matmul")
+    parser.add_argument("--enable-cute-tn", "--cute-tn", action="store_true", help="Enable cute hgemm matmul")
+    parser.add_argument("--enable-cute", "--cute", action="store_true", help="Enable cute hgemm matmul")
     parser.add_argument("--disable-cublas", "--no-cublas", action="store_true", help="Disable cublas hgemm")
     parser.add_argument("--disable-cublas-tn", "--no-cublas-tn", action="store_true", help="Disable cublas TN hgemm")
     parser.add_argument("--sleep-duration", "--sleep", type=float, default=0.1, help="Sleep duration")
@@ -41,6 +44,7 @@ def get_args():
     parser.add_argument("--exclude-tags", "--exclude", type=str, default=None, help="Exclude tag for plot, sperated by comma")
     parser.add_argument("--save-dir", "--dir", type=str, default="./", help="Save dir for plot")
     return parser.parse_args()
+
 
 args = get_args()
 print(args)
@@ -58,15 +62,25 @@ def get_device_capability():
     return torch.cuda.get_device_capability(torch.cuda.current_device())
 
 
-# Load the CUDA kernel as a python module
-print(f"Loading hgemm lib on device: {get_device_name()}, capability: {get_device_capability()} ...")
+def get_build_sources():
+    build_sources = [
+        'hgemm.cu', 'hgemm_async.cu', 'hgemm_wmma.cu', 
+        'hgemm_wmma_stage.cu', 'hgemm_cublas.cu',
+        'hgemm_mma.cu', 'hgemm_mma_stage.cu',
+        'hgemm_mma_stage_tn.cu'
+    ]
+    # if args.enable_cute_tn:
+    #     build_sources.append('hgemm_mma_stage_tn_cute.cu')
+    build_sources.append('hgemm_mma_stage_tn_cute.cu')
+    return build_sources
 
-lib = load(name='hgemm_lib', 
-           sources=['hgemm.cu', 'hgemm_async.cu', 'hgemm_wmma.cu', 
-                    'hgemm_wmma_stage.cu', 'hgemm_cublas.cu',
-                    'hgemm_mma.cu', 'hgemm_mma_stage.cu',
-                    'hgemm_mma_stage_tn.cu'], 
-           extra_cuda_cflags=[
+
+def get_project_dir():
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def get_build_cuda_cflags():
+    extra_cuda_cflags=[
                "-O3",
                 "-U__CUDA_NO_HALF_OPERATORS__",
                 "-U__CUDA_NO_HALF_CONVERSIONS__",
@@ -94,7 +108,23 @@ lib = load(name='hgemm_lib',
                 # spill loads: 则是指将之前溢出到栈上的数据重新加载回寄存器。
                 "-Xptxas -v",
                 # "-maxrregcount=128 -Xptxas -dlcm=cg" if args.reduce_reg else ""
-            ], 
+    ]
+    # extra cuda flags for cute hgemm
+    project_dir = get_project_dir()
+    extra_cuda_cflags.append('-DNO_CUTE_HGEMM_BIN')
+    extra_cuda_cflags.append('-DENBLE_CUTE_HGEMM')
+    extra_cuda_cflags.append(f'-I {project_dir}')
+    extra_cuda_cflags.append(f'-I {project_dir}/third-party/cutlass/include')
+    extra_cuda_cflags.append(f'-I {project_dir}/third-party/cutlass/tools/util/include')
+
+    return extra_cuda_cflags
+
+# Load the CUDA kernel as a python module
+print(f"Loading hgemm lib on device: {get_device_name()}, capability: {get_device_capability()} ...")
+
+lib = load(name='hgemm_lib', 
+           sources=get_build_sources(), 
+           extra_cuda_cflags=get_build_cuda_cflags(), 
            extra_cflags=['-std=c++17'],
            verbose=args.verbose)
 
@@ -254,6 +284,7 @@ def plot_tflops():
     STATIS_INFO["(best)"] = get_best_tflops()
     draw_tags = topk_tflops
     draw_tags.append("(cublas)")
+    draw_tags.append("tn(cublas)")
     draw_tags.append("(best)")
 
     def skip_it(tag: str) -> bool:
@@ -269,10 +300,10 @@ def plot_tflops():
         if skip_it(tag): 
             continue
         if "cublas" in tag:
-            ax.plot(tflops, label=tag, linewidth=3)
+            ax.plot(tflops, label=tag, linewidth=3, color='orange')
         else:
             if "best" in tag and not args.no_plot_best:
-                ax.plot(tflops, label=tag, linewidth=4)
+                ax.plot(tflops, label=tag, linewidth=4, color='blue')
             else:
                 ax.plot(tflops, label=tag, linestyle='--')
 
@@ -400,15 +431,21 @@ for (M, N, K) in zip(Ms, Ns, Ks):
         run_benchmark(lib.hgemm_cublas_tensor_op_nn, a, b, "(cublas)", c)
     if args.enable_torch:
         run_benchmark(partial(torch.matmul, out=c), a, b, "(torch)")
-    if args.enable_mma_tn:
+    # TN layout: A row major with shape [M,K], B col major with shape [N,K]
+    if any((args.enable_mma_tn, args.enable_cute_tn)):
         MAX_TFLOPS = -1
-        print("-" * 68 + "MMA(TN)" + "-" * 55)
+        print("-" * 68 + "TN" + "-" * 60)
+    if args.enable_mma_tn:
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b.transpose(1, 0), "tn(mma2x4+warp4x4+stage3+dsmem)", c, stages=3)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b.transpose(1, 0), "tn(mma2x4+warp4x4+stage2+dsmem)", c, stages=2)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b.transpose(1, 0), "tn(mma2x4+warp4x4+stage3+dsmem+swizzle)", c, stages=3, swizzle=True)
         run_benchmark(lib.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b.transpose(1, 0), "tn(mma2x4+warp4x4+stage2+dsmem+swizzle)", c, stages=2, swizzle=True)
-        if not args.disable_cublas_tn:
-            run_benchmark(lib.hgemm_cublas_tensor_op_tn, a, b.transpose(1, 0), "tn(cublas)", c)
+    if args.enable_cute_tn:
+        run_benchmark(lib.hgemm_mma_stages_tn_cute, a, b.transpose(1, 0), "tn(cute+swizzle<smem>+stage4)", c, stages=4)
+        run_benchmark(lib.hgemm_mma_stages_tn_cute, a, b.transpose(1, 0), "tn(cute+swizzle<smem>+stage3)", c, stages=3)
+        run_benchmark(lib.hgemm_mma_stages_tn_cute, a, b.transpose(1, 0), "tn(cute+swizzle<smem>+stage2)", c, stages=2)
+    if not args.disable_cublas_tn and any((args.enable_mma_tn, args.enable_cute_tn)):
+        run_benchmark(lib.hgemm_cublas_tensor_op_tn, a, b.transpose(1, 0), "tn(cublas)", c)
     torch.cuda.synchronize()
     print("-" * 130)
 
