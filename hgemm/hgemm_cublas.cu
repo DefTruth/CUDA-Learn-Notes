@@ -8,10 +8,6 @@
 #include <cuda_bf16.h>
 #include <cuda_fp8.h>
 #include <mma.h>
-
-#include <torch/types.h>
-#include <torch/extension.h>
-
 #include "cublas_v2.h"
 
 // NN: A/B/C All row major
@@ -64,7 +60,98 @@ void cublas_tensor_op_tn(half *A, half *B, half *C,  size_t M, size_t N, size_t 
   // cublasDestroy(handle);
 }
 
+// build cpp binary
+#ifndef NO_CUBLAS_HGEMM_BIN
+
+float perf_cublas(int M, int N, int K, int repeat) {
+  size_t size_a = M * K * sizeof(half);
+  size_t size_b = K * N * sizeof(half);
+  size_t size_c = M * N * sizeof(half);
+
+  half *d_a, *d_b;
+  half *d_c;
+  cudaMalloc(&d_a, size_a);
+  cudaMalloc(&d_b, size_b);
+  cudaMalloc(&d_c, size_c);
+
+  // warmup
+  for (int i = 0; i < 10; ++i) {
+    cublas_tensor_op_tn(d_a, d_b, d_c, M, N, K);
+  }
+  cudaDeviceSynchronize();
+
+  cudaEvent_t start, end;
+  cudaEventCreate(&start);
+  cudaEventCreate(&end);
+  cudaEventRecord(start);
+
+  for (int i = 0; i < repeat; i++) {
+    cublas_tensor_op_tn(d_a, d_b, d_c, M, N, K);
+  }
+
+  cudaEventRecord(end);
+  cudaDeviceSynchronize();
+  cudaEventSynchronize(end);
+
+  float msec, sec;
+  cudaEventElapsedTime(&msec, start, end);
+  sec = msec / 1000.0 / repeat;
+
+  cudaFree(d_a);
+  cudaFree(d_b);
+  cudaFree(d_c);
+  cudaEventDestroy(start);
+  cudaEventDestroy(end);
+
+  return sec;
+}
+
+int main(int argc, char *argv[]) {
+  const int test_num = 50;
+  int M_list[test_num];
+  int N_list[test_num];
+  int K_list[test_num];
+
+  for (int i = 0; i < test_num; i++) {
+    M_list[i] = (i + 1) * 256;
+    N_list[i] = (i + 1) * 256;
+    K_list[i] = (i + 1) * 256;
+  }
+
+  const int outer_repeat = 10, inner_repeat = 1;
+
+  printf("\nalgo = Cublas TN\n");
+
+  for (int j = 0; j < test_num; j++) {
+    int M = M_list[j], N = N_list[j], K = K_list[j];
+
+    double max_sec = 0.0;
+    double min_sec = DBL_MAX;
+    double total_sec = 0.0;
+
+    for (int k = 0; k < outer_repeat; k++) {
+      double this_sec = perf_cublas(M, N, K, inner_repeat);
+      max_sec = max(max_sec, this_sec);
+      min_sec = min(min_sec, this_sec);
+      total_sec += this_sec;
+    }
+
+    double avg_sec = total_sec / outer_repeat;
+    double avg_Tflops = ((double)M) * N * K * 2 * 1e-12 / avg_sec;
+
+    printf("M N K = %6d %6d %6d, ", M, N, K);
+    printf("Time = %12.8lf %12.8lf %12.8lf s, ", min_sec, avg_sec, max_sec);
+    printf("AVG Performance = %10.4lf Tflops\n", avg_Tflops);
+  }
+
+  return 0;
+}
+// build torch python binding
+#else
 // --------------------- PyTorch bindings for custom kernel -----------------------
+#include <torch/types.h>
+#include <torch/extension.h>
+
 #define STRINGFY(str) #str
 #define TORCH_BINDING_COMMON_EXTENSION(func)   \
   m.def(STRINGFY(func), &func, STRINGFY(func));
@@ -101,7 +188,7 @@ void hgemm_cublas_tensor_op_nn(
   );
 }
 
-// TN: A row major MxK, B col major NxK, C row major MxN
+// TN: A row major MxK, B col major KxN, C row major MxN
 void hgemm_cublas_tensor_op_tn(
   torch::Tensor a, torch::Tensor b, torch::Tensor c) {
   CHECK_TORCH_TENSOR_DTYPE(a, torch::kHalf)
@@ -121,3 +208,4 @@ void hgemm_cublas_tensor_op_tn(
     M, N, K
   );
 }
+#endif

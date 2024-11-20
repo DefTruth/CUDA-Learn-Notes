@@ -307,11 +307,16 @@ void launch_hgemm_mma_stages_tn_cute(const T *a, const T *b, T *c, int M, int N,
       BM, BN, BK, 
       KStage, 
       MMA, 
-      G2SCopyA, G2SCopyB, 
-      SmemLayoutA, SmemLayoutB, SmemLayoutC, 
-      S2RCopyAtomA, S2RCopyAtomB, 
+      G2SCopyA, 
+      G2SCopyB, 
+      SmemLayoutA, 
+      SmemLayoutB, 
+      SmemLayoutC, 
+      S2RCopyAtomA, 
+      S2RCopyAtomB, 
       R2SCopyAtomC, 
-      S2GCopyAtomC, S2GCopyC
+      S2GCopyAtomC, 
+      S2GCopyC
     >,
     cudaFuncAttributeMaxDynamicSharedMemorySize, 
     shm_size
@@ -322,22 +327,29 @@ void launch_hgemm_mma_stages_tn_cute(const T *a, const T *b, T *c, int M, int N,
     BM, BN, BK, 
     KStage, 
     MMA, 
-    G2SCopyA, G2SCopyB, 
-    SmemLayoutA, SmemLayoutB, SmemLayoutC, 
-    S2RCopyAtomA, S2RCopyAtomB, 
+    G2SCopyA, 
+    G2SCopyB, 
+    SmemLayoutA, 
+    SmemLayoutB, 
+    SmemLayoutC, 
+    S2RCopyAtomA, 
+    S2RCopyAtomB, 
     R2SCopyAtomC, 
-    S2GCopyAtomC, S2GCopyC
+    S2GCopyAtomC, 
+    S2GCopyC
   ><<<grid, block, shm_size>>>(a, b, c, M, N, K);
 }
 
 // build cpp binary
 #ifndef NO_CUTE_HGEMM_BIN
+
 #include "utils.h"
+
 int main() {
   using T = cute::half_t;
   using namespace cute;
 
-  const int test_num = 64;
+  const int test_num = 50;
   int M_list[test_num];
   int N_list[test_num];
   int K_list[test_num];
@@ -350,10 +362,10 @@ int main() {
 
   const int outer_repeat = 10, inner_repeat = 1;
 
-  printf("\nalgo = CUTE HGEMM Stages 2\n");
+  printf("\nalgo = CuTe HGEMM Stages 2\n");
   for (int j = 0; j < 5; j++) {
     int M = M_list[j], N = N_list[j], K = K_list[j];
-    float max_error = testF16F16GemmMaxError_V2<T>(
+    float max_error = gemm_error_check_v2<T>(
       launch_hgemm_mma_stages_tn_cute, M, N, K);
     printf("M N K = %6d %6d %6d, ", M, N, K);
     printf("Max Error = %f\n", max_error);
@@ -367,7 +379,7 @@ int main() {
     double total_sec = 0.0;
 
     for (int k = 0; k < outer_repeat; k++) {
-      double this_sec = testF16F16GemmPerformance<T>(
+      double this_sec = perf_gemm<T>(
         launch_hgemm_mma_stages_tn_cute, M, N, K, inner_repeat);
       max_sec = max(max_sec, this_sec);
       min_sec = min(min_sec, this_sec);
@@ -384,7 +396,6 @@ int main() {
 
   return 0;
 }
-
 // build torch python binding
 #else 
 #include <torch/types.h>
