@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <cute/tensor.hpp>
 #include <float.h>
-// modifide from: https://github.com/weishengying/cute_gemm/blob/main/gemm_4/gemm.cu
 
 // TODO: thread block swizzle, cute hgemm nn
 template <
@@ -349,7 +348,7 @@ int main() {
   using T = cute::half_t;
   using namespace cute;
 
-  const int test_num = 50;
+  const int test_num = 64;
   int M_list[test_num];
   int N_list[test_num];
   int K_list[test_num];
@@ -362,10 +361,10 @@ int main() {
 
   const int outer_repeat = 10, inner_repeat = 1;
 
-  printf("\nalgo = CuTe HGEMM Stages 2\n");
+  printf("ALGO = CuTe HGEMM Stages 2\n");
   for (int j = 0; j < 5; j++) {
     int M = M_list[j], N = N_list[j], K = K_list[j];
-    float max_error = gemm_error_check_v2<T>(
+    float max_error = gemm_error_check<T>(
       launch_hgemm_mma_stages_tn_cute, M, N, K);
     printf("M N K = %6d %6d %6d, ", M, N, K);
     printf("Max Error = %f\n", max_error);

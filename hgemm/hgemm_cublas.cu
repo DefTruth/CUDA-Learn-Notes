@@ -63,7 +63,27 @@ void cublas_tensor_op_tn(half *A, half *B, half *C,  size_t M, size_t N, size_t 
 // build cpp binary
 #ifndef NO_CUBLAS_HGEMM_BIN
 
-float perf_cublas(int M, int N, int K, int repeat) {
+// pass the cuBLAS handle from outside to avoid error.
+void cublas_tensor_op_tn_v2(cublasHandle_t handle, 
+                            half *A, half *B, half *C,  
+                            size_t M, size_t N, size_t K) {
+  half alpha = 1.0;
+  half beta = 0.0;
+
+  cublasGemmEx(handle, 
+               CUBLAS_OP_T, 
+               CUBLAS_OP_N, 
+               N, M, K, 
+               &alpha, 
+               B, CUDA_R_16F, K, 
+               A, CUDA_R_16F, K, 
+               &beta,  
+               C, CUDA_R_16F, N, 
+               CUBLAS_COMPUTE_16F,
+               CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+}
+
+float perf_cublas_tn(int M, int N, int K, int repeat) {
   size_t size_a = M * K * sizeof(half);
   size_t size_b = K * N * sizeof(half);
   size_t size_c = M * N * sizeof(half);
@@ -74,9 +94,13 @@ float perf_cublas(int M, int N, int K, int repeat) {
   cudaMalloc(&d_b, size_b);
   cudaMalloc(&d_c, size_c);
 
+  cublasHandle_t handle = nullptr;
+  cublasCreate(&handle);
+  cublasSetMathMode(handle, CUBLAS_TENSOR_OP_MATH);
+
   // warmup
   for (int i = 0; i < 10; ++i) {
-    cublas_tensor_op_tn(d_a, d_b, d_c, M, N, K);
+    cublas_tensor_op_tn_v2(handle, d_a, d_b, d_c, M, N, K);
   }
   cudaDeviceSynchronize();
 
@@ -86,7 +110,7 @@ float perf_cublas(int M, int N, int K, int repeat) {
   cudaEventRecord(start);
 
   for (int i = 0; i < repeat; i++) {
-    cublas_tensor_op_tn(d_a, d_b, d_c, M, N, K);
+    cublas_tensor_op_tn_v2(handle, d_a, d_b, d_c, M, N, K);
   }
 
   cudaEventRecord(end);
@@ -102,12 +126,13 @@ float perf_cublas(int M, int N, int K, int repeat) {
   cudaFree(d_c);
   cudaEventDestroy(start);
   cudaEventDestroy(end);
+  cublasDestroy(handle);
 
   return sec;
 }
 
 int main(int argc, char *argv[]) {
-  const int test_num = 50;
+  const int test_num = 64;
   int M_list[test_num];
   int N_list[test_num];
   int K_list[test_num];
@@ -120,7 +145,7 @@ int main(int argc, char *argv[]) {
 
   const int outer_repeat = 10, inner_repeat = 1;
 
-  printf("\nalgo = Cublas TN\n");
+  printf("ALGO = cuBLAS CUBLAS_GEMM_DEFAULT_TENSOR_OP TN\n");
 
   for (int j = 0; j < test_num; j++) {
     int M = M_list[j], N = N_list[j], K = K_list[j];
@@ -130,7 +155,7 @@ int main(int argc, char *argv[]) {
     double total_sec = 0.0;
 
     for (int k = 0; k < outer_repeat; k++) {
-      double this_sec = perf_cublas(M, N, K, inner_repeat);
+      double this_sec = perf_cublas_tn(M, N, K, inner_repeat);
       max_sec = max(max_sec, this_sec);
       min_sec = min(min_sec, this_sec);
       total_sec += this_sec;
