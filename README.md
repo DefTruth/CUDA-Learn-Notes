@@ -21,8 +21,8 @@
 <div id="hgemm-sgemm"></div>  
 
 <div align='left'>
-  <img src='https://github.com/user-attachments/assets/a0039200-cd9e-4ae6-be13-422fff75dd2b' height="225px" width="403px">
-  <img src='https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a' height="225px" width="403px">
+  <img src='https://github.com/user-attachments/assets/89bac543-7272-44cd-b616-54df8ca23a91' height="225px" width="403px">
+  <img src='https://github.com/user-attachments/assets/d8d7380b-4271-41f6-964a-ac3fa81f7f4c' height="225px" width="403px">
 </div> 
 
 Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's default Tensor Cores math algorithm `CUBLAS_GEMM_DEFAULT_TENSOR_OP`, the `HGEMM (WMMA/MMA)` implemented in this repo (`blue`🔵) can achieve `95%~99%` of its (`orange`🟠) performance. Please check [hgemm benchmark](./hgemm) for more details.
@@ -42,6 +42,24 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 
 
 <!---
+![NVIDIA_L20_NN+TN](https://github.com/user-attachments/assets/89bac543-7272-44cd-b616-54df8ca23a91)
+![NVIDIA_GeForce_RTX_4090_NN+TN](https://github.com/user-attachments/assets/d8d7380b-4271-41f6-964a-ac3fa81f7f4c)
+
+<div align='left'>
+  <img src='https://github.com/user-attachments/assets/89bac543-7272-44cd-b616-54df8ca23a91' width="805px">
+</div> 
+
+<div align='left'>
+  <img src='https://github.com/user-attachments/assets/89bac543-7272-44cd-b616-54df8ca23a91' height="225px" width="403px">
+  <img src='https://github.com/user-attachments/assets/d8d7380b-4271-41f6-964a-ac3fa81f7f4c' height="225px" width="403px">
+</div> 
+
+<div align='left'>
+  <img src='https://github.com/user-attachments/assets/a0039200-cd9e-4ae6-be13-422fff75dd2b' height="225px" width="403px">
+  <img src='https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a' height="225px" width="403px">
+</div> 
+
+
 ![cuda-learn-notes](https://github.com/DefTruth/CUDA-Learn-Note/assets/31974251/882271fe-ab60-4b0e-9440-2e0fa3c0fb6f)   
 ![cuda-learn-notes](https://github.com/user-attachments/assets/b2578723-b7a7-4d8f-bcd1-5008947b808a)
 ![L20](https://github.com/user-attachments/assets/a0039200-cd9e-4ae6-be13-422fff75dd2b)
