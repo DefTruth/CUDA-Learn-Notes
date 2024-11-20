@@ -122,8 +122,10 @@ def get_build_cuda_cflags():
     ]
     # extra cuda flags for cute hgemm
     project_dir = get_project_dir()
-    extra_cuda_cflags.append('-DNO_CUTE_HGEMM_BIN')
     extra_cuda_cflags.append('-DENBLE_CUTE_HGEMM')
+    extra_cuda_cflags.append('-DNO_MMA_HGEMM_BIN')
+    extra_cuda_cflags.append('-DNO_WMMA_HGEMM_BIN')
+    extra_cuda_cflags.append('-DNO_CUTE_HGEMM_BIN')
     extra_cuda_cflags.append('-DNO_CUBLAS_HGEMM_BIN')
     # add cutlass headers and link cublas.
     extra_cuda_cflags.append(f'-I {project_dir}')

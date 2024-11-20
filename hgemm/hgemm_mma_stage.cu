@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <float.h>
 #include <vector>
 #include <algorithm>
@@ -8,8 +9,6 @@
 #include <cuda_bf16.h>
 #include <cuda_fp8.h>
 #include <mma.h>
-#include <torch/types.h>
-#include <torch/extension.h>
 using namespace nvcuda;
 
 #define WARP_SIZE 32
@@ -94,6 +93,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel(
   int load_smem_b_n = (tid % 16) * 8; // col 0,8,...,120
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   uint32_t RC[WARP_TILE_M][WARP_TILE_N][2];
   #pragma unroll
@@ -320,6 +320,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_kernel(
   int load_smem_b_n = (tid % 16) * 8; // col 0,8,...,120
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   uint32_t RC[WARP_TILE_M][WARP_TILE_N][2];
   #pragma unroll
@@ -541,7 +542,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_kernel(
     }
   }
 #else 
-#warning "stmatrix need sm>=90, force use __shfl_sync for collective store!"
+// #warning "stmatrix need sm>=90, force use __shfl_sync for collective store!"
   {
     for (int i = 0; i < WARP_TILE_M; ++i) {
       // How to use LDST128BITS here? __shfl_sync -> lane 0 -> store 8 half.
@@ -631,6 +632,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
   int load_smem_b_n = (tid % 16) * 8; // col 0,8,16,...
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   uint32_t RC[WARP_TILE_M][WARP_TILE_N][2];
   #pragma unroll
@@ -1071,6 +1073,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_x4_kernel(
   int load_smem_b_n = (tid % 16) * 8; // col 0,8,16,...
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   uint32_t RC[WARP_TILE_M][WARP_TILE_N][2];
   #pragma unroll
@@ -1486,6 +1489,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_rr_kernel(
   const int load_smem_b_n = (tid % 16) * 8; // col 0,8,16,...
   const int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   const int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
   // 16 reg for pre-defined vars.
 
   uint32_t RC[WARP_TILE_M][WARP_TILE_N][2]; // 4*4*2=32 reg
@@ -1927,7 +1931,124 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_rr_kernel(
 // #warp-level-matrix-load-instruction-ldmatrix
 
 
+// build cpp binary
+#ifndef NO_MMA_HGEMM_BIN
+
+#include "utils.h"
+
+// 128x128, mma2x4, warp4x4x2(64,32,32), stages, block swizzle, dsmem, reg double buffers
+#define LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_KERNEL(stages, stride) \
+{                                                                                \
+  const int smem_max_size = (                                                    \
+    (stages) * BM * (BK + A_PAD) * WARP_TILE_K * sizeof(half) +                  \
+    (stages) * BK * (BN + B_PAD) * WARP_TILE_K * sizeof(half));                  \
+  cudaFuncSetAttribute(                                                          \
+    hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel<                     \
+      MMA_M, MMA_N, MMA_K, MMA_TILE_M, MMA_TILE_N,                               \
+      WARP_TILE_M, WARP_TILE_N, WARP_TILE_K, A_PAD, B_PAD, (stages), true>,      \
+    cudaFuncAttributeMaxDynamicSharedMemorySize,                                 \
+    98304);                                                                      \
+  const int N_SWIZZLE = (N + (stride) - 1) / (stride);                           \
+  dim3 block(NUM_THREADS);                                                       \
+  dim3 grid((div_ceil(N, BN) + N_SWIZZLE - 1) / N_SWIZZLE,                       \
+             div_ceil(M, BM),                                                    \
+             N_SWIZZLE);                                                         \
+  hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel<                       \
+    MMA_M, MMA_N, MMA_K, MMA_TILE_M, MMA_TILE_N,                                 \
+    WARP_TILE_M, WARP_TILE_N, WARP_TILE_K, A_PAD, B_PAD, (stages), true><<<      \
+    grid, block, smem_max_size>>>(                                               \
+    a, b, c,                                                                     \
+    M, N, K                                                                      \
+  );                                                                             \
+}
+
+// 128x128, mma2x4, warp4x4x2(64,32,32), stages, block swizzle, dsmem, reg double buffers
+template <const int K_STAGE = 2, const int BLOCK_SWIZZLE_STRIDE = 2048>
+void lanunch_hgemm_mma_m16n8k16_nn(
+  const half* a, const half* b, half* c, int M, int N, int K) {
+  constexpr int MMA_M = 16;
+  constexpr int MMA_N = 8;
+  constexpr int MMA_K = 16;
+  constexpr int MMA_TILE_M = 2;
+  constexpr int MMA_TILE_N = 4; 
+  constexpr int WARP_TILE_M = 4;
+  constexpr int WARP_TILE_N = 4;
+  constexpr int WARP_TILE_K = 2;
+  // s_a 4  ways bank conflicts within warp, after pad 8  -> 4 ways bank conflicts.
+  // s_b 16 ways bank conflicts within warp, after pad 8  -> 8 ways bank conflicts.
+  // s_b 16 ways bank conflicts within warp, after pad 16 -> 4 ways bank conflicts.
+  // so, the best padding policy for s_a and s_b is A_PAD=0/8, B_PAD=16. Thus, 
+  // improve B_PAD consume 8x~ less smem than A_PAD, 16xB_PAD vs 128xA_PAD.
+  constexpr int A_PAD = 0;  // 0,8,16
+  constexpr int B_PAD = 16; // 0,8,16
+  constexpr int NUM_THREADS= (
+    MMA_TILE_M * MMA_TILE_N * WARP_SIZE); // 2 * 4 * 32 = 256
+  constexpr int BM = MMA_M * MMA_TILE_M * WARP_TILE_M;    
+  constexpr int BN = MMA_N * MMA_TILE_N * WARP_TILE_N;    
+  constexpr int BK = MMA_K;   
+  // s2: 2*128*(32)*2=16KB, 2*32*(128+16)*2=18KB, ~35KB
+  // s3: 3*128*(32)*2=24KB, 3*32*(128+16)*2=27KB, ~51KB
+  // s4: 4*128*(32)*2=32KB, 4*32*(128+16)*2=36KB, ~68KB                            
+  // s5: 5*128*(32)*2=40KB, 5*32*(128+16)*2=45KB, ~85KB    
+  LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_KERNEL(K_STAGE, BLOCK_SWIZZLE_STRIDE);
+}
+
+int main() {
+  const int test_num = 64;
+  int M_list[test_num];
+  int N_list[test_num];
+  int K_list[test_num];
+
+  for (int i = 0; i < test_num; i++) {
+    M_list[i] = (i + 1) * 256;
+    N_list[i] = (i + 1) * 256;
+    K_list[i] = (i + 1) * 256;
+  }
+
+  const int outer_repeat = 10, inner_repeat = 1;
+
+  printf("ALGO = MMA16816 HGEMM NN MMA=2x4 WARP=4x4x2 STAGES=2 BLOCK SWIZZLE=2048\n");
+  for (int j = 0; j < 5; j++) {
+    int M = M_list[j], N = N_list[j], K = K_list[j];
+    float max_error = gemm_error_check_nn<half>(
+      lanunch_hgemm_mma_m16n8k16_nn<2, 2048>, 
+      M, N, K);
+    printf("M N K = %6d %6d %6d, ", M, N, K);
+    printf("Max Error = %f\n", max_error);
+  }
+
+  for (int j = 0; j < test_num; j++) {
+    int M = M_list[j], N = N_list[j], K = K_list[j];
+ 
+    double max_sec = 0.0;
+    double min_sec = DBL_MAX;
+    double total_sec = 0.0;
+
+    for (int k = 0; k < outer_repeat; k++) {
+      double this_sec = perf_gemm<half>(
+        lanunch_hgemm_mma_m16n8k16_nn<2, 2048>, 
+        M, N, K, inner_repeat);
+      max_sec = max(max_sec, this_sec);
+      min_sec = min(min_sec, this_sec);
+      total_sec += this_sec;
+    }
+
+    double avg_sec = total_sec / outer_repeat;
+    double avg_Tflops = ((double)M) * N * K * 2 * 1e-12 / avg_sec;
+
+    printf("M N K = %6d %6d %6d, ", M, N, K);
+    printf("Time = %12.8lf %12.8lf %12.8lf s, ", min_sec, avg_sec, max_sec);
+    printf("AVG Performance = %10.4lf Tflops\n", avg_Tflops);
+  }
+
+  return 0;
+}
+
+#else
+
 // --------------------- PyTorch bindings for custom kernel -----------------------
+#include <torch/types.h>
+#include <torch/extension.h>
 #define STRINGFY(str) #str
 #define TORCH_BINDING_COMMON_EXTENSION(func)   \
   m.def(STRINGFY(func), &func, STRINGFY(func));
@@ -2580,3 +2701,5 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_rr(
     }
   }
 }
+
+#endif

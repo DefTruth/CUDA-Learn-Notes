@@ -75,57 +75,68 @@ python3 hgemm.py --mma-all --plot --topk 8
 python3 hgemm.py --cute-tn --mma --plot 
 ```
 
-**C++**: HGEMM benchmark也支持C++测试，但目前仅支持本仓库实现的CuTe HGEMM TN 和cuBLAS HGEMM TN 进行对比，C++ bin方式测试的性能数据会略优于Python测试方式，可能是PyTorch Python binding引入了一定的额外开销。
+**C++**: HGEMM benchmark也支持C++测试，目前支持本仓库实现的 MMA HGEMM NN, CuTe HGEMM TN 和 cuBLAS HGEMM TN 进行对比，C++ bin方式测试的性能数据会略优于Python测试方式，可能是PyTorch Python binding引入了一定的额外开销。
 ```bash
 make
+./hgemm_mma_stage.bin
+# NVIDIA L20
+ALGO = MMA16816 HGEMM NN MMA=2x4 WARP=4x4x2 STAGES=2 BLOCK SWIZZLE=2048
+M N K =  12544  12544  12544, Time =   0.03445555   0.03446098   0.03447399 s, AVG Performance =   114.5541 Tflops
+M N K =  12800  12800  12800, Time =   0.03651175   0.03652291   0.03653325 s, AVG Performance =   114.8404 Tflops
+M N K =  13056  13056  13056, Time =   0.03893658   0.03893934   0.03894375 s, AVG Performance =   114.3067 Tflops
+M N K =  13312  13312  13312, Time =   0.04108800   0.04109589   0.04111155 s, AVG Performance =   114.8052 Tflops
+M N K =  13568  13568  13568, Time =   0.04365005   0.04365251   0.04365619 s, AVG Performance =   114.4375 Tflops
+M N K =  13824  13824  13824, Time =   0.04591821   0.04593121   0.04594585 s, AVG Performance =   115.0332 Tflops
+M N K =  14080  14080  14080, Time =   0.04861338   0.04861614   0.04862054 s, AVG Performance =   114.8306 Tflops
+M N K =  14336  14336  14336, Time =   0.05134848   0.05135278   0.05136691 s, AVG Performance =   114.7493 Tflops
+M N K =  14592  14592  14592, Time =   0.05417882   0.05418947   0.05421568 s, AVG Performance =   114.6726 Tflops
+M N K =  14848  14848  14848, Time =   0.05706547   0.05706916   0.05707469 s, AVG Performance =   114.7182 Tflops
+M N K =  15104  15104  15104, Time =   0.06001767   0.06002084   0.06002586 s, AVG Performance =   114.8164 Tflops
+M N K =  15360  15360  15360, Time =   0.06307226   0.06307789   0.06308864 s, AVG Performance =   114.9017 Tflops
+M N K =  15616  15616  15616, Time =   0.06612480   0.06612798   0.06613094 s, AVG Performance =   115.1739 Tflops
+M N K =  15872  15872  15872, Time =   0.06969549   0.06970215   0.06971290 s, AVG Performance =   114.7305 Tflops
+M N K =  16128  16128  16128, Time =   0.07295078   0.07295406   0.07295693 s, AVG Performance =   115.0064 Tflops
+M N K =  16384  16384  16384, Time =   0.07663001   0.07663534   0.07664947 s, AVG Performance =   114.7785 Tflops
+
 ./hgemm_cute.bin
 # NVIDIA L20
-algo = CUTE HGEMM Stages 2
-M N K =    256    256    256, Time =   0.00001946   0.00002007   0.00002048 s, AVG Performance =     1.6718 Tflops
-M N K =    512    512    512, Time =   0.00003174   0.00003277   0.00003379 s, AVG Performance =     8.1920 Tflops
-M N K =    768    768    768, Time =   0.00004506   0.00004608   0.00004710 s, AVG Performance =    19.6608 Tflops
-M N K =   1024   1024   1024, Time =   0.00005837   0.00005929   0.00006042 s, AVG Performance =    36.2202 Tflops
-M N K =   9216   9216   9216, Time =   0.01371546   0.01371679   0.01371853 s, AVG Performance =   114.1314 Tflops
-M N K =   9472   9472   9472, Time =   0.01458586   0.01458924   0.01460531 s, AVG Performance =   116.4991 Tflops
-M N K =   9728   9728   9728, Time =   0.01597747   0.01597931   0.01598157 s, AVG Performance =   115.2239 Tflops
-M N K =   9984   9984   9984, Time =   0.01741721   0.01742008   0.01743462 s, AVG Performance =   114.2598 Tflops
-M N K =  10240  10240  10240, Time =   0.01839923   0.01840046   0.01840230 s, AVG Performance =   116.7081 Tflops
-M N K =  10496  10496  10496, Time =   0.01993421   0.01993523   0.01993728 s, AVG Performance =   116.0059 Tflops
-M N K =  10752  10752  10752, Time =   0.02151629   0.02151956   0.02153472 s, AVG Performance =   115.5219 Tflops
-M N K =  11008  11008  11008, Time =   0.02315571   0.02315663   0.02315878 s, AVG Performance =   115.2073 Tflops
-M N K =  11264  11264  11264, Time =   0.02484634   0.02484808   0.02484941 s, AVG Performance =   115.0311 Tflops
-M N K =  11520  11520  11520, Time =   0.02659226   0.02659430   0.02659840 s, AVG Performance =   114.9738 Tflops
-M N K =  11776  11776  11776, Time =   0.02780057   0.02780426   0.02781082 s, AVG Performance =   117.4660 Tflops
-M N K =  12032  12032  12032, Time =   0.03024179   0.03024701   0.03025818 s, AVG Performance =   115.1757 Tflops
-M N K =  12288  12288  12288, Time =   0.03214848   0.03215698   0.03217306 s, AVG Performance =   115.3980 Tflops
-M N K =  12544  12544  12544, Time =   0.03410842   0.03411661   0.03412173 s, AVG Performance =   115.7104 Tflops
-M N K =  12800  12800  12800, Time =   0.03612979   0.03613184   0.03613491 s, AVG Performance =   116.0833 Tflops
+ALGO = CuTe HGEMM TN STAGES=2
+M N K =  12544  12544  12544, Time =   0.03410432   0.03411466   0.03412787 s, AVG Performance =   115.7170 Tflops
+M N K =  12800  12800  12800, Time =   0.03612774   0.03613839   0.03614515 s, AVG Performance =   116.0623 Tflops
+M N K =  13056  13056  13056, Time =   0.03820646   0.03821117   0.03821466 s, AVG Performance =   116.4850 Tflops
+M N K =  13312  13312  13312, Time =   0.04039987   0.04054825   0.04059136 s, AVG Performance =   116.3557 Tflops
+M N K =  13568  13568  13568, Time =   0.04315751   0.04316447   0.04318515 s, AVG Performance =   115.7314 Tflops
+M N K =  13824  13824  13824, Time =   0.04540928   0.04541317   0.04541542 s, AVG Performance =   116.3454 Tflops
+M N K =  14080  14080  14080, Time =   0.04774707   0.04775066   0.04775833 s, AVG Performance =   116.9119 Tflops
+M N K =  14336  14336  14336, Time =   0.05077197   0.05078108   0.05079654 s, AVG Performance =   116.0412 Tflops
+M N K =  14592  14592  14592, Time =   0.05325619   0.05326203   0.05326848 s, AVG Performance =   116.6693 Tflops
+M N K =  14848  14848  14848, Time =   0.05650432   0.05652460   0.05653504 s, AVG Performance =   115.8234 Tflops
+M N K =  15104  15104  15104, Time =   0.05913191   0.05915228   0.05917798 s, AVG Performance =   116.5023 Tflops
+M N K =  15360  15360  15360, Time =   0.06275584   0.06281114   0.06284800 s, AVG Performance =   115.3897 Tflops
+M N K =  15616  15616  15616, Time =   0.06540698   0.06549893   0.06558515 s, AVG Performance =   116.2800 Tflops
+M N K =  15872  15872  15872, Time =   0.06917018   0.06926930   0.06936780 s, AVG Performance =   115.4474 Tflops
+M N K =  16128  16128  16128, Time =   0.07299482   0.07302656   0.07305421 s, AVG Performance =   114.8922 Tflops
+M N K =  16384  16384  16384, Time =   0.07693209   0.07698473   0.07704780 s, AVG Performance =   114.2576 Tflops
+
 ./hgemm_cublas.bin
 # NVIDIA L20
-algo = Cublas TN
-M N K =    256    256    256, Time =   0.00018637   0.00020337   0.00032461 s, AVG Performance =     0.1650 Tflops
-M N K =   7424   7424   7424, Time =   0.00722432   0.00726415   0.00729190 s, AVG Performance =   112.6572 Tflops
-M N K =   7680   7680   7680, Time =   0.00806502   0.00810424   0.00821350 s, AVG Performance =   111.7895 Tflops
-M N K =   7936   7936   7936, Time =   0.00872550   0.00876186   0.00887910 s, AVG Performance =   114.0877 Tflops
-M N K =   8192   8192   8192, Time =   0.00962048   0.00966912   0.00983347 s, AVG Performance =   113.7137 Tflops
-M N K =   8448   8448   8448, Time =   0.01057280   0.01067325   0.01139507 s, AVG Performance =   112.9783 Tflops
-M N K =   8704   8704   8704, Time =   0.01154662   0.01156997   0.01170432 s, AVG Performance =   113.9867 Tflops
-M N K =   8960   8960   8960, Time =   0.01255936   0.01259346   0.01270477 s, AVG Performance =   114.2376 Tflops
-M N K =   9216   9216   9216, Time =   0.01362739   0.01367060   0.01383936 s, AVG Performance =   114.5169 Tflops
-M N K =   9472   9472   9472, Time =   0.01471795   0.01472492   0.01473434 s, AVG Performance =   115.4256 Tflops
-M N K =   9728   9728   9728, Time =   0.01584538   0.01588255   0.01599181 s, AVG Performance =   115.9259 Tflops
-M N K =   9984   9984   9984, Time =   0.01728205   0.01734093   0.01750426 s, AVG Performance =   114.7814 Tflops
-M N K =  10240  10240  10240, Time =   0.01852416   0.01856840   0.01874944 s, AVG Performance =   115.6526 Tflops
-M N K =  10496  10496  10496, Time =   0.02002125   0.02004398   0.02009498 s, AVG Performance =   115.3765 Tflops
-M N K =  10752  10752  10752, Time =   0.02135142   0.02139218   0.02152346 s, AVG Performance =   116.2098 Tflops
-M N K =  11008  11008  11008, Time =   0.02295910   0.02301286   0.02325606 s, AVG Performance =   115.9270 Tflops
-M N K =  11264  11264  11264, Time =   0.02461594   0.02466202   0.02480333 s, AVG Performance =   115.8989 Tflops
-M N K =  11520  11520  11520, Time =   0.02637824   0.02643374   0.02658099 s, AVG Performance =   115.6722 Tflops
-M N K =  11776  11776  11776, Time =   0.02784051   0.02788803   0.02803610 s, AVG Performance =   117.1131 Tflops
-M N K =  12032  12032  12032, Time =   0.03092582   0.03097887   0.03124224 s, AVG Performance =   112.4548 Tflops
-M N K =  12288  12288  12288, Time =   0.03289293   0.03293747   0.03308339 s, AVG Performance =   112.6635 Tflops
-M N K =  12544  12544  12544, Time =   0.03493581   0.03509248   0.03581747 s, AVG Performance =   112.4926 Tflops
-M N K =  12800  12800  12800, Time =   0.03695514   0.03705610   0.03711386 s, AVG Performance =   113.1879 Tflops
+ALGO = cuBLAS CUBLAS_GEMM_DEFAULT_TENSOR_OP TN
+M N K =  12544  12544  12544, Time =   0.03472691   0.03472968   0.03473408 s, AVG Performance =   113.6678 Tflops
+M N K =  12800  12800  12800, Time =   0.03687321   0.03687834   0.03688038 s, AVG Performance =   113.7335 Tflops
+M N K =  13056  13056  13056, Time =   0.03909427   0.03910103   0.03910963 s, AVG Performance =   113.8341 Tflops
+M N K =  13312  13312  13312, Time =   0.04140135   0.04141281   0.04148429 s, AVG Performance =   113.9266 Tflops
+M N K =  13568  13568  13568, Time =   0.04382720   0.04383375   0.04384461 s, AVG Performance =   113.9643 Tflops
+M N K =  13824  13824  13824, Time =   0.04629504   0.04630118   0.04630733 s, AVG Performance =   114.1140 Tflops
+M N K =  14080  14080  14080, Time =   0.04889805   0.04891136   0.04898202 s, AVG Performance =   114.1375 Tflops
+M N K =  14336  14336  14336, Time =   0.05156966   0.05157878   0.05158503 s, AVG Performance =   114.2465 Tflops
+M N K =  14592  14592  14592, Time =   0.05437849   0.05439980   0.05445734 s, AVG Performance =   114.2292 Tflops
+M N K =  14848  14848  14848, Time =   0.05723853   0.05725573   0.05730202 s, AVG Performance =   114.3444 Tflops
+M N K =  15104  15104  15104, Time =   0.06022963   0.06024274   0.06032179 s, AVG Performance =   114.3935 Tflops
+M N K =  15360  15360  15360, Time =   0.06332416   0.06333143   0.06334157 s, AVG Performance =   114.4417 Tflops
+M N K =  15616  15616  15616, Time =   0.06649446   0.06650184   0.06651699 s, AVG Performance =   114.5264 Tflops
+M N K =  15872  15872  15872, Time =   0.06977024   0.06977659   0.06978355 s, AVG Performance =   114.6081 Tflops
+M N K =  16128  16128  16128, Time =   0.07319142   0.07320709   0.07326925 s, AVG Performance =   114.6089 Tflops
+M N K =  16384  16384  16384, Time =   0.07668429   0.07669371   0.07670784 s, AVG Performance =   114.6912 Tflops
 ```
 
 ## 目前性能  
