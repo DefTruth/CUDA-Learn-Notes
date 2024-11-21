@@ -4,7 +4,7 @@
 #include <cute/tensor.hpp>
 #include <float.h>
 
-// TODO: thread block swizzle, cute hgemm nn
+// BlockSwizzle: means apply thread block swizzle across N dim
 template <
       typename T, 
       int BM, 
@@ -21,8 +21,9 @@ template <
       typename S2RCopyAtomB,
       typename R2SCopyAtomC, 
       typename S2GCopyAtomC, 
-      typename S2GCopyC>
-__global__ void hgemm_mma_stages_tn_cute_kernel(
+      typename S2GCopyC,
+      const bool BlockSwizzle>
+__global__ void hgemm_mma_stages_block_swizzle_tn_cute_kernel(
   const T *Aptr, const T *Bptr, T *Dptr, int m, int n, int k) {
   using namespace cute;
   // Initilize shared memory
@@ -33,8 +34,11 @@ __global__ void hgemm_mma_stages_tn_cute_kernel(
 
   // Initilize thread block
   int idx = threadIdx.x;
-  int ix = blockIdx.x;
+  // BlockSwizzle 0/1 control use block swizzle or not.
+  int ix = ((int) BlockSwizzle) * blockIdx.z * gridDim.x + blockIdx.x;
   int iy = blockIdx.y;
+
+  if (iy * BM >= m || ix * BN >= n) return;
 
   // use Tensor notation to represent device pointer + dimension
   Tensor A = make_tensor(make_gmem_ptr(Aptr), make_shape(m, k), make_stride(k, Int<1>{}));
@@ -131,18 +135,19 @@ __global__ void hgemm_mma_stages_tn_cute_kernel(
       }
       
       // shm -> reg s[itile][ik + 1] -> r[ik + 1]
-      cute::copy(s2r_tiled_copy_a, tAsA(_, _, ik_next, ismem_read), // tAsA: (CPY, CPY_M, CPY_K, kStage)
-                 tCrA_view(_, _, ik_next));                         // tCrA_view: (CPY, CPY_M, CPY_K)
-      cute::copy(s2r_tiled_copy_b, tBsB(_, _, ik_next, ismem_read), // tBsB: (CPY, CPY_M, CPY_K, kStage)
-                 tCrB_view(_, _, ik_next));                         // tCrB_view: (CPY, CPY_M, CPY_K)
+      // tAsA: (CPY, CPY_M, CPY_K, kStage), tCrA_view: (CPY, CPY_M, CPY_K)
+      cute::copy(s2r_tiled_copy_a, tAsA(_, _, ik_next, ismem_read), 
+                 tCrA_view(_, _, ik_next));
+      // tBsB: (CPY, CPY_M, CPY_K, kStage), tCrB_view: (CPY, CPY_M, CPY_K)       
+      cute::copy(s2r_tiled_copy_b, tBsB(_, _, ik_next, ismem_read), 
+                 tCrB_view(_, _, ik_next));
 
       if (ik == 0) {
         if (itile_to_read < ntile) {
           cute::copy(g2s_tiled_copy_a, tAgA_copy(_, _, _, itile_to_read),
-              tAsA_copy(_, _, _, ismem_write));
+                     tAsA_copy(_, _, _, ismem_write));
           cute::copy(g2s_tiled_copy_b, tBgB_copy(_, _, _, itile_to_read),
-              tBsB_copy(_, _, _, ismem_write));
-
+                     tBsB_copy(_, _, _, ismem_write));
           ++itile_to_read;
           ismem_write = (ismem_write + 1) % kStage;
         }
@@ -195,28 +200,39 @@ __global__ void hgemm_mma_stages_tn_cute_kernel(
   } // end for 
 }
 
-template <typename T, const int K_STAGE = 2>
-void launch_hgemm_mma_stages_tn_cute(const T *a, const T *b, T *c, int M, int N, int K) {
+// For torch binding, need dynamic block swizzle stride
+template <typename T, const int Stages = 2, const bool BlockSwizzle = false>
+void launch_hgemm_mma_stages_block_swizzle_tn_cute(const T *a, 
+                                                   const T *b, 
+                                                   T *c, 
+                                                   int M, 
+                                                   int N, 
+                                                   int K, 
+                                                   int swizzle_stride) {
+  // block swizzle_stride: 1024/2048/..., etc.                                                    
   using namespace cute;
 
   auto BM = Int<128>{};
   auto BN = Int<256>{};
   auto BK = Int<32>{};
-  auto KStage = Int<K_STAGE>{}; // default 2
+  auto KStage = Int<Stages>{}; // default 2
   auto kSmemLayoutCBatch = Int<4>{};
 
   // Define the smem layouts
   using SmemLayoutAtom = decltype(
     composition(
       Swizzle<3, 3, 3>{}, 
-      make_layout(make_shape(Int<8>{}, Int<BK>{}), make_stride(Int<BK>{}, Int<1>{}))
+      make_layout(make_shape(Int<8>{}, Int<BK>{}), 
+                  make_stride(Int<BK>{}, Int<1>{}))
     )
   );
   using SmemLayoutA = decltype(
-    tile_to_shape(SmemLayoutAtom{}, make_shape(Int<BM>{}, Int<BK>{}, Int<KStage>{}))
+    tile_to_shape(SmemLayoutAtom{},
+                  make_shape(Int<BM>{}, Int<BK>{}, Int<KStage>{}))
   );
   using SmemLayoutB = decltype(
-    tile_to_shape(SmemLayoutAtom{}, make_shape(Int<BN>{}, Int<BK>{}, Int<KStage>{}))
+    tile_to_shape(SmemLayoutAtom{}, 
+                  make_shape(Int<BN>{}, Int<BK>{}, Int<KStage>{}))
   ); // (m,n) -> smem_idx
   
   // mma
@@ -259,7 +275,8 @@ void launch_hgemm_mma_stages_tn_cute(const T *a, const T *b, T *c, int M, int N,
   using SmemLayoutAtomC = decltype(
     composition(
       Swizzle<3, 3, 3>{}, 
-      make_layout(make_shape(Int<kMmaPM>{}, Int<kMmaPN>{}), make_stride(Int<kMmaPN>{}, Int<1>{})))
+      make_layout(make_shape(Int<kMmaPM>{}, Int<kMmaPN>{}), 
+                  make_stride(Int<kMmaPN>{}, Int<1>{})))
     );
   using SmemLayoutC = decltype(
     tile_to_shape(
@@ -279,17 +296,20 @@ void launch_hgemm_mma_stages_tn_cute(const T *a, const T *b, T *c, int M, int N,
   using S2GCopyC = decltype(
     make_tiled_copy(
       S2GCopyAtomC{},
-      make_layout(make_shape(Int<32>{}, Int<4>{}), make_stride(Int<4>{}, Int<1>{})),
+      make_layout(make_shape(Int<32>{}, Int<4>{}), 
+                  make_stride(Int<4>{}, Int<1>{})),
       make_layout(make_shape(Int<1>{}, Int<8>{}))
     )
   );
 
   int BX = (N + BN - 1) / BN;
   int BY = (M + BM - 1) / BM;
+  // NOTE: Apply thread block swizzle across N dim.
+  int BZ = BlockSwizzle ? (N + (swizzle_stride) - 1) / (swizzle_stride) : 1;
+  BX = BlockSwizzle ? (BX + BZ - 1) / BZ : BX;
   
-  // TODO: thread block swizzle
   dim3 block(size(MMA{}));
-  dim3 grid(BX, BY);
+  dim3 grid(BX, BY, BZ);
 
   // C_shm is shared with A_shm and B_shm
   static constexpr int shm_size_AB =
@@ -301,7 +321,7 @@ void launch_hgemm_mma_stages_tn_cute(const T *a, const T *b, T *c, int M, int N,
   int shm_size = kShmSize;
 
   cudaFuncSetAttribute(
-    hgemm_mma_stages_tn_cute_kernel<
+    hgemm_mma_stages_block_swizzle_tn_cute_kernel<
       T, 
       BM, BN, BK, 
       KStage, 
@@ -315,13 +335,14 @@ void launch_hgemm_mma_stages_tn_cute(const T *a, const T *b, T *c, int M, int N,
       S2RCopyAtomB, 
       R2SCopyAtomC, 
       S2GCopyAtomC, 
-      S2GCopyC
+      S2GCopyC,
+      BlockSwizzle
     >,
     cudaFuncAttributeMaxDynamicSharedMemorySize, 
     shm_size
   );
   
-  hgemm_mma_stages_tn_cute_kernel<
+  hgemm_mma_stages_block_swizzle_tn_cute_kernel<
     T, 
     BM, BN, BK, 
     KStage, 
@@ -335,7 +356,8 @@ void launch_hgemm_mma_stages_tn_cute(const T *a, const T *b, T *c, int M, int N,
     S2RCopyAtomB, 
     R2SCopyAtomC, 
     S2GCopyAtomC, 
-    S2GCopyC
+    S2GCopyC,
+    BlockSwizzle
   ><<<grid, block, shm_size>>>(a, b, c, M, N, K);
 }
 
@@ -360,12 +382,14 @@ int main() {
   }
 
   const int outer_repeat = 10, inner_repeat = 1;
+  const int thread_block_swizzle_stride = 2048; // thread block swizzle stride
 
-  printf("ALGO = CuTe HGEMM TN STAGES=2\n");
+  printf("ALGO = CuTe HGEMM, TN, STAGES=2, SMEM SWIZZLE=<3, 3, 3>, BLOCK SWIZZLE=2048\n");
   for (int j = 0; j < 5; j++) {
     int M = M_list[j], N = N_list[j], K = K_list[j];
-    float max_error = gemm_error_check_tn<T>(
-      launch_hgemm_mma_stages_tn_cute, M, N, K);
+    float max_error = gemm_error_check_tn_swizzle<T>(
+      launch_hgemm_mma_stages_block_swizzle_tn_cute<T, 2, true>, 
+      M, N, K, thread_block_swizzle_stride);
     printf("M N K = %6d %6d %6d, ", M, N, K);
     printf("Max Error = %f\n", max_error);
   }
@@ -378,8 +402,9 @@ int main() {
     double total_sec = 0.0;
 
     for (int k = 0; k < outer_repeat; k++) {
-      double this_sec = perf_gemm<T>(
-        launch_hgemm_mma_stages_tn_cute, M, N, K, inner_repeat);
+      double this_sec = perf_gemm_swizzle<T>(
+        launch_hgemm_mma_stages_block_swizzle_tn_cute<T, 2, true>, 
+        M, N, K, thread_block_swizzle_stride, inner_repeat);
       max_sec = max(max_sec, this_sec);
       min_sec = min(min_sec, this_sec);
       total_sec += this_sec;
@@ -395,8 +420,10 @@ int main() {
 
   return 0;
 }
-// build torch python binding
+
 #else 
+// build torch python binding
+
 #include <torch/types.h>
 #include <torch/extension.h>
 // --------------------- PyTorch bindings for custom kernel -----------------------
@@ -415,20 +442,29 @@ if (((T).size(0) != (S0)) || ((T).size(1) != (S1))) { \
   throw std::runtime_error("Tensor size mismatch!");  \
 }
 
-#define LAUNCH_HGEMM_MMA_STAGES_CUTE_TN(stages)     \
-  launch_hgemm_mma_stages_tn_cute<half, (stages)>(  \
-    reinterpret_cast<half*>(a.data_ptr()),          \
-    reinterpret_cast<half*>(b.data_ptr()),          \
-    reinterpret_cast<half*>(c.data_ptr()),          \
-    M, N, K                                         \
+#define LAUNCH_HGEMM_MMA_STAGES_CUTE_NO_SWIZZLE_TN(stages)             \
+  launch_hgemm_mma_stages_block_swizzle_tn_cute<                       \
+  half, (stages), false>(                                              \
+    reinterpret_cast<half*>(a.data_ptr()),                             \
+    reinterpret_cast<half*>(b.data_ptr()),                             \
+    reinterpret_cast<half*>(c.data_ptr()),                             \
+    M, N, K, 2048                                                      \
+  );
+
+#define LAUNCH_HGEMM_MMA_STAGES_CUTE_SWIZZLE_TN(stages, stride)        \
+  launch_hgemm_mma_stages_block_swizzle_tn_cute<                       \
+  half, (stages), true>(                                               \
+    reinterpret_cast<half*>(a.data_ptr()),                             \
+    reinterpret_cast<half*>(b.data_ptr()),                             \
+    reinterpret_cast<half*>(c.data_ptr()),                             \
+    M, N, K, (stride)                                                  \
   );
 
 
-// TODO: support thread block swizzle
+// Multi stages CuTe HGEMM with smem and block swizzle.
 void hgemm_mma_stages_tn_cute(
   torch::Tensor a, torch::Tensor b, torch::Tensor c,
   int stages, bool swizzle, int swizzle_stride) {
-  // swizzle, swizzle_stride unused now
   CHECK_TORCH_TENSOR_DTYPE(a, torch::kHalf)
   CHECK_TORCH_TENSOR_DTYPE(b, torch::kHalf)
   CHECK_TORCH_TENSOR_DTYPE(c, torch::kHalf)
@@ -439,20 +475,37 @@ void hgemm_mma_stages_tn_cute(
   CHECK_TORCH_TENSOR_SHAPE(b, K, N)
   CHECK_TORCH_TENSOR_SHAPE(c, M, N)
 
-  switch (stages) {
-    case 2:
-      LAUNCH_HGEMM_MMA_STAGES_CUTE_TN(2)
-      break;
-    case 3:
-      LAUNCH_HGEMM_MMA_STAGES_CUTE_TN(3)
-      break;
-    case 4:
-      LAUNCH_HGEMM_MMA_STAGES_CUTE_TN(4)
-      break;
-    default:
-      LAUNCH_HGEMM_MMA_STAGES_CUTE_TN(2)
-      break;
+  if (swizzle) {
+    switch (stages)
+    {
+      case 2: 
+        LAUNCH_HGEMM_MMA_STAGES_CUTE_SWIZZLE_TN(2, swizzle_stride);
+        break;
+      case 3: 
+        LAUNCH_HGEMM_MMA_STAGES_CUTE_SWIZZLE_TN(3, swizzle_stride);
+        break;
+      case 4: 
+        LAUNCH_HGEMM_MMA_STAGES_CUTE_SWIZZLE_TN(4, swizzle_stride);
+        break;
+      default:
+        LAUNCH_HGEMM_MMA_STAGES_CUTE_SWIZZLE_TN(2, swizzle_stride);
+        break;
+    }
+  } else {
+    switch (stages) {
+      case 2:
+        LAUNCH_HGEMM_MMA_STAGES_CUTE_NO_SWIZZLE_TN(2)
+        break;
+      case 3:
+        LAUNCH_HGEMM_MMA_STAGES_CUTE_NO_SWIZZLE_TN(3)
+        break;
+      case 4:
+        LAUNCH_HGEMM_MMA_STAGES_CUTE_NO_SWIZZLE_TN(4)
+        break;
+      default:
+        LAUNCH_HGEMM_MMA_STAGES_CUTE_NO_SWIZZLE_TN(2)
+        break;
+    }
   }
-  
 }
 #endif

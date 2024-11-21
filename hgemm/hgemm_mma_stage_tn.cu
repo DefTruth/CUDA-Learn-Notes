@@ -72,7 +72,6 @@ __global__ void  __launch_bounds__(256)
 hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn_kernel(
   half* A, half* B, half* C, int M, int N, int K) {
   // BLOCK_SWIZZLE 0/1 control use block swizzle or not.
-  // COLLECTIVE_STORE true/false control use stmatrix or not.
   const int bx = ((int) BLOCK_SWIZZLE) * blockIdx.z * gridDim.x + blockIdx.x;
   const int by = blockIdx.y;
   const int NUM_K_TILES = div_ceil(K, MMA_K);
@@ -98,6 +97,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn_kernel(
   int load_smem_b_k = (tid % 2 == 0) ? 0 : 8; // col 0,8
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   uint32_t RC[WARP_TILE_M][WARP_TILE_N][2];
   #pragma unroll

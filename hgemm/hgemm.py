@@ -108,18 +108,17 @@ def get_build_cuda_cflags():
     # spill stores: 指的是在执行过程中，数据因为寄存器不足而被存储到了栈上。
     # spill loads: 则是指将之前溢出到栈上的数据重新加载回寄存器。
     # diag 177: variable was declared but never referenced
-    extra_cuda_cflags=[
-               "-O2",
-                "-U__CUDA_NO_HALF_OPERATORS__",
-                "-U__CUDA_NO_HALF_CONVERSIONS__",
-                "-U__CUDA_NO_HALF2_OPERATORS__",
-                "-U__CUDA_NO_BFLOAT16_CONVERSIONS__",
-                "--expt-relaxed-constexpr",
-                "--expt-extended-lambda",
-                "--use_fast_math",
-                "-diag-suppress 177",
-                "-Xptxas -v",
-    ]
+    extra_cuda_cflags = []
+    extra_cuda_cflags.append("-O3")
+    extra_cuda_cflags.append("-U__CUDA_NO_HALF_OPERATORS__")
+    extra_cuda_cflags.append("-U__CUDA_NO_HALF_CONVERSIONS__")
+    extra_cuda_cflags.append("-U__CUDA_NO_HALF2_OPERATORS__")
+    extra_cuda_cflags.append("-U__CUDA_NO_BFLOAT16_CONVERSIONS__")
+    extra_cuda_cflags.append("--expt-relaxed-constexpr")
+    extra_cuda_cflags.append("--expt-extended-lambda")
+    extra_cuda_cflags.append("--use_fast_math")
+    extra_cuda_cflags.append("-diag-suppress 177")
+    extra_cuda_cflags.append("-Xptxas -v")
     # extra cuda flags for cute hgemm
     project_dir = get_project_dir()
     extra_cuda_cflags.append('-DENBLE_CUTE_HGEMM')
@@ -217,7 +216,9 @@ def run_benchmark(perf_func: callable,
     total_time = (end - start) * 1000 # ms
     mean_time = total_time / iters
     out_info = f"{tag}"
-    out_val = out.flatten()[:2].detach().cpu().numpy().tolist()
+    out_val_first = out.flatten()[:2].detach().cpu().numpy().tolist()
+    out_val_last = out.flatten()[-2:].detach().cpu().numpy().tolist()
+    out_val = [out_val_first[0], out_val_last[-1]]
     out_val = [round(v, 8) for v in out_val]
     out_val = [f"{v:<12}"[:10] for v in out_val]
     TFLOPS = (2 * M * N * K) * 1e-9 / (mean_time)
@@ -372,7 +373,7 @@ B = torch.randn((MAX_K, MAX_N), dtype=torch.half).cuda()
 C = torch.randn((MAX_M, MAX_N), dtype=torch.half).cuda()
 torch.cuda.synchronize()
 end = time.time()
-pretty_print_line(f"pre allocate for fast profiling done, time: {(end - start) * 1000} ms")
+pretty_print_line(f"pre allocate for fast profiling done, time: {(end - start)} s")
 
 PERF_COUNT = 0
 for (M, N, K) in zip(Ms, Ns, Ks):
@@ -464,6 +465,9 @@ for (M, N, K) in zip(Ms, Ns, Ks):
         run_benchmark(lib.hgemm_mma_stages_tn_cute, a, b_col_major, "tn(cute+stage4+swizzle<smem>)", c, stages=4)
         run_benchmark(lib.hgemm_mma_stages_tn_cute, a, b_col_major, "tn(cute+stage3+swizzle<smem>)", c, stages=3)
         run_benchmark(lib.hgemm_mma_stages_tn_cute, a, b_col_major, "tn(cute+stage2+swizzle<smem>)", c, stages=2)
+        run_benchmark(lib.hgemm_mma_stages_tn_cute, a, b_col_major, "tn(cute+stage4+swizzle<smem+block>)", c, stages=4, swizzle=True)
+        run_benchmark(lib.hgemm_mma_stages_tn_cute, a, b_col_major, "tn(cute+stage3+swizzle<smem+block>)", c, stages=3, swizzle=True)
+        run_benchmark(lib.hgemm_mma_stages_tn_cute, a, b_col_major, "tn(cute+stage2+swizzle<smem+block>)", c, stages=2, swizzle=True)
     # TN layout: cublas
     if not args.disable_cublas_tn and any((args.enable_mma_tn, args.enable_cute_tn)):
         run_benchmark(lib.hgemm_cublas_tensor_op_tn, a, b_col_major, "tn(cublas)", c)
