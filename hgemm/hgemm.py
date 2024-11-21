@@ -479,6 +479,13 @@ for (M, N, K) in zip(Ms, Ns, Ks):
     if args.enable_torch:
         run_benchmark(partial(torch.matmul, out=c), a, b, "(torch)")
     torch.cuda.synchronize()
+    # Avoid OOM
+    del a; a = None
+    del b; b = None
+    del c; c = None
+    del b_col_major; 
+    b_col_major = None
+    torch.cuda.empty_cache()
     pretty_print_line()
 
 if args.plot_flops:
