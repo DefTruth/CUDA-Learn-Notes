@@ -54,6 +54,7 @@ __global__ void hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf_kernel(
   // 要加载到s_a中的元素对应到A全局内存中的行数 每个block负责出C中大小为BM*BN的块
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   // bk = 0 is loading here, buffer 0 
   {
@@ -156,6 +157,7 @@ __global__ void hgemm_t_8x8_sliced_k16_f16x8_pack_dbuf_async_kernel(
   int load_smem_b_n = (tid % 16) * 8; // col 0,8,...,120
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   // bk = 0 is loading here, buffer 0 
   {
@@ -269,6 +271,7 @@ __global__ void hgemm_t_8x8_sliced_k32_f16x8_pack_dbuf_kernel(
   // 要加载到s_a中的元素对应到A全局内存中的行数 每个block负责出C中大小为BM*BN的块
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   // bk = 0 is loading here, buffer 0 
   {
@@ -371,6 +374,7 @@ __global__ void hgemm_t_8x8_sliced_k32_f16x8_pack_dbuf_async_kernel(
   int load_smem_b_n = (tid % 8) * 16; // col 0,16,...,
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   // bk = 0 is loading here, buffer 0 
   {
@@ -498,6 +502,7 @@ __global__ void hgemm_t_16x8_sliced_k32_f16x8_pack_dbuf_kernel(
   // 要加载到s_a中的元素对应到A全局内存中的行数 每个block负责出C中大小为BM*BN的块
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   // bk = 0 is loading here, buffer 0 
   {
@@ -611,6 +616,7 @@ __global__ void hgemm_t_16x8_sliced_k32_f16x8_pack_dbuf_async_kernel(
   // 要加载到s_a中的元素对应到A全局内存中的行数 每个block负责出C中大小为BM*BN的块
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   // bk = 0 is loading here, buffer 0 
   {

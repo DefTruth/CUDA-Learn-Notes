@@ -478,12 +478,16 @@ for (M, N, K) in zip(Ms, Ns, Ks):
         run_benchmark(lib.hgemm_mma_stages_tn_cute, a, b_col_major, "tn(cute+stage2+swizzle<smem+block>)", c, stages=2, swizzle=True)
     # TN layout: cublas
     if not args.disable_cublas_tn and any((args.enable_mma_tn, args.enable_cute_tn)):
+        lib.init_cublas_handle()
         run_benchmark(lib.hgemm_cublas_tensor_op_tn, a, b_col_major, "tn(cublas)", c)
+        lib.destroy_cublas_handle()
     # NN layout: cublas/torch
     if (not args.disable_cublas) and any((
         args.enable_mma, args.enable_mma_all, args.enable_wmma, args.enable_wmma_all, 
         args.enable_cuda, args.enable_cuda_all, args.enable_torch)):
+        lib.init_cublas_handle()
         run_benchmark(lib.hgemm_cublas_tensor_op_nn, a, b, "(cublas)", c)
+        lib.destroy_cublas_handle()
     if args.enable_torch:
         run_benchmark(partial(torch.matmul, out=c), a, b, "(torch)")
     torch.cuda.synchronize()

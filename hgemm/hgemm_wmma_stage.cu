@@ -91,6 +91,7 @@ hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_kernel(
   // 要加载到s_a中的元素对应到A全局内存中的行数 每个block负责出C中大小为BM*BN的块
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, half> 
   C_frag[WARP_TILE_M][WARP_TILE_N];
@@ -309,6 +310,7 @@ hgemm_wmma_m16n16k16_mma4x2_warp2x4_stages_dsmem_kernel(
   // 要加载到s_a中的元素对应到A全局内存中的行数 每个block负责出C中大小为BM*BN的块
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, half> 
   C_frag[WARP_TILE_M][WARP_TILE_N];
@@ -531,6 +533,7 @@ hgemm_wmma_m16n16k16_mma4x4_warp4x4_stages_dsmem_kernel(
   // 要加载到s_a中的元素对应到A全局内存中的行数 每个block负责出C中大小为BM*BN的块
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, half> 
   C_frag[WARP_TILE_M][WARP_TILE_N];
@@ -755,6 +758,7 @@ hgemm_wmma_m16n16k16_mma4x2_warp4x4_stages_dsmem_kernel(
   // 要加载到s_a中的元素对应到A全局内存中的行数 每个block负责出C中大小为BM*BN的块
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, half> 
   C_frag[WARP_TILE_M][WARP_TILE_N];

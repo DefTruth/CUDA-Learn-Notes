@@ -163,6 +163,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4_kernel(
   // 要加载到s_a中的元素对应到A全局内存中的行数 每个block负责出C中大小为BM*BN的块
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   uint32_t RC[WARP_TILE_M][WARP_TILE_N][2];
   #pragma unroll

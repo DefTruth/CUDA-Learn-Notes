@@ -10,17 +10,40 @@
 #include <mma.h>
 #include "cublas_v2.h"
 
+static cublasHandle_t g_handle = nullptr;
+
+void init_cublas_handle() {
+  if (g_handle == nullptr) {
+    cublasStatus_t status = cublasCreate(&g_handle);
+    if (status != CUBLAS_STATUS_SUCCESS) {
+      printf("Failed to create cuBLAS handle: %d", status);
+      exit(EXIT_FAILURE);
+    }
+    status = cublasSetMathMode(g_handle, CUBLAS_TENSOR_OP_MATH);
+    if (status != CUBLAS_STATUS_SUCCESS) {
+      printf("Failed to set cuBLAS Math Mode: %d", status);
+      exit(EXIT_FAILURE);
+    }
+  }
+}
+
+void destroy_cublas_handle() {
+  if (g_handle != nullptr) {
+    cublasStatus_t status = cublasDestroy(g_handle);
+    if (status != CUBLAS_STATUS_SUCCESS) {
+      printf("Failed to destroy cuBLAS handle: %d", status);
+    }
+    g_handle = nullptr;
+  }
+}
+
 // NN: A/B/C All row major
 void cublas_tensor_op_nn(half *A, half *B, half *C,  size_t M, size_t N, size_t K) {
-
-  static cublasHandle_t handle = nullptr;
-  cublasCreate(&handle);
-  cublasSetMathMode(handle, CUBLAS_TENSOR_OP_MATH);
 
   static half alpha = 1.0;
   static half beta = 0.0;
 
-  cublasGemmEx(handle, 
+  cublasGemmEx(g_handle, 
                CUBLAS_OP_N, 
                CUBLAS_OP_N, 
                N, M, K, 
@@ -31,21 +54,15 @@ void cublas_tensor_op_nn(half *A, half *B, half *C,  size_t M, size_t N, size_t 
                C, CUDA_R_16F, N, 
                CUBLAS_COMPUTE_16F,
                CUBLAS_GEMM_DEFAULT_TENSOR_OP);
-
-  // cublasDestroy(handle);
 }
 
 // TN: A row major MxK, B col major NxK, C row major MxN
 void cublas_tensor_op_tn(half *A, half *B, half *C,  size_t M, size_t N, size_t K) {
 
-  static cublasHandle_t handle = nullptr;
-  cublasCreate(&handle);
-  cublasSetMathMode(handle, CUBLAS_TENSOR_OP_MATH);
-
   static half alpha = 1.0;
   static half beta = 0.0;
 
-  cublasGemmEx(handle, 
+  cublasGemmEx(g_handle, 
                CUBLAS_OP_T, 
                CUBLAS_OP_N, 
                N, M, K, 
@@ -56,8 +73,6 @@ void cublas_tensor_op_tn(half *A, half *B, half *C,  size_t M, size_t N, size_t 
                C, CUDA_R_16F, N, 
                CUBLAS_COMPUTE_16F,
                CUBLAS_GEMM_DEFAULT_TENSOR_OP);
-
-  // cublasDestroy(handle);
 }
 
 // build cpp binary

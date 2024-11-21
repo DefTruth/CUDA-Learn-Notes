@@ -173,6 +173,7 @@ __global__ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_kernel(
   // 要加载到s_a中的元素对应到A全局内存中的行数 每个block负责出C中大小为BM*BN的块
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   wmma::fragment<wmma::accumulator, 
                  WMMA_M, WMMA_N, WMMA_K, 
@@ -278,6 +279,7 @@ __global__ void hgemm_wmma_m16n16k16_mma4x2_warp2x4_dbuf_async_kernel(
   // 要加载到s_a中的元素对应到A全局内存中的行数 每个block负责出C中大小为BM*BN的块
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   wmma::fragment<wmma::accumulator, 
                  WMMA_M, WMMA_N, WMMA_K, 
@@ -442,6 +444,7 @@ __global__ void hgemm_wmma_m32n8k16_mma2x4_warp2x4_dbuf_async_kernel(
   // 要加载到s_a中的元素对应到A全局内存中的行数 每个block负责出C中大小为BM*BN的块
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   wmma::fragment<wmma::accumulator, 
                  WMMA_M, WMMA_N, WMMA_K, 

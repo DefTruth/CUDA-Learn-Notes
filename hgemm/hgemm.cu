@@ -62,7 +62,7 @@ __global__ void hgemm_sliced_k_f16_kernel(half* a, half* b, half* c, int M, int 
   int load_smem_b_n = tid % 32; // 0~31, tid % 32, tid % BN, threadIdx.x
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
-  // if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
   
   half sum = __float2half(0.f);
   for (int bk = 0; bk < (K + BK - 1) / BK; ++bk) {
@@ -121,6 +121,7 @@ __global__ void hgemm_t_8x8_sliced_k_f16x4_kernel(half* a, half* b, half* c, int
   // 要加载到s_a中的元素对应到A全局内存中的行数 每个block负责出C中大小为BM*BN的块
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   half r_c[TM][TN] = {__float2half(0.0f)}; // 8x8
   // 2. 先对K进行分块，每块BK大小
@@ -195,6 +196,7 @@ __global__ void hgemm_t_8x8_sliced_k_f16x4_pack_kernel(
   // 要加载到s_a中的元素对应到A全局内存中的行数 每个block负责出C中大小为BM*BN的块
   int load_gmem_a_m = by * BM + load_smem_a_m; // global row of a and c
   int load_gmem_b_n = bx * BN + load_smem_b_n; // global col of b and c
+  if (load_gmem_a_m >= M || load_gmem_b_n >= N) return;
 
   half r_c[TM][TN] = {__float2half(0.0f)}; // 8x8
   // 2. 先对K进行分块，每块BK大小
@@ -279,6 +281,7 @@ __global__ void hgemm_t_8x8_sliced_k_f16x4_bcf_kernel(
 
   int load_a_gmem_m = by * BM + load_a_smem_m;
   int load_b_gmem_n = bx * BN + load_b_smem_n;
+  if (load_a_gmem_m >= M || load_b_gmem_n >= N) return;
 
   for (int bk = 0; bk < (K + BK - 1) / BK; bk++) {
 
@@ -388,6 +391,7 @@ __global__ void hgemm_t_8x8_sliced_k_f16x4_pack_bcf_kernel(
 
   int load_a_gmem_m = by * BM + load_a_smem_m;
   int load_b_gmem_n = bx * BN + load_b_smem_n;
+  if (load_a_gmem_m >= M || load_b_gmem_n >= N) return;
 
   for (int bk = 0; bk < (K + BK - 1) / BK; bk++) {
 
@@ -561,6 +565,7 @@ __global__ void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_kernel(
 
   int load_a_gmem_m = by * BM + load_a_smem_m;
   int load_b_gmem_n = bx * BN + load_b_smem_n;
+  if (load_a_gmem_m >= M || load_b_gmem_n >= N) return;
 
   for (int bk = 0; bk < (K + BK - 1) / BK; bk++) {
 
@@ -666,6 +671,7 @@ __global__ void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf_kernel(
 
   int load_a_gmem_m = by * BM + load_a_smem_m;
   int load_b_gmem_n = bx * BN + load_b_smem_n;
+  if (load_a_gmem_m >= M || load_b_gmem_n >= N) return;
 
   // 1）主循环从bk = 1 开始，第一次数据加载在主循环之前，最后一次计算在主循环之后，这是pipeline 的特点决定的；
   // 2）由于计算和下一次访存使用的Shared Memory不同，因此主循环中每次循环只需要一次__syncthreads()即可
@@ -999,6 +1005,8 @@ void hgemm_t_8x8_sliced_k32_f16x8_pack_dbuf_async(torch::Tensor a, torch::Tensor
 void hgemm_t_16x8_sliced_k32_f16x8_pack_dbuf(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 void hgemm_t_16x8_sliced_k32_f16x8_pack_dbuf_async(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 // from hgemm_cublas.cu
+void init_cublas_handle();
+void destroy_cublas_handle();
 void hgemm_cublas_tensor_op_nn(torch::Tensor a, torch::Tensor b, torch::Tensor c); 
 void hgemm_cublas_tensor_op_tn(torch::Tensor a, torch::Tensor b, torch::Tensor c);
 // from hgemm_wmma.cu
@@ -1046,6 +1054,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_16x8_sliced_k32_f16x8_pack_dbuf)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_t_16x8_sliced_k32_f16x8_pack_dbuf_async)
   // cuBLAS Tensor Cores
+  TORCH_BINDING_COMMON_EXTENSION(init_cublas_handle)
+  TORCH_BINDING_COMMON_EXTENSION(destroy_cublas_handle)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_cublas_tensor_op_nn)
   TORCH_BINDING_COMMON_EXTENSION(hgemm_cublas_tensor_op_tn)
   // WMMA API Tensor Cores

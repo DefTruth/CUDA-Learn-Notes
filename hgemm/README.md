@@ -82,16 +82,6 @@ make
 # NVIDIA L20
 ALGO = MMA16816 HGEMM NN MMA=2x4 WARP=4x4x2 STAGES=2 BLOCK SWIZZLE=2048
 M N K =  12544  12544  12544, Time =   0.03445555   0.03446098   0.03447399 s, AVG Performance =   114.5541 Tflops
-M N K =  12800  12800  12800, Time =   0.03651175   0.03652291   0.03653325 s, AVG Performance =   114.8404 Tflops
-M N K =  13056  13056  13056, Time =   0.03893658   0.03893934   0.03894375 s, AVG Performance =   114.3067 Tflops
-M N K =  13312  13312  13312, Time =   0.04108800   0.04109589   0.04111155 s, AVG Performance =   114.8052 Tflops
-M N K =  13568  13568  13568, Time =   0.04365005   0.04365251   0.04365619 s, AVG Performance =   114.4375 Tflops
-M N K =  13824  13824  13824, Time =   0.04591821   0.04593121   0.04594585 s, AVG Performance =   115.0332 Tflops
-M N K =  14080  14080  14080, Time =   0.04861338   0.04861614   0.04862054 s, AVG Performance =   114.8306 Tflops
-M N K =  14336  14336  14336, Time =   0.05134848   0.05135278   0.05136691 s, AVG Performance =   114.7493 Tflops
-M N K =  14592  14592  14592, Time =   0.05417882   0.05418947   0.05421568 s, AVG Performance =   114.6726 Tflops
-M N K =  14848  14848  14848, Time =   0.05706547   0.05706916   0.05707469 s, AVG Performance =   114.7182 Tflops
-M N K =  15104  15104  15104, Time =   0.06001767   0.06002084   0.06002586 s, AVG Performance =   114.8164 Tflops
 M N K =  15360  15360  15360, Time =   0.06307226   0.06307789   0.06308864 s, AVG Performance =   114.9017 Tflops
 M N K =  15616  15616  15616, Time =   0.06612480   0.06612798   0.06613094 s, AVG Performance =   115.1739 Tflops
 M N K =  15872  15872  15872, Time =   0.06969549   0.06970215   0.06971290 s, AVG Performance =   114.7305 Tflops
@@ -102,16 +92,6 @@ M N K =  16384  16384  16384, Time =   0.07663001   0.07663534   0.07664947 s, A
 # NVIDIA L20
 ALGO = CuTe HGEMM, TN, STAGES=2, SMEM SWIZZLE=<3, 3, 3>, BLOCK SWIZZLE=2048
 M N K =  12544  12544  12544, Time =   0.03413504   0.03414354   0.03415450 s, AVG Performance =   115.6191 Tflops
-M N K =  12800  12800  12800, Time =   0.03615642   0.03616481   0.03617178 s, AVG Performance =   115.9775 Tflops
-M N K =  13056  13056  13056, Time =   0.03821158   0.03821455   0.03821671 s, AVG Performance =   116.4747 Tflops
-M N K =  13312  13312  13312, Time =   0.04033536   0.04033894   0.04034560 s, AVG Performance =   116.9595 Tflops
-M N K =  13568  13568  13568, Time =   0.04318720   0.04319130   0.04319949 s, AVG Performance =   115.6595 Tflops
-M N K =  13824  13824  13824, Time =   0.04541542   0.04541942   0.04542157 s, AVG Performance =   116.3294 Tflops
-M N K =  14080  14080  14080, Time =   0.04770918   0.04772137   0.04772761 s, AVG Performance =   116.9836 Tflops
-M N K =  14336  14336  14336, Time =   0.05077402   0.05077955   0.05078426 s, AVG Performance =   116.0447 Tflops
-M N K =  14592  14592  14592, Time =   0.05324902   0.05326633   0.05327872 s, AVG Performance =   116.6599 Tflops
-M N K =  14848  14848  14848, Time =   0.05638758   0.05640591   0.05643162 s, AVG Performance =   116.0671 Tflops
-M N K =  15104  15104  15104, Time =   0.05892505   0.05893622   0.05894246 s, AVG Performance =   116.9294 Tflops
 M N K =  15360  15360  15360, Time =   0.06227354   0.06228111   0.06228992 s, AVG Performance =   116.3717 Tflops
 M N K =  15616  15616  15616, Time =   0.06492467   0.06493727   0.06496666 s, AVG Performance =   117.2858 Tflops
 M N K =  15872  15872  15872, Time =   0.06843085   0.06843873   0.06844723 s, AVG Performance =   116.8485 Tflops
@@ -122,16 +102,6 @@ M N K =  16384  16384  16384, Time =   0.07564493   0.07565752   0.07567462 s, A
 # NVIDIA L20
 ALGO = cuBLAS CUBLAS_GEMM_DEFAULT_TENSOR_OP TN
 M N K =  12544  12544  12544, Time =   0.03472691   0.03472968   0.03473408 s, AVG Performance =   113.6678 Tflops
-M N K =  12800  12800  12800, Time =   0.03687321   0.03687834   0.03688038 s, AVG Performance =   113.7335 Tflops
-M N K =  13056  13056  13056, Time =   0.03909427   0.03910103   0.03910963 s, AVG Performance =   113.8341 Tflops
-M N K =  13312  13312  13312, Time =   0.04140135   0.04141281   0.04148429 s, AVG Performance =   113.9266 Tflops
-M N K =  13568  13568  13568, Time =   0.04382720   0.04383375   0.04384461 s, AVG Performance =   113.9643 Tflops
-M N K =  13824  13824  13824, Time =   0.04629504   0.04630118   0.04630733 s, AVG Performance =   114.1140 Tflops
-M N K =  14080  14080  14080, Time =   0.04889805   0.04891136   0.04898202 s, AVG Performance =   114.1375 Tflops
-M N K =  14336  14336  14336, Time =   0.05156966   0.05157878   0.05158503 s, AVG Performance =   114.2465 Tflops
-M N K =  14592  14592  14592, Time =   0.05437849   0.05439980   0.05445734 s, AVG Performance =   114.2292 Tflops
-M N K =  14848  14848  14848, Time =   0.05723853   0.05725573   0.05730202 s, AVG Performance =   114.3444 Tflops
-M N K =  15104  15104  15104, Time =   0.06022963   0.06024274   0.06032179 s, AVG Performance =   114.3935 Tflops
 M N K =  15360  15360  15360, Time =   0.06332416   0.06333143   0.06334157 s, AVG Performance =   114.4417 Tflops
 M N K =  15616  15616  15616, Time =   0.06649446   0.06650184   0.06651699 s, AVG Performance =   114.5264 Tflops
 M N K =  15872  15872  15872, Time =   0.06977024   0.06977659   0.06978355 s, AVG Performance =   114.6081 Tflops
@@ -151,37 +121,18 @@ M N K =  16384  16384  16384, Time =   0.07668429   0.07669371   0.07670784 s, A
 <!---
 ![L20](https://github.com/user-attachments/assets/a0039200-cd9e-4ae6-be13-422fff75dd2b)
 ![L20](./NVIDIA_L20.png)
-
---->
 ![NVIDIA_L20_NN+TN](https://github.com/user-attachments/assets/89bac543-7272-44cd-b616-54df8ca23a91)
 
+--->
+
+![NVIDIA_L20_NN+TN+v2](https://github.com/user-attachments/assets/71927ac9-72b3-4ce9-b0e2-788b5885bc99)
 
 - WMMA: Up to 113.76 TFLOPS, 113.83/119.5=95.25% TFLOPS utilization, 113.83/116.25=97.91% cuBLAS performance.
 - MMA: Up to 115.12 TFLOPS, 115.12/119.5=96.33% TFLOPS utilization, 115.12/116.25=99.03% cuBLAS performance.
-
-```bash
-python3 hgemm.py --M 16384 --N 16384 --K 8192 --mma-all --wmma-all --cuda-all
-----------------------------------------------------------------------------------------------------------------------------------
-                                        M=16384, N=16384, K=8192, Warmup=2, Iters=10, 1/1
-----------------------------------------------------------------------------------------------------------------------------------
-                                   (naive): ['-236.75   ', '176.0     '], time:1835.537ms, swizzle: NOOP, TFLOPS: 2.40  (+0.00%)
-                      (f16x8pack+t8x8+bcf): ['-236.75   ', '176.0     '], time:99.63080ms, swizzle: NOOP, TFLOPS: 44.14 (+1742.34%)
-                 (f16x8pack+t8x8+k16+dbuf): ['-236.75   ', '176.0     '], time:98.20067ms, swizzle: NOOP, TFLOPS: 44.79 (+1.46%)
---------------------------------------------------------------------WMMA----------------------------------------------------------
-                         (wmma4x2+warp2x4): ['-234.0    ', '181.0     '], time:55.99505ms, swizzle: NOOP, TFLOPS: 78.54 (+75.37%)
-                  (wmma4x2+warp2x4+stage3): ['-234.0    ', '181.0     '], time:49.62856ms, swizzle: NOOP, TFLOPS: 88.62 (+12.83%)
-            (wmma4x2+warp2x4+stage3+dsmem): ['-234.0    ', '181.0     '], time:49.62389ms, swizzle: NOOP, TFLOPS: 88.63 (+0.01%)
-          (wmma4x2+warp2x4+stage3+swizzle): ['-234.0    ', '181.0     '], time:39.11254ms, swizzle: 4096, TFLOPS: 112.45(+26.87%)
-          (wmma4x2+warp2x4+stage2+swizzle): ['-234.0    ', '181.0     '], time:38.63754ms, swizzle: 4096, TFLOPS: 113.83(+1.23%)
---------------------------------------------------------------------MMA-----------------------------------------------------------
-           (mma2x4+warp4x4+stage2+swizzle): ['-234.0    ', '181.0     '], time:38.40544ms, swizzle: 4096, TFLOPS: 114.52(+0.60%)
-     (mma2x4+warp4x4+stage2+dsmem+swizzle): ['-234.0    ', '181.0     '], time:38.20540ms, swizzle: 4096, TFLOPS: 115.12(+0.52%)
-                                  (cublas): ['-234.0    ', '181.0     '], time:37.83144ms, swizzle: NOOP, TFLOPS: 116.25(+0.99%)
-----------------------------------------------------------------------------------------------------------------------------------
-```
+  
 全量MNK测试命令（提示: 每个MNK单独测试的性能数据更准确）
 ```bash
-python3 hgemm.py --cute-tn --mma --plot --dir tmp --tag NN+TN --i 20 --wmma-all
+python3 hgemm.py --cute-tn --mma --plot
 ```
 
 ### NVIDIA GeForce RTX 4090
@@ -189,12 +140,14 @@ python3 hgemm.py --cute-tn --mma --plot --dir tmp --tag NN+TN --i 20 --wmma-all
 
 <!---
 ![4090](https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a)
---->
-
 ![NVIDIA_GeForce_RTX_4090_NN+TN](https://github.com/user-attachments/assets/d8d7380b-4271-41f6-964a-ac3fa81f7f4c)
 
+--->
+
+![NVIDIA_GeForce_RTX_4090_NN+TN+v4](https://github.com/user-attachments/assets/05ef4f5e-d999-48ea-b58e-782cffb24e85)
+
 ```bash
-python3 hgemm.py --cute-tn --mma --plot --dir tmp --tag NN+TN --i 20 --wmma-all
+python3 hgemm.py --cute-tn --mma --wmma-all --plot
 ```
 
 ### NVIDIA GeForce RTX 3080 Laptop   
@@ -204,7 +157,7 @@ python3 hgemm.py --cute-tn --mma --plot --dir tmp --tag NN+TN --i 20 --wmma-all
 ![](./NVIDIA_GeForce_RTX_3080_Laptop_GPU_WSL2.png)
 
 ```bash
-python3 hgemm.py --wmma-all --plot --dir tmp 
+python3 hgemm.py --wmma-all --plot
 ```
 
 
