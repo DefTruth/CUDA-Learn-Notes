@@ -1,4 +1,5 @@
 import os
+import gc
 import torch
 import time 
 from torch.utils.cpp_extension import load
@@ -147,7 +148,6 @@ TOATL_TFLOPS: dict[str, float] = {}
 CUBLAS_TOTAL_TFLOPS = 0
 CUBLAS_TN_TOTAL_TFLOPS = 0
 
-
 def make_block_swizzle_stride(N: int, K: int):
     # make swizzle stride as N/8,N/4,N/2 and multiples of 256
     if args.swizzle_factor is None:
@@ -162,7 +162,7 @@ def make_block_swizzle_stride(N: int, K: int):
 
     return swizzle_stride
 
-
+@torch.no_grad
 def run_benchmark(perf_func: callable, 
                   a: torch.Tensor, b: torch.Tensor,
                   tag: str, out: Optional[torch.Tensor] = None, 
@@ -216,8 +216,9 @@ def run_benchmark(perf_func: callable,
     total_time = (end - start) * 1000 # ms
     mean_time = total_time / iters
     out_info = f"{tag}"
-    out_val_first = out.flatten()[:2].detach().cpu().numpy().tolist()
-    out_val_last = out.flatten()[-2:].detach().cpu().numpy().tolist()
+    out_flat = out.flatten()
+    out_val_first = out_flat[:2].detach().cpu().numpy().tolist()
+    out_val_last = out_flat[-2:].detach().cpu().numpy().tolist()
     out_val = [out_val_first[0], out_val_last[-1]]
     out_val = [round(v, 8) for v in out_val]
     out_val = [f"{v:<12}"[:10] for v in out_val]
@@ -254,6 +255,10 @@ def run_benchmark(perf_func: callable,
                 CUBLAS_TOTAL_TFLOPS += TFLOPS
 
     torch.cuda.synchronize()
+    del out_flat
+    out_flat = None
+    gc.collect()
+    torch.cuda.empty_cache()
     time.sleep(args.sleep_duration)
     return out, mean_time
 
@@ -274,6 +279,7 @@ def get_topk_tflops():
     return list(dict(topk_tflops[:args.plot_topk]).keys())
 
 
+@torch.no_grad
 def get_best_tflops():
     all_tflops = []
     for tag, tflops in STATIS_INFO.items():
@@ -345,6 +351,7 @@ def get_mnk(sep: int = args.SEP):
     return Ms, Ns, Ks
 
 
+@torch.no_grad
 def row2col(x: torch.Tensor):
     # convert a row major tensor -> col major with contiguous storage
     x_trans = x.t()
@@ -485,8 +492,14 @@ for (M, N, K) in zip(Ms, Ns, Ks):
     del c; c = None
     del b_col_major; 
     b_col_major = None
+    gc.collect()
     torch.cuda.empty_cache()
+    gc.collect()
     pretty_print_line()
+
+pretty_print_line()
+print(torch.cuda.memory_summary())
+pretty_print_line()
 
 if args.plot_flops:
     plot_tflops()
