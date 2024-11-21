@@ -23,6 +23,7 @@ def get_args():
     parser.add_argument("--verbose", "--v", action="store_true", help="Verbose")
     parser.add_argument("--show-matrix", "--show-m", action="store_true", help="Show output matrix values")
     parser.add_argument("--show-all-info", "--show-a", action="store_true", help="Show all the profile info")
+    parser.add_argument("--show-memory", "--show-mm", action="store_true", help="Show gpu memory info")
     parser.add_argument("--enable-mma", "--mma", action="store_true", help="Enable MMA kernel tests")
     parser.add_argument("--enable-mma-tn", "--mma-tn", action="store_true", help="Enable TN MMA kernel tests")
     parser.add_argument("--enable-wmma", "--wmma", action="store_true", help="Enable WMMA kernel tests")
@@ -497,9 +498,10 @@ for (M, N, K) in zip(Ms, Ns, Ks):
     gc.collect()
     pretty_print_line()
 
-pretty_print_line()
-print(torch.cuda.memory_summary())
-pretty_print_line()
+if args.show_memory:
+    pretty_print_line()
+    print(torch.cuda.memory_summary())
+    pretty_print_line()
 
 if args.plot_flops:
     plot_tflops()
