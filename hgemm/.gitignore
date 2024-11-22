@@ -18,3 +18,9 @@ __pycache__
 *.engine
 *.bin
 *.out
+*bin
+bin
+output
+*.egg-info
+*.whl
+dist

@@ -1,6 +1,4 @@
-# HGEMM 
-
-## HGEMM/SGEMM Supported Matrix
+# 🔥🔥Toy-HGEMM Library: Achieve the performance of cuBLAS
 
 |CUDA Cores|Sliced K(Loop over K)|Tile Block|Tile Thread|
 |:---:|:---:|:---:|:---:|
@@ -44,6 +42,13 @@
 - [X] PyTorch bindings
 
 </details>
+
+## 安装
+本仓库实现的HGEMM CUDA kernels可以作为一个python库toy-hgemm使用，安装命令如下。（可选）
+```bash
+git submodule update --init --recursive --force
+bash tools/install.sh # pip uninstall toy-hgemm 卸载
+```
 
 ## 测试命令
 
@@ -154,7 +159,7 @@ python3 hgemm.py --cute-tn --mma --wmma-all --plot
 
 在NVIDIA GeForce RTX 3080 Laptop上测试，使用mma4x4_warp4x4（16 WMMA m16n16k16 ops, warp tile 64x64）以及Thread block swizzle，大部分case能持平甚至超过cuBLAS，使用Windows WSL2 + RTX 3080 Laptop进行测试。
 
-![](./NVIDIA_GeForce_RTX_3080_Laptop_GPU_WSL2.png)
+![](./bench/NVIDIA_GeForce_RTX_3080_Laptop_GPU_WSL2.png)
 
 ```bash
 python3 hgemm.py --wmma-all --plot
@@ -175,7 +180,7 @@ sm80_xmma_gemm_f16f16_f16f32_f32_nn_n_tilesize96x64x32_stage3_warpsize2x2x1_tens
 ```
 因此，只有实现使用Tensor Cores的HGEMM，才有可能接近PyTorch/cuBLAS的性能。
 ```bash
-ncu -o hgemm.prof -f python3 prof.py
+ncu -o hgemm.prof -f python3 bench/prof.py
 nsys profile --stats=true -t cuda,osrt,nvtx -o hgemm.prof --force-overwrite true python3 prof.py
 ```
 - SASS (L20)
