@@ -10,7 +10,7 @@ from torch.utils.cpp_extension import (
 )
 from tools.utils import (get_build_sources, get_build_cuda_cflags)
 
-# package name managed by pip, which can be remove by `pip uninstall tiny_pkg`
+# package name managed by pip, which can be remove by `pip uninstall toy-hgemm`
 PACKAGE_NAME = "toy-hgemm"
 
 ext_modules = []

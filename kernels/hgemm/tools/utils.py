@@ -31,8 +31,8 @@ def get_build_sources():
 
 
 def get_project_dir():
-    return os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
 def get_build_cuda_cflags(build_pkg: bool = False):
@@ -68,7 +68,7 @@ def get_build_cuda_cflags(build_pkg: bool = False):
       extra_cuda_cflags.append("-Xptxas -v")
     else:
       extra_cuda_cflags.append("--ptxas-options=-v")
-      extra_cuda_cflags.append("--ptxas-options=-O2")
+      extra_cuda_cflags.append("--ptxas-options=-O3")
     # extra cuda flags for cute hgemm
     project_dir = get_project_dir()
     extra_cuda_cflags.append('-DNO_MMA_HGEMM_BIN')
@@ -76,14 +76,14 @@ def get_build_cuda_cflags(build_pkg: bool = False):
     extra_cuda_cflags.append('-DNO_CUTE_HGEMM_BIN')
     extra_cuda_cflags.append('-DNO_CUBLAS_HGEMM_BIN')
     # add cutlass headers and link cublas.
-    extra_cuda_cflags.append(f'-I {project_dir}')
-    extra_cuda_cflags.append(f'-I {project_dir}/utils')
-    extra_cuda_cflags.append(f'-I {project_dir}/naive')
-    extra_cuda_cflags.append(f'-I {project_dir}/wmma')
-    extra_cuda_cflags.append(f'-I {project_dir}/mma')
-    extra_cuda_cflags.append(f'-I {project_dir}/cutlass')
-    extra_cuda_cflags.append(f'-I {project_dir}/cublas')
-    extra_cuda_cflags.append(f'-I {project_dir}/pybind')
+    extra_cuda_cflags.append(f'-I {project_dir}/kernels/hgemm')
+    extra_cuda_cflags.append(f'-I {project_dir}/kernels/hgemm/utils')
+    extra_cuda_cflags.append(f'-I {project_dir}/kernels/hgemm/naive')
+    extra_cuda_cflags.append(f'-I {project_dir}/kernels/hgemm/wmma')
+    extra_cuda_cflags.append(f'-I {project_dir}/kernels/hgemm/mma')
+    extra_cuda_cflags.append(f'-I {project_dir}/kernels/hgemm/cutlass')
+    extra_cuda_cflags.append(f'-I {project_dir}/kernels/hgemm/cublas')
+    extra_cuda_cflags.append(f'-I {project_dir}/kernels/hgemm/pybind')
     extra_cuda_cflags.append(f'-I {project_dir}/third-party/cutlass/include')
     extra_cuda_cflags.append(f'-I {project_dir}/third-party/cutlass/tools/util/include')
     extra_cuda_cflags.append('-lcublas')

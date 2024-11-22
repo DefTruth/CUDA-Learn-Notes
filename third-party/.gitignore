@@ -7,4 +7,6 @@
 build
 *.whl
 tmp
+bin
+
 
