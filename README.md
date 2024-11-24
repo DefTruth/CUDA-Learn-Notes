@@ -21,11 +21,12 @@
 <div id="hgemm-sgemm"></div>  
 
 <div align='left'>
-  <img src='https://github.com/user-attachments/assets/71927ac9-72b3-4ce9-b0e2-788b5885bc99' height="225px" width="403px">
-  <img src='https://github.com/user-attachments/assets/05ef4f5e-d999-48ea-b58e-782cffb24e85' height="225px" width="403px">
+  <img src='https://github.com/user-attachments/assets/71927ac9-72b3-4ce9-b0e2-788b5885bc99' height="150px" width="265px">
+  <img src='https://github.com/user-attachments/assets/05ef4f5e-d999-48ea-b58e-782cffb24e85' height="150px" width="265px">
+  <img src='https://github.com/user-attachments/assets/9472e970-c083-4b31-9252-3eeecc761078' height="150px" width="265px">
 </div> 
 
-Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's default Tensor Cores math algorithm `CUBLAS_GEMM_DEFAULT_TENSOR_OP`, the `HGEMM (WMMA/MMA)` implemented in this repo (`blue`🔵) can achieve `95%~99%` of its (`orange`🟠) performance. Please check [toy-hgemm library🔥🔥](./kernels/hgemm) for more details.
+Currently, on NVIDIA L20, RTX 4090 and RTX 3080 Laptop, compared with cuBLAS's default Tensor Cores math algorithm `CUBLAS_GEMM_DEFAULT_TENSOR_OP`, the `HGEMM (WMMA/MMA)` implemented in this repo (`blue`🔵) can achieve `95%~99%` of its (`orange`🟠) performance. Please check [toy-hgemm library🔥🔥](./kernels/hgemm) for more details.
 
 |CUDA Cores|Sliced K(Loop over K)|Tile Block|Tile Thread|
 |:---:|:---:|:---:|:---:|
@@ -34,56 +35,22 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3090 Laptop, compared with cuBLAS's d
 |✔️|✔️|✔️|✔️|
 |Copy Async|Tile MMA(More Threads)|Tile Warp(More Values)|Multi Stages|  
 |✔️|✔️|✔️|✔️|
-|Reg Double Buffers|Block Swizzle|Warp Swizzle|Collective Store(Warp Shfl)|
+|Reg Double Buffers|Block Swizzle|Warp Swizzle|Collective Store(Warp Shuffle)|
 |✔️|✔️|✔️|✔️|
 |Row Major(NN)|Col Major(TN)|SGEMM TF32|SMEM Swizzle(CuTe)|
 |✔️|✔️|✔️|✔️|
 
+## ©️Citations🎉🎉
 
-
-<!---
-![NVIDIA_L20_NN+TN](https://github.com/user-attachments/assets/89bac543-7272-44cd-b616-54df8ca23a91)
-![NVIDIA_GeForce_RTX_4090_NN+TN](https://github.com/user-attachments/assets/d8d7380b-4271-41f6-964a-ac3fa81f7f4c)
-![NVIDIA_L20_NN+TN+v2](https://github.com/user-attachments/assets/71927ac9-72b3-4ce9-b0e2-788b5885bc99)
-![NVIDIA_GeForce_RTX_4090_NN+TN+v4](https://github.com/user-attachments/assets/05ef4f5e-d999-48ea-b58e-782cffb24e85)
-
-<div align='left'>
-  <img src='https://github.com/user-attachments/assets/89bac543-7272-44cd-b616-54df8ca23a91' width="805px">
-</div> 
-
-<div align='left'>
-  <img src='https://github.com/user-attachments/assets/89bac543-7272-44cd-b616-54df8ca23a91' height="225px" width="403px">
-  <img src='https://github.com/user-attachments/assets/d8d7380b-4271-41f6-964a-ac3fa81f7f4c' height="225px" width="403px">
-</div> 
-
-<div align='left'>
-  <img src='https://github.com/user-attachments/assets/a0039200-cd9e-4ae6-be13-422fff75dd2b' height="225px" width="403px">
-  <img src='https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a' height="225px" width="403px">
-</div> 
-
-
-![cuda-learn-notes](https://github.com/DefTruth/CUDA-Learn-Note/assets/31974251/882271fe-ab60-4b0e-9440-2e0fa3c0fb6f)   
-![cuda-learn-notes](https://github.com/user-attachments/assets/b2578723-b7a7-4d8f-bcd1-5008947b808a)
-![L20](https://github.com/user-attachments/assets/a0039200-cd9e-4ae6-be13-422fff75dd2b)
-![4090](https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a)
-
-## 📒 Introduction
-
-## 📒 Contents
-<div id="contents"></div>  
-
-- [📖HGEMM/SGEMM Supported Matrix🔥🔥🔥🔥](#hgemm-sgemm)
-- [📖100+ 必看CUDA Kernel(面试常考题目)🔥🔥🔥🔥](#cuda-kernel)
-- [📖20+ 大模型|多模态|Diffusion|推理优化文章(本人作者)🔥🔥](#my-blogs-part-1)
-- [📖40+ CV推理部署|C++|算法|技术随笔文章(本人作者)🔥🔥](#my-blogs-part-2)
-- [📖50+ CUTLASS|CuTe|NCCL|CUDA|文章推荐(其他作者)🔥🔥](#other-blogs)
-
-<img width="1438" alt="image" src="https://github.com/user-attachments/assets/0c5e5125-586f-43fa-8e8b-e2c61c1afbbe">
---->
-
-<!---
-![4090](https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a)
---->
+```BibTeX
+@misc{CUDA-Learn-Notes@2024,
+  title={CUDA-Learn-Notes: A Modern CUDA Learn Notes with PyTorch for Beginners},
+  url={https://github.com/DefTruth/CUDA-Learn-Notes},
+  note={Open-source software available at https://github.com/DefTruth/CUDA-Learn-Notes},
+  author={DefTruth etc},
+  year={2024}
+}
+```
 
 ## 📖 150+ CUDA Kernels 🔥🔥 (面试常考题目) ([©️back👆🏻](#contents))
 **Workflow**: custom **CUDA** kernel impl -> **PyTorch** Python bindings -> Run tests. 👉TIPS: `*` = **Tensor Cores(WMMA/MMA)**, otherwise, CUDA Cores; `/` = not supported; `✔️` = supported; `❔` = in my plan.
