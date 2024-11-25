@@ -17,6 +17,8 @@ ext_modules = []
 generator_flag = []
 cc_flag = []
 cc_flag.append("-gencode")
+cc_flag.append("arch=compute_80,code=sm_80")
+cc_flag.append("-gencode")
 cc_flag.append("arch=compute_89,code=sm_89")
 
 

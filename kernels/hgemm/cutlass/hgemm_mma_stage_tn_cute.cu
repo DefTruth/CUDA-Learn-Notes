@@ -461,8 +461,8 @@ if (((T).size(0) != (S0)) || ((T).size(1) != (S1))) { \
   );
 
 
-// Multi stages CuTe HGEMM with smem and block swizzle.
-void hgemm_mma_stages_tn_cute(
+// Multi stages CuTe HGEMM with SMEM Swizzle and Block Swizzle.
+void hgemm_mma_stages_block_swizzle_tn_cute(
   torch::Tensor a, torch::Tensor b, torch::Tensor c,
   int stages, bool swizzle, int swizzle_stride) {
   CHECK_TORCH_TENSOR_DTYPE(a, torch::kHalf)

@@ -43,6 +43,10 @@ void cublas_tensor_op_nn(half *A, half *B, half *C,  size_t M, size_t N, size_t 
   static half alpha = 1.0;
   static half beta = 0.0;
 
+  if (g_handle == nullptr) {
+    init_cublas_handle();
+  }
+
   cublasGemmEx(g_handle, 
                CUBLAS_OP_N, 
                CUBLAS_OP_N, 
@@ -61,6 +65,10 @@ void cublas_tensor_op_tn(half *A, half *B, half *C,  size_t M, size_t N, size_t 
 
   static half alpha = 1.0;
   static half beta = 0.0;
+
+  if (g_handle == nullptr) {
+    init_cublas_handle();
+  }
 
   cublasGemmEx(g_handle, 
                CUBLAS_OP_T, 

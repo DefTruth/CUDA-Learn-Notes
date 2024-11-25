@@ -48,7 +48,7 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_rr(torch::Tensor a, torch:
 // from hgemm_mma_stage_tn.cu
 void hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn(torch::Tensor a, torch::Tensor b, torch::Tensor c, int stages, bool swizzle, int swizzle_stride);
 // from hgemm_mma_stage_tn_cute.cu
-void hgemm_mma_stages_tn_cute(torch::Tensor a, torch::Tensor b, torch::Tensor c, int stages, bool swizzle, int swizzle_stride);
+void hgemm_mma_stages_block_swizzle_tn_cute(torch::Tensor a, torch::Tensor b, torch::Tensor c, int stages, bool swizzle, int swizzle_stride);
 
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
@@ -96,6 +96,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   // TN: A row major MxK, B col major NxK, C row major MxN
   TORCH_BINDING_COMMON_EXTENSION(hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn)
   // TN: cute hgemm with smem & block swizzle
-  TORCH_BINDING_COMMON_EXTENSION(hgemm_mma_stages_tn_cute)
+  TORCH_BINDING_COMMON_EXTENSION(hgemm_mma_stages_block_swizzle_tn_cute)
 }
 

@@ -58,8 +58,7 @@ print(args)
 pretty_print_line()
 
 
-hgemm = try_load_hgemm_library(force_build=args.force_build, 
-                               verbose=args.verbose)
+hgemm = try_load_hgemm_library(force_build=args.force_build, verbose=args.verbose)
 
 MAX_TFLOPS = -1
 STATIS_INFO: dict[str, list[float]] = {}
@@ -69,14 +68,12 @@ CUBLAS_TOTAL_TFLOPS = 0
 CUBLAS_TN_TOTAL_TFLOPS = 0
 
 
-def make_block_swizzle_stride(N: int, K: int):
+def make_block_swizzle_stride(N: int, K: int, swizzle_factor: float = None):
     # make swizzle stride as N/8,N/4,N/2 and multiples of 256
-    if args.swizzle_factor is None:
+    if swizzle_factor is None:
         swizzle_factor = 0.5 if N <= 4096 else 0.25
         if all((N >= 14848, K > 8192, N % 8 == 0)):
             swizzle_factor = 0.125
-    else:
-        swizzle_factor = args.swizzle_factor
 
     swizzle_stride = int(N * swizzle_factor)
     swizzle_stride = swizzle_stride if swizzle_stride >= 256 else 1
@@ -100,7 +97,7 @@ def run_benchmark(perf_func: callable,
     K = a.size(1)
     N = b.size(1) # TN still has shape [K,N]
     if swizzle:
-        swizzle_stride = make_block_swizzle_stride(N, K)
+        swizzle_stride = make_block_swizzle_stride(N, K, args.swizzle_factor)
         swizzle = swizzle if swizzle_stride >= 256 else False
     else:
         swizzle_stride = 1 # means no thread block swizzle
@@ -110,6 +107,10 @@ def run_benchmark(perf_func: callable,
 
     if out is not None: 
         out.fill_(0)      
+    
+    if "cublas" in tag:
+        hgemm.init_cublas_handle()
+
     if out is not None:
         for i in range(warmup):
             if stages > 1:
@@ -177,6 +178,9 @@ def run_benchmark(perf_func: callable,
                 CUBLAS_TOTAL_TFLOPS += TFLOPS
 
     torch.cuda.synchronize()
+    if "cublas" in tag:
+        hgemm.destroy_cublas_handle()
+
     del out_flat
     out_flat = None
     gc.collect()
@@ -262,6 +266,7 @@ def plot_tflops():
         save_path = f"{args.save_dir}/{device_name}_{args.save_tag}.png"
     else:
         save_path = f"{args.save_dir}/{device_name}.png"
+    os.makedirs(args.save_dir, exist_ok=True)
     plt.savefig(save_path, dpi=300)
     pretty_print_line(f"plot hgemm TFLOPS done, saved as {save_path}")
 
@@ -383,24 +388,20 @@ for (M, N, K) in zip(Ms, Ns, Ks):
         run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b_col_major, "tn(mma2x4+warp4x4+stage3+dsmem+swizzle<block>)", c, stages=3, swizzle=True)
         run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b_col_major, "tn(mma2x4+warp4x4+stage2+dsmem+swizzle<block>)", c, stages=2, swizzle=True)
     if args.enable_cute_tn:
-        run_benchmark(hgemm.hgemm_mma_stages_tn_cute, a, b_col_major, "tn(cute+stage4+swizzle<smem>)", c, stages=4)
-        run_benchmark(hgemm.hgemm_mma_stages_tn_cute, a, b_col_major, "tn(cute+stage3+swizzle<smem>)", c, stages=3)
-        run_benchmark(hgemm.hgemm_mma_stages_tn_cute, a, b_col_major, "tn(cute+stage2+swizzle<smem>)", c, stages=2)
-        run_benchmark(hgemm.hgemm_mma_stages_tn_cute, a, b_col_major, "tn(cute+stage4+swizzle<smem+block>)", c, stages=4, swizzle=True)
-        run_benchmark(hgemm.hgemm_mma_stages_tn_cute, a, b_col_major, "tn(cute+stage3+swizzle<smem+block>)", c, stages=3, swizzle=True)
-        run_benchmark(hgemm.hgemm_mma_stages_tn_cute, a, b_col_major, "tn(cute+stage2+swizzle<smem+block>)", c, stages=2, swizzle=True)
+        run_benchmark(hgemm.hgemm_mma_stages_block_swizzle_tn_cute, a, b_col_major, "tn(cute+stage4+swizzle<smem>)", c, stages=4)
+        run_benchmark(hgemm.hgemm_mma_stages_block_swizzle_tn_cute, a, b_col_major, "tn(cute+stage3+swizzle<smem>)", c, stages=3)
+        run_benchmark(hgemm.hgemm_mma_stages_block_swizzle_tn_cute, a, b_col_major, "tn(cute+stage2+swizzle<smem>)", c, stages=2)
+        run_benchmark(hgemm.hgemm_mma_stages_block_swizzle_tn_cute, a, b_col_major, "tn(cute+stage4+swizzle<smem+block>)", c, stages=4, swizzle=True)
+        run_benchmark(hgemm.hgemm_mma_stages_block_swizzle_tn_cute, a, b_col_major, "tn(cute+stage3+swizzle<smem+block>)", c, stages=3, swizzle=True)
+        run_benchmark(hgemm.hgemm_mma_stages_block_swizzle_tn_cute, a, b_col_major, "tn(cute+stage2+swizzle<smem+block>)", c, stages=2, swizzle=True)
     # TN layout: cublas
     if not args.disable_cublas_tn and any((args.enable_mma_tn, args.enable_cute_tn)):
-        hgemm.init_cublas_handle()
         run_benchmark(hgemm.hgemm_cublas_tensor_op_tn, a, b_col_major, "tn(cublas)", c)
-        hgemm.destroy_cublas_handle()
     # NN layout: cublas/torch
     if (not args.disable_cublas) and any((
         args.enable_mma, args.enable_mma_all, args.enable_wmma, args.enable_wmma_all, 
         args.enable_cuda, args.enable_cuda_all, args.enable_torch)):
-        hgemm.init_cublas_handle()
         run_benchmark(hgemm.hgemm_cublas_tensor_op_nn, a, b, "(cublas)", c)
-        hgemm.destroy_cublas_handle()
     if args.enable_torch:
         run_benchmark(partial(torch.matmul, out=c), a, b, "(torch)")
     torch.cuda.synchronize()
