@@ -16,28 +16,28 @@
 
 <div id="contents"></div>  
 
-📚 **Modern CUDA Learn Notes with PyTorch** for Beginners: It includes **Tensor/CUDA Cores, TF32/F16/BF16/F8**, [📖150+ CUDA Kernels🔥🔥](#cuda-kernel) with PyTorch bindings, [📖30+ LLM/VLM🔥](#my-blogs-part-1), [📖40+ CV/C++...🔥](#my-blogs-part-2), [📖50+ CUDA/CuTe...🔥](#other-blogs) Blogs and [📖toy-hgemm library🔥🔥](./kernels/hgemm) which can achieve the performance of **cuBLAS**, check [📖HGEMM Supported Matrix👇](#hgemm-sgemm) for more details. Welcome to 🌟👆🏻star this repo to support me, many thanks ~ 🎉🎉
+📚 **Modern CUDA Learn Notes with PyTorch** for Beginners: It includes **Tensor/CUDA Cores, TF32/F16/BF16/F8**, [📖150+ CUDA Kernels🔥🔥](#cuda-kernel) with PyTorch bindings, [📖30+ LLM/VLM🔥](#my-blogs-part-1), [📖40+ CV/C++...🔥](#my-blogs-part-2), [📖50+ CUDA/CuTe...🔥](#other-blogs) Blogs and [📖toy-hgemm library⚡️⚡️](./kernels/hgemm) which can achieve `98%~100%` performance of **cuBLAS**, check [📖HGEMM Supported Matrix👇](#hgemm-sgemm) for techs details. Welcome to 🌟👆🏻star this repo to support me, many thanks ~ 🎉🎉
 
 <div id="hgemm-sgemm"></div>  
 
 <div align='center'>
-  <img src='https://github.com/user-attachments/assets/71927ac9-72b3-4ce9-b0e2-788b5885bc99' height="150px" width="267px">
-  <img src='https://github.com/user-attachments/assets/05ef4f5e-d999-48ea-b58e-782cffb24e85' height="150px" width="267px">
-  <img src='https://github.com/user-attachments/assets/9472e970-c083-4b31-9252-3eeecc761078' height="150px" width="267px">
+  <img src='https://github.com/user-attachments/assets/71927ac9-72b3-4ce9-b0e2-788b5885bc99' height="170px" width="270px">
+  <img src='https://github.com/user-attachments/assets/05ef4f5e-d999-48ea-b58e-782cffb24e85' height="170px" width="270px">
+  <img src='https://github.com/user-attachments/assets/9472e970-c083-4b31-9252-3eeecc761078' height="170px" width="270px">
 </div> 
 
-Currently, on NVIDIA L20, RTX 4090 and RTX 3080 Laptop, compared with cuBLAS's default Tensor Cores math algorithm `CUBLAS_GEMM_DEFAULT_TENSOR_OP`, the `HGEMM (WMMA/MMA)` implemented in this repo (`blue`🔵) can achieve `99%~100%+` of its (`orange`🟠) performance. Please check [toy-hgemm library🔥🔥](./kernels/hgemm) for more details.
+Currently, on NVIDIA L20, RTX 4090 and RTX 3080 Laptop, compared with cuBLAS's default Tensor Cores math algorithm `CUBLAS_GEMM_DEFAULT_TENSOR_OP`, the `HGEMM (WMMA/MMA/CuTe)` implemented in this repo (`blue`🔵) can achieve `98%~100%` of its (`orange`🟠) performance. Please check [toy-hgemm library⚡️⚡️](./kernels/hgemm) for more details.
 
-|CUDA Cores|Sliced K(Loop over K)|Tile Block|Tile Thread|
+|CUDA Cores|Sliced K (Loop over K)|Tile Block (BMxBK)|Tile Thread (t 8x8)|
 |:---:|:---:|:---:|:---:|
 |✔️|✔️|✔️|✔️|
-|WMMA(m16n16k16)|MMA(m16n8k16)|Pack LDST(128 bits)|SMEM Padding|
+|WMMA (m16n16k16)|MMA (m16n8k16)|Pack LDST (128 bits)|SMEM Padding|
 |✔️|✔️|✔️|✔️|
-|Copy Async|Tile MMA(More Threads)|Tile Warp(More Values)|Multi Stages|  
+|Copy Async|Tile MMA (More Threads)|Tile Warp (More Values)|Multi Stages (2/3/4)|  
 |✔️|✔️|✔️|✔️|
-|Reg Double Buffers|Block Swizzle|Warp Swizzle|SMEM Swizzle(CuTe)|
+|Reg Double Buffers|Block Swizzle|Warp Swizzle|SMEM Swizzle (CuTe)|
 |✔️|✔️|✔️|✔️|
-|Collective Store(Warp Shfl)|Row Major(NN)|Col Major(TN)|SGEMM F32/TF32|
+|Collective Store (Warp Shfl)|Row Major (NN)|Col Major (TN)| SGEMM FP32/TF32|
 |✔️|✔️|✔️|✔️|
 
 ## ©️Citations🎉🎉

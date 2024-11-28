@@ -184,6 +184,8 @@ int main(int argc, char *argv[]) {
       total_sec += this_sec;
     }
 
+    // 1 TFLOPS = 10^12 FLOPS
+    // ref: https://imgtec.eetrend.com/blog/2021/100062210.html.
     double avg_sec = total_sec / outer_repeat;
     double avg_Tflops = ((double)M) * N * K * 2 * 1e-12 / avg_sec;
 

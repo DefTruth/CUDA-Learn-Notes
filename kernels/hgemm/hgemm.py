@@ -136,8 +136,8 @@ def run_benchmark(perf_func: callable,
     torch.cuda.synchronize()
 
     end = time.time()
-    total_time = (end - start) * 1000 # ms
-    mean_time = total_time / iters
+    total_time_secs = (end - start) # ms
+    mean_time_secs = total_time_secs / iters
     out_info = f"{tag}"
     out_flat = out.flatten()
     out_val_first = out_flat[:2].detach().cpu().numpy().tolist()
@@ -145,8 +145,11 @@ def run_benchmark(perf_func: callable,
     out_val = [out_val_first[0], out_val_last[-1]]
     out_val = [round(v, 8) for v in out_val]
     out_val = [f"{v:<12}"[:10] for v in out_val]
-    TFLOPS = (2 * M * N * K) * 1e-9 / (mean_time)
-    mean_time = str(f"{mean_time:<12}")[:8]
+    # 1 TFLOPS = 10^12 FLOPS
+    # ref: https://imgtec.eetrend.com/blog/2021/100062210.html.
+    TFLOPS = (2 * M * N * K) * 1e-12 / (mean_time_secs)
+    mean_time_ms = mean_time_secs * 1000
+    mean_time_ms = str(f"{mean_time_ms:<12}")[:8] # ms
     swizzle_stride = 'NOOP' if swizzle_stride == 1 else swizzle_stride
 
     # caculate TFLOPS improved.
@@ -157,11 +160,11 @@ def run_benchmark(perf_func: callable,
         else:
             improve = 0
         MAX_TFLOPS = TFLOPS
-        print(f"{out_info:>50}: {out_val}, time:{mean_time}ms, "
+        print(f"{out_info:>50}: {out_val}, time:{mean_time_ms}ms, "
               f"swizzle<block>: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}(+{improve:.2f}%)")
     else:
         if not only_show_improved or "cublas" in tag:
-            print(f"{out_info:>50}: {out_val}, time:{mean_time}ms, "
+            print(f"{out_info:>50}: {out_val}, time:{mean_time_ms}ms, "
                   f"swizzle<block>: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}")
     if show_matrix: print(out)
     if args.plot_flops:
@@ -186,7 +189,7 @@ def run_benchmark(perf_func: callable,
     gc.collect()
     torch.cuda.empty_cache()
     time.sleep(args.sleep_duration)
-    return out, mean_time
+    return out, mean_time_ms
 
 
 def get_topk_tflops():
