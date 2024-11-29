@@ -302,7 +302,7 @@ B = torch.randn((MAX_K, MAX_N), dtype=torch.half, device="cuda").cuda()
 C = torch.randn((MAX_M, MAX_N), dtype=torch.half, device="cuda").cuda()
 torch.cuda.synchronize()
 end = time.time()
-pretty_print_line(f"Allocate buffers for fast profiling done, time: {(end - start)} s")
+pretty_print_line(f"Allocate buffers for fast profiling done, time: {(end - start) * 1000:.7f} ms")
 
 PERF_COUNT = 0
 for (M, N, K) in zip(Ms, Ns, Ks):

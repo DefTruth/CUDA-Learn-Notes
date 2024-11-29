@@ -98,10 +98,12 @@ def pretty_print_line(m: str = "", sep: str = "-", width: int = 150):
     print(pretty_line)
 
 
-def build_hgemm_lib_from_sources(verbose: bool = False):
+def build_from_sources(verbose: bool = False):
+    torch_arch_list_env = os.environ.get("TORCH_CUDA_ARCH_LIST", None)         
     # Load the CUDA kernel as a python module
     pretty_print_line(f"Loading hgemm lib on device: {get_device_name()}, "
-                      f"capability: {get_device_capability()}")
+                      f"capability: {get_device_capability()}, "
+                      f"Arch ENV: {torch_arch_list_env}")
     return load(name='hgemm_lib', sources=get_build_sources(),
                 extra_cuda_cflags=get_build_cuda_cflags(), 
                 extra_cflags=['-std=c++17'], 
@@ -119,10 +121,10 @@ def try_load_hgemm_library(force_build: bool = False, verbose: bool = False):
                               f"from source or run <bash tools/install.sh>")
             pretty_print_line(f"Also may need export LD_LIBRARY_PATH="
                               f"PATH-TO/torch/lib:$LD_LIBRARY_PATH")
-            hgemm = build_hgemm_lib_from_sources(verbose=verbose)
+            hgemm = build_from_sources(verbose=verbose)
     else:
         pretty_print_line("Force hgemm lib build from sources")
-        hgemm = build_hgemm_lib_from_sources(verbose=verbose)
+        hgemm = build_from_sources(verbose=verbose)
 
     return hgemm
 

@@ -57,9 +57,7 @@ __global__ void hgemm_mma_stages_block_swizzle_tn_cute_kernel(
   // dispatch TileA/TileB/TileC mma tensor into thread fragment via partition
   TiledMMA tiled_mma;
   auto thr_mma = tiled_mma.get_slice(threadIdx.x);
-  // auto tCsA = thr_mma.partition_A(sA); // (MMA,MMA_M,MMA_K,kStage)
-  // auto tCsB = thr_mma.partition_B(sB); // (MMA,MMA_N,MMA_K,kStage)
-  auto tCgD = thr_mma.partition_C(gD);    // (MMA, MMA_M, MMA_N)
+  auto tCgD = thr_mma.partition_C(gD);    // (MMA,MMA_M, MMA_N)
 
   auto tCrA = thr_mma.partition_fragment_A(gA(_, _, 0)); // (MMA, MMA_M, MMA_K)
   auto tCrB = thr_mma.partition_fragment_B(gB(_, _, 0)); // (MMA, MMA_N, MMA_K)
@@ -216,9 +214,11 @@ void launch_hgemm_mma_stages_block_swizzle_tn_cute(const T *a,
   auto BN = Int<256>{};
   auto BK = Int<32>{};
   auto KStage = Int<Stages>{}; // default 2
-  auto kSmemLayoutCBatch = Int<4>{};
+  auto kSmemLayoutCBatch = Int<4>{}; // namely, stages.
 
-  // Define the smem layouts
+  // Define the smem layouts, Swizzle<3, 3, 3> and 
+  // Swizzle<2, 3, 3> will get the same results.
+  // reference: https://zhuanlan.zhihu.com/p/671419093
   using SmemLayoutAtom = decltype(
     composition(
       Swizzle<3, 3, 3>{}, 
@@ -234,35 +234,54 @@ void launch_hgemm_mma_stages_block_swizzle_tn_cute(const T *a,
     tile_to_shape(SmemLayoutAtom{}, 
                   make_shape(Int<BN>{}, Int<BK>{}, Int<KStage>{}))
   ); // (m,n) -> smem_idx
+#ifdef CUTE_HGEMM_DEBUG  
+  print(SmemLayoutA{}); print("\n");
+  print(SmemLayoutB{}); print("\n");
+#endif
   
   // mma
   using mma_op = SM80_16x8x16_F16F16F16F16_TN;
   using mma_traits = MMA_Traits<mma_op>;
   using mma_atom = MMA_Atom<mma_traits>;
-  static constexpr int kMmaEURepeatM = 2;
-  static constexpr int kMmaEURepeatN = 2;
-  static constexpr int kMmaEURepeatK = 1;
+  static constexpr int kMmaEURepeatM = 2; // MMA repeat 2 times across M
+  static constexpr int kMmaEURepeatN = 2; // MMA repeat 2 times across N
+  static constexpr int kMmaEURepeatK = 1; // MMA no repeat across K
 
-  using mma_atom_shape = mma_traits::Shape_MNK;
-  static constexpr int kMmaPM = 1 * kMmaEURepeatM * get<0>(mma_atom_shape{});
-  static constexpr int kMmaPN = 2 * kMmaEURepeatN * get<1>(mma_atom_shape{});
-  static constexpr int kMmaPK = 1 * kMmaEURepeatK * get<2>(mma_atom_shape{});
+  using mma_atom_shape = mma_traits::Shape_MNK; // M,N,K 16,8,16
+  static constexpr int kMmaPM = 1 * kMmaEURepeatM * get<0>(mma_atom_shape{}); // 1*2*16=32
+  static constexpr int kMmaPN = 2 * kMmaEURepeatN * get<1>(mma_atom_shape{}); // 2*2*8 =32
+  static constexpr int kMmaPK = 1 * kMmaEURepeatK * get<2>(mma_atom_shape{}); // 1*1*16=16
+  // TiledMMA, more threads, MMAThrLayout(2,2,1), 4 MMA = 4 warps = 32x4 threads.
   using MMA_EU_RepeatT = decltype(make_layout(make_shape(
     Int<kMmaEURepeatM>{}, Int<kMmaEURepeatN>{}, Int<kMmaEURepeatK>{})));
+  // TiledMMA, more values, Permutations(32,32,16)
   using MMA_P_T = Tile<Int<kMmaPM>, Int<kMmaPN>, Int<kMmaPK>>;
   using MMA = decltype(make_tiled_mma(mma_atom{}, MMA_EU_RepeatT{}, MMA_P_T{}));
+#ifdef CUTE_HGEMM_DEBUG  
+  print(MMA{}); print("\n");
+#endif
   
   // copy from global memory to shared memory
   using g2s_copy_op = SM80_CP_ASYNC_CACHEGLOBAL<cute::uint128_t>;
   using g2s_copy_traits = Copy_Traits<g2s_copy_op>;
   using g2s_copy_atom = Copy_Atom<g2s_copy_traits, T>;
+  // Make TiledCopy according to ThrLayout and ValLayout.
+  // 32x4 threads, each thread load 1x8 values (128 bits) once ?
+  //   Produce a TiledCopy from logical thread and values layouts.
+  // The thread and value layouts map coordinates to thr_idx and val_idx.
+  //   The product of these layouts is taken to produce the TV layout and the Tiler.
+  // Useful when threads and values need very specific mappings onto coordinates
+  //   in the target tensors.
   using G2SCopyA =
     decltype(make_tiled_copy(g2s_copy_atom{},
              make_layout(make_shape(Int<32>{}, Int<4>{}), // Thr layout 32x4 k-major
                          make_stride(Int<4>{}, Int<1>{})),
              make_layout(make_shape(Int<1>{}, Int<8>{})))); // Val layout 1x8
   using G2SCopyB = G2SCopyA;
-
+#ifdef CUTE_HGEMM_DEBUG  
+  print("G2SCopyA: "); print(G2SCopyA{}); print("\n");
+  print("G2SCopyB: "); print(G2SCopyB{}); print("\n");
+#endif
   // copy from shared memory to register
   // use mma tiled ,so no tiled here
   using s2r_copy_op = SM75_U32x4_LDSM_N;
@@ -272,12 +291,15 @@ void launch_hgemm_mma_stages_block_swizzle_tn_cute(const T *a,
   using S2RCopyAtomB = s2r_copy_atom;
 
   // epilogue: register to global via shared memory
+  // Swizzle<3, 3, 3>=BxMxS=(2^3)*(2^3)*(2^3)=512 values=1024 bytes.
+  // reference: https://zhuanlan.zhihu.com/p/671419093
   using SmemLayoutAtomC = decltype(
     composition(
       Swizzle<3, 3, 3>{}, 
-      make_layout(make_shape(Int<kMmaPM>{}, Int<kMmaPN>{}), 
+      make_layout(make_shape(Int<kMmaPM>{}, Int<kMmaPN>{}), // 32*32
                   make_stride(Int<kMmaPN>{}, Int<1>{})))
     );
+  // kSmemLayoutCBatch=4, 32x32x4=4096 values=8192 bytes
   using SmemLayoutC = decltype(
     tile_to_shape(
       SmemLayoutAtomC{}, 
@@ -289,6 +311,17 @@ void launch_hgemm_mma_stages_block_swizzle_tn_cute(const T *a,
     size<0>(SmemLayoutA{}) * size<1>(SmemLayoutA{}) >= size(SmemLayoutC{}),
     "C shared memory request is large than A's one pipe"
   );
+#ifdef CUTE_HGEMM_DEBUG  
+  print(SmemLayoutC{}); print("\n");
+  static constexpr int tmp_sizeC   = size(SmemLayoutC{});
+  static constexpr int tmp_sizeA_0 = size<0>(SmemLayoutA{});
+  static constexpr int tmp_sizeA_1 = size<1>(SmemLayoutA{});
+  static constexpr int tmp_sizeA = tmp_sizeA_0 * tmp_sizeA_1;
+  print("size SmemLayoutC: %d", tmp_sizeC);     print("\n");
+  print("size SmemLayoutA: %d", tmp_sizeA);     print("\n");
+  print("size 0 SmemLayoutA: %d", tmp_sizeA_0); print("\n");
+  print("size 1 SmemLayoutA: %d", tmp_sizeA_1); print("\n");
+#endif 
 
   using R2SCopyAtomC = Copy_Atom<UniversalCopy<int>, T>;
 
@@ -312,6 +345,8 @@ void launch_hgemm_mma_stages_block_swizzle_tn_cute(const T *a,
   dim3 grid(BX, BY, BZ);
 
   // C_shm is shared with A_shm and B_shm
+  // we don't allocate new smem for C_shm.
+  // (128 * 32 * 2) * 2 + (256 * 32 * 2) * 2 = 49152 bytes, stages=2
   static constexpr int shm_size_AB =
     cute::cosize(SmemLayoutA{}) + cute::cosize(SmemLayoutB{});
   static constexpr int shm_size_C = cute::cosize(SmemLayoutC{});
@@ -319,6 +354,10 @@ void launch_hgemm_mma_stages_block_swizzle_tn_cute(const T *a,
     cute::max(shm_size_AB, shm_size_C) * sizeof(T);
 
   int shm_size = kShmSize;
+#ifdef CUTE_HGEMM_DEBUG 
+  print("shm_size: %d bytes, shm_size_AB: %d bytes, shm_size_C: %d bytes\n", 
+         shm_size, shm_size_AB * (int) sizeof(T), shm_size_C * (int) sizeof(T));
+#endif
 
   cudaFuncSetAttribute(
     hgemm_mma_stages_block_swizzle_tn_cute_kernel<
@@ -369,8 +408,11 @@ void launch_hgemm_mma_stages_block_swizzle_tn_cute(const T *a,
 int main() {
   using T = cute::half_t;
   using namespace cute;
-
+#ifdef CUTE_HGEMM_DEBUG
+  const int test_num = 1;
+#else
   const int test_num = 64;
+#endif
   int M_list[test_num];
   int N_list[test_num];
   int K_list[test_num];
@@ -381,11 +423,10 @@ int main() {
     K_list[i] = (i + 1) * 256;
   }
 
-  const int outer_repeat = 10, inner_repeat = 1;
   const int thread_block_swizzle_stride = 2048; // thread block swizzle stride
-
   printf("ALGO = CuTe HGEMM, TN, STAGES=2, SMEM SWIZZLE=<3, 3, 3>, BLOCK SWIZZLE=2048\n");
-  for (int j = 0; j < 5; j++) {
+  int check_num = test_num > 5 ? 5 : 1;
+  for (int j = 0; j < check_num; j++) {
     int M = M_list[j], N = N_list[j], K = K_list[j];
     float max_error = gemm_error_check_tn_swizzle<T>(
       launch_hgemm_mma_stages_block_swizzle_tn_cute<T, 2, true>, 
@@ -394,6 +435,8 @@ int main() {
     printf("Max Error = %f\n", max_error);
   }
 
+#ifndef CUTE_HGEMM_DEBUG
+  const int outer_repeat = 10, inner_repeat = 1;
   for (int j = 0; j < test_num; j++) {
     int M = M_list[j], N = N_list[j], K = K_list[j];
  
@@ -419,6 +462,7 @@ int main() {
     printf("Time = %12.8lf %12.8lf %12.8lf s, ", min_sec, avg_sec, max_sec);
     printf("AVG Performance = %10.4lf Tflops\n", avg_Tflops);
   }
+#endif
 
   return 0;
 }
