@@ -600,9 +600,15 @@ online_safe_softmax_f32x4_pack_per_token_kernel<(H/4)><<<grid, block>>>(  \
   case 1024:                                                                          \
     LANUCH_ONLINE_SOFTMAX_F32X4_PACK_PER_TOKEN_KERNEL(1024)                           \
     break;                                                                            \
+  case 2048:                                                                          \
+    LANUCH_ONLINE_SOFTMAX_F32X4_PACK_PER_TOKEN_KERNEL(2048)                           \
+    break;                                                                            \
+  case 4096:                                                                          \
+    LANUCH_ONLINE_SOFTMAX_F32X4_PACK_PER_TOKEN_KERNEL(4096)                           \
+    break;                                                                            \
   default:                                                                            \
     throw std::runtime_error(                                                         \
-      "only support H: 128/256/512/1024; raise error if warp_num*4 > H");             \
+      "only support H: 128/256/.../4096;");                                           \
     break;                                                                            \
   } 
 
