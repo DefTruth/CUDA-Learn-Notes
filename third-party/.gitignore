@@ -8,5 +8,7 @@ build
 *.whl
 tmp
 bin
+output
+__pycache__
 
 
