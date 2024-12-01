@@ -28,7 +28,7 @@
 
 Currently, on NVIDIA L20, RTX 4090 and RTX 3080 Laptop, compared with cuBLAS's default Tensor Cores math algorithm `CUBLAS_GEMM_DEFAULT_TENSOR_OP`, the `HGEMM (WMMA/MMA/CuTe)` implemented in this repo (`blue`🔵) can achieve `98%~100%` of its (`orange`🟠) performance. Please check [toy-hgemm library⚡️⚡️](./kernels/hgemm) for more details.
 
-![toy-hgemm-library](https://github.com/user-attachments/assets/4a2114e0-0341-4996-ac51-9b756ab13738)
+![toy-hgemm-librar](https://github.com/user-attachments/assets/962bda14-b494-4423-b8eb-775da9f5503d)
 
 |CUDA Cores|Sliced K (Loop over K)|Tile Block (BMxBK)|Tile Thread (t 8x8)|
 |:---:|:---:|:---:|:---:|
