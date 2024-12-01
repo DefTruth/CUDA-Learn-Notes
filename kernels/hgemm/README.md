@@ -1,4 +1,4 @@
-## ⚡️⚡️Toy-HGEMM Library: Achieve the performance of cuBLAS
+# ⚡️⚡️Toy-HGEMM Library: Achieve the performance of cuBLAS
 
 ![toy-hgemm-library](https://github.com/user-attachments/assets/4a2114e0-0341-4996-ac51-9b756ab13738)
 
