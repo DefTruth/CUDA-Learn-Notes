@@ -9,7 +9,10 @@ from typing import Optional
 torch.set_grad_enabled(False)
 # Load the CUDA kernel as a python module
 lib = load(name='flash_attn_lib', 
-           sources=['flash_attn.cu', 'flash_attn_mma.cu', 'flash_attn.cc'], 
+           sources=[
+               './naive/flash_attn_cuda.cu',
+               './mma/flash_attn_mma_old.cu',
+                 'pybind/flash_attn.cc'], 
            extra_cuda_cflags=[
                "-O3",
                 "-U__CUDA_NO_HALF_OPERATORS__",
@@ -33,7 +36,7 @@ def naive_attn(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor):
 def run_benchmark(perf_func: callable, 
                   q: torch.Tensor, k: torch.Tensor, v: torch.Tensor,
                   tag: str, out: Optional[torch.Tensor] = None, 
-                  warmup: int = 10, iters: int = 100,
+                  warmup: int = 5, iters: int = 10,
                   show_all: bool = False):
     if out is not None: 
         out.fill_(0)      
@@ -67,7 +70,7 @@ def run_benchmark(perf_func: callable,
 
 Bs = [8, 16]
 Hs = [8, 16]
-Ns = [256, 512, 1024]
+Ns = [1024, 2048, 4096]
 Ds = [64, 128] # only support [64, 128] now
 # batch_size, n_head, seq_len, head_dim (B,nh,N,d)
 BHNDs = [(B, H, N, D) for B in Bs for H in Hs for N in Ns for D in Ds]
@@ -77,25 +80,13 @@ print(" "* 25 + "B: batch_size, H: n_head, N: seq_len, D: head_dim")
 for (B, H, N, D) in BHNDs:
     print("-" * 100)
     print(" " * 40 + f"B={B}, H={H}, N={N}, D={D}")
-    q = torch.randn(B, H, N, D).float().cuda().contiguous()
-    k = torch.randn(B, H, N, D).float().cuda().contiguous()
-    v = torch.randn(B, H, N, D).float().cuda().contiguous()
-    o = torch.randn(B, H, N, D).float().cuda().contiguous()
-    if D <= 64:
-        run_benchmark(lib.flash_attn_1_fwd_f32, 
-                      q, k, v, "FA1f32", o)
-        run_benchmark(naive_attn,                  
-                      q, k, v, "f32_th(naive)")
-    
-    if D in (64, 128):
-        print("-" * 100)
-        # using fp16 Tesor Core MMA instruction
-        q_f16 = q.half().contiguous()
-        k_f16 = k.half().contiguous()
-        v_f16 = v.half().contiguous()
-        o_f16 = o.half().contiguous()
-        run_benchmark(lib.flash_attn_2_fwd_f16_mma_m16n8k16, 
-                      q_f16, k_f16, v_f16, "FA2MMAf16", o_f16)
-        run_benchmark(naive_attn, 
-                      q_f16, k_f16, v_f16, "f16_th(naive)")
+    q = torch.randn(B, H, N, D, device="cuda", dtype=torch.half).contiguous()
+    k = torch.randn(B, H, N, D, device="cuda", dtype=torch.half).contiguous()
+    v = torch.randn(B, H, N, D, device="cuda", dtype=torch.half).contiguous()
+    o = torch.randn(B, H, N, D, device="cuda", dtype=torch.half).contiguous()
+    torch.cuda.synchronize()
+  
+    # using fp16 Tesor Core MMA instruction
+    run_benchmark(lib.flash_attn_2_fwd_f16_mma_m16n8k16, q, k, v, "FA2MMAf16", o)
+    run_benchmark(naive_attn, q, k, v, "f16_th(naive)")
     print("-" * 100)

@@ -1,15 +1,30 @@
-# ⚡️⚡️Toy-HGEMM Library: Achieve the performance of cuBLAS
+## ⚡️⚡️Toy-HGEMM Library: Achieve the performance of cuBLAS
 
-|CUDA Cores|Sliced K(Loop over K)|Tile Block(BMxBN)|Tile Thread(t 8x8)|
+![toy-hgemm-library](https://github.com/user-attachments/assets/4a2114e0-0341-4996-ac51-9b756ab13738)
+
+[📖Toy-HGEMM Library⚡️⚡️](./kernels/hgemm) is library that write HGEMM kernels from scratch using Tensor Cores with WMMA, MMA PTX and CuTe API, thus, can achieve `98%~100%` performance of **cuBLAS**. The codes here are sources from 📖[CUDA-Learn-Notes](https://github.com/DefTruth/CUDA-Learn-Notes)  ![](https://img.shields.io/github/stars/DefTruth/CUDA-Learn-Notes.svg?style=social) as a story, please checkout 📖[CUDA-Learn-Notes](https://github.com/DefTruth/CUDA-Learn-Notes) for latest updates.
+
+<div id="hgemm-sgemm"></div>  
+
+<div align='center'>
+  <img src='https://github.com/user-attachments/assets/71927ac9-72b3-4ce9-b0e2-788b5885bc99' height="170px" width="270px">
+  <img src='https://github.com/user-attachments/assets/05ef4f5e-d999-48ea-b58e-782cffb24e85' height="170px" width="270px">
+  <img src='https://github.com/user-attachments/assets/9472e970-c083-4b31-9252-3eeecc761078' height="170px" width="270px">
+</div> 
+
+
+Currently, on NVIDIA L20, RTX 4090 and RTX 3080 Laptop, compared with cuBLAS's default Tensor Cores math algorithm `CUBLAS_GEMM_DEFAULT_TENSOR_OP`, the `HGEMM (WMMA/MMA/CuTe)` implemented in this repo (`blue`🔵) can achieve `98%~100%` of its (`orange`🟠) performance. Please check [toy-hgemm library⚡️⚡️](./kernels/hgemm) for more details.
+
+|CUDA Cores|Sliced K (Loop over K)|Tile Block (BMxBN)|Tile Thread (t 8x8)|
 |:---:|:---:|:---:|:---:|
 |✔️|✔️|✔️|✔️|
-|WMMA(m16n16k16)|MMA(m16n8k16)|Pack LDST(128 bits)|SMEM Padding|
+|WMMA (m16n16k16)|MMA (m16n8k16)|Pack LDS T(pack 128 bits)|SMEM Padding|
 |✔️|✔️|✔️|✔️|
-|Copy Async(cp.async.cg/ca)|Tile MMA(More Threads)|Tile Warp(More Values)|Multi Stages(2/3/4/5)|  
+|Copy Async (cp.async.cg/ca)|Tile MMA (More Threads)|Tile Warp (More Values)|Multi Stages(2/3/4/5)|  
 |✔️|✔️|✔️|✔️|
-|Register Double Buffers|Block Swizzle(Zigzag N)|Warp Swizzle(Zigzag N)|SMEM Swizzle(CUTLASS/CuTe)|
+|Register Double Buffers|Block Swizzle (Zigzag N)|Warp Swizzle (Zigzag N)| SMEM Swizzle (CUTLASS/CuTe)|
 |✔️|✔️|✔️|✔️|
-|Collective Store(Warp Shuffle & Reg Reuse)|Row Major(NN)|Col Major(TN)|SGEMM FP32/TF32|
+|Collective Store (Warp Shuffle & Reg Reuse)|Row Major (NN)|Col Major (TN)|SGEMM FP32/TF32|
 |✔️|✔️|✔️|✔️|
 
 ## 📖 HGEMM CUDA Kernels in Toy-HGEMM Library 🎉🎉 
@@ -69,6 +84,7 @@ void hgemm_mma_stages_block_swizzle_tn_cute(torch::Tensor a, torch::Tensor b, to
 
 本仓库实现的HGEMM可以作为一个python库使用（可选）
 ```bash
+cd kernels/hgemm
 git submodule update --init --recursive --force # 更新cutlass, 必须
 python3 setup.py bdist_wheel && cd dist && python3 -m pip install *.whl # pip uninstall toy-hgemm -y 卸载
 ```
@@ -150,13 +166,6 @@ M N K =  16384  16384  16384, Time =   0.07668429   0.07669371   0.07670784 s, A
 <div id="NV-L20"></div>
 
 
-<!---
-![L20](https://github.com/user-attachments/assets/a0039200-cd9e-4ae6-be13-422fff75dd2b)
-![L20](./NVIDIA_L20.png)
-![NVIDIA_L20_NN+TN](https://github.com/user-attachments/assets/89bac543-7272-44cd-b616-54df8ca23a91)
-
---->
-
 ![NVIDIA_L20_NN+TN+v2](https://github.com/user-attachments/assets/71927ac9-72b3-4ce9-b0e2-788b5885bc99)
 
   
@@ -171,11 +180,6 @@ python3 hgemm.py --cute-tn --mma --plot
 
 在NVIDIA RTX 4090上(FP16 Tensor Cores算力为330 TFLOPS)，WMMA(m16n16k16)性能表现比MMA(m16n8k16)要更好，大分部MNK下，本仓库的实现能达到cuBLAS 95%~99%的性能，某些case能超过cuBLAS。就本仓库的实现而言，在RTX 4090上，大规模矩阵乘(MNK>=8192)，WMMA表现更优，小规模矩阵乘，MMA表现更优。
 
-<!---
-![4090](https://github.com/user-attachments/assets/c7d65fe5-9fb9-49a8-b962-a6c09bcc030a)
-![NVIDIA_GeForce_RTX_4090_NN+TN](https://github.com/user-attachments/assets/d8d7380b-4271-41f6-964a-ac3fa81f7f4c)
-
---->
 
 ![NVIDIA_GeForce_RTX_4090_NN+TN+v4](https://github.com/user-attachments/assets/05ef4f5e-d999-48ea-b58e-782cffb24e85)
 
@@ -189,9 +193,6 @@ python3 hgemm.py --cute-tn --mma --wmma-all --plot
 
 在NVIDIA GeForce RTX 3080 Laptop上测试，使用mma4x4_warp4x4（16 WMMA m16n16k16 ops, warp tile 64x64）以及Thread block swizzle，大部分case能持平甚至超过cuBLAS，使用Windows WSL2 + RTX 3080 Laptop进行测试。
 
-<!--
-![](./bench/NVIDIA_GeForce_RTX_3080_Laptop_GPU_WSL2.png)
--->
 
 ![image](https://github.com/user-attachments/assets/9472e970-c083-4b31-9252-3eeecc761078)
 
@@ -199,11 +200,12 @@ python3 hgemm.py --cute-tn --mma --wmma-all --plot
 python3 hgemm.py --wmma-all --plot
 ```
 
+<details>
+<summary> 🔑️ 性能优化笔记(TODO) ！Click here! </summary>    
 
 ## 📖 性能优化笔记
 
 <div id="opt-docs"></div>  
-
 
 ### PyTorch HGEMM Profile
 
@@ -255,8 +257,6 @@ cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
 
 本仓库实现的HGEMM Double Buffers策略如下：1）主循环从bk = 1 开始，第一次数据加载在主循环之前，最后一次计算在主循环之后，这是pipeline 的特点决定的；2）由于计算和下一次访存使用的Shared Memory不同，因此主循环中每次循环只需要一次__syncthreads()即可，对比非double buffers版本，总共节省了 ((K + BK - 1) / BK) - 1 次block内的同步操作。比如，bk=1时，HFMA计算使用的是s_a[0]和s_b[0]，因此，和s_a[1]和s_b[1]的加载是没有依赖关系的。HFMA计算，从global内存到s_a[1]和s_b[1]和HFMA计算可以并行。s_a[1]和s_b[1]用于加载下一块BK需要的数据到共享内存；3）由于GPU不能向CPU那样支持乱序执行，主循环中需要先将下一次循环计算需要的Gloabal Memory中的数据load 到寄存器，然后进行本次计算，之后再将load到寄存器中的数据写到Shared Memory，这样在LDG指令向Global Memory做load时，不会影响后续HFMA及其它运算指令的 launch 执行，也就达到了Double Buffers的目的，具体代码见[hgemm.cu](./hgemm.cu)。
 
-<details>
-<summary> 🔑️ 更多性能优化笔记(TODO) ！Click here! </summary>    
 
 ### Tile Block
 
@@ -308,7 +308,7 @@ TODO
 
 </details>
 
-## 📖 参考文献 
+## 📖 References 
 
 <div id="ref"></div>  
 
@@ -317,4 +317,10 @@ TODO
 - [Bank Conflict free 的几种方式](https://zhuanlan.zhihu.com/p/722286440)
 - [Using Shared Memory in CUDA C/C++](https://developer.nvidia.com/blog/using-shared-memory-cuda-cc/)
 - [CUDA（三）：通用矩阵乘法：从入门到熟练](https://zhuanlan.zhihu.com/p/657632577)
-
+- [flash-attention-minimal](https://github.com/tspeterkim/flash-attention-minimal)
+- [tiny-flash-attention](https://github.com/66RING/tiny-flash-attention)
+- [cute-gemm](https://github.com/reed-lau/cute-gemm)
+- [cutlass_flash_atten_fp8](https://github.com/weishengying/cutlass_flash_atten_fp8)
+- [cuda_learning](https://github.com/ifromeast/cuda_learning)
+- [cuda_hgemm](https://github.com/Bruce-Lee-LY/cuda_hgemm)
+- [cuda-tensorcore-hgemm](https://github.com/nicolaswilde/cuda-tensorcore-hgemm)
