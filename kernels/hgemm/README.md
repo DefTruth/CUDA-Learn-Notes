@@ -1,5 +1,5 @@
 
-## ⚡️⚡️Toy-HGEMM Library: Achieve the 98%~100% performance of cuBLAS
+# ⚡️⚡️Toy-HGEMM Library: Achieve the 98%~100% performance of cuBLAS
 
 ![toy-hgemm-library](https://github.com/user-attachments/assets/962bda14-b494-4423-b8eb-775da9f5503d)
 
