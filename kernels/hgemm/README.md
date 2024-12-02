@@ -1,8 +1,9 @@
-# ⚡️⚡️Toy-HGEMM Library: Achieve the performance of cuBLAS
+
+## ⚡️⚡️Toy-HGEMM Library: Achieve the 98%~100% performance of cuBLAS
 
 ![toy-hgemm-library](https://github.com/user-attachments/assets/962bda14-b494-4423-b8eb-775da9f5503d)
 
-[📖Toy-HGEMM Library⚡️⚡️](./kernels/hgemm) is library that write HGEMM kernels from scratch using Tensor Cores with WMMA, MMA PTX and CuTe API, thus, can achieve `98%~100%` performance of **cuBLAS**. The codes here are sources from 📖[CUDA-Learn-Notes](https://github.com/DefTruth/CUDA-Learn-Notes)  ![](https://img.shields.io/github/stars/DefTruth/CUDA-Learn-Notes.svg?style=social) as a story, please checkout 📖[CUDA-Learn-Notes](https://github.com/DefTruth/CUDA-Learn-Notes) for latest updates.
+[📖Toy-HGEMM Library⚡️⚡️](./kernels/hgemm) is a library that write many HGEMM kernels from scratch using Tensor Cores with WMMA, MMA PTX and CuTe API, thus, can achieve `98%~100%` performance of **cuBLAS**. The codes here are source from 📖[CUDA-Learn-Notes](https://github.com/DefTruth/CUDA-Learn-Notes)  ![](https://img.shields.io/github/stars/DefTruth/CUDA-Learn-Notes.svg?style=social) and exported as a standalone library, please checkout [CUDA-Learn-Notes](https://github.com/DefTruth/CUDA-Learn-Notes) for latest updates. Welcome to 🌟👆🏻star this repo to support me, thanks ~ 🎉🎉
 
 <div id="hgemm-sgemm"></div>  
 
@@ -26,6 +27,18 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3080 Laptop, compared with cuBLAS's d
 |✔️|✔️|✔️|✔️|
 |Collective Store (Warp Shuffle & Reg Reuse)|Row Major (NN)|Col Major (TN)|SGEMM FP32/TF32|
 |✔️|✔️|✔️|✔️|
+
+## ©️Citations🎉🎉
+
+```BibTeX
+@misc{hgemm-tensorcores-mma@2024,
+  title={hgemm-tensorcores-mma: Write HGEMM from scratch using Tensor Cores with WMMA, MMA PTX and CuTe API.},
+  url={https://github.com/DefTruth/hgemm-tensorcores-mma},
+  note={Open-source software available at https://github.com/DefTruth/hgemm-tensorcores-mma},
+  author={DefTruth etc},
+  year={2024}
+}
+```
 
 ## 📖 HGEMM CUDA Kernels in Toy-HGEMM Library 🎉🎉 
 
@@ -70,39 +83,40 @@ void hgemm_mma_stages_block_swizzle_tn_cute(torch::Tensor a, torch::Tensor b, to
 
 ## 📖 目录
 
-- [📖 安装](#install)
-- [📖 测试](#test)
-- [📖 NVIDIA L20 性能数据](#perf-l20)
-- [📖 NVIDIA RTX 4090 性能数据](#perf-4090)
-- [📖 NVIDIA RTX 3080 Laptop 性能数据](#perf-3080)
-- [📖 性能优化笔记](#opt-docs)
-- [📖 参考文献](#ref)
+- [📖 Installation](#install)
+- [📖 Python/C++ Testing](#test)
+- [📖 NVIDIA L20 bench](#perf-l20)
+- [📖 NVIDIA RTX 4090 bench](#perf-4090)
+- [📖 NVIDIA RTX 3080 Laptop bench](#perf-3080)
+- [📖 Docs](#opt-docs)
+- [📖 References](#ref)
 
-## 📖 安装  
+## 📖 Installation  
 
 <div id="install"></div>  
 
-本仓库实现的HGEMM可以作为一个python库使用（可选）
+The HGEMM implemented in this repo can be install as a python library, namely, `toy-hgemm` library (optional)
 ```bash
 cd kernels/hgemm
-git submodule update --init --recursive --force # 更新cutlass, 必须
-python3 setup.py bdist_wheel && cd dist && python3 -m pip install *.whl # pip uninstall toy-hgemm -y 卸载
+git submodule update --init --recursive --force # Fetch `CUTLASS` submodule， needed
+python3 setup.py bdist_wheel && cd dist && python3 -m pip install *.whl # pip uninstall toy-hgemm -y 
 ```
 
-## 📖 测试
+## 📖 Python/C++ Testing
 
 <div id="test"></div>  
 
-**CUTLASS**: 更新CUTLASS依赖库
+**CUTLASS**: Fetch `CUTLASS` submodule. Currently, I use `v3.5.1` for HGEMM CuTe kernel.
 ```bash
 git submodule update --init --recursive --force
 ```
 
-**Python**: 支持Python脚本直接测试
+**Python**: Test many custom HGEMM kernel via Python script and figure out the difference in their performance.
 
 ```bash
-# 只测试Ada架构 不指定默认编译所有架构 耗时较长: Volta, Ampere, Ada, Hopper, ...
-export TORCH_CUDA_ARCH_LIST=Ada 
+# You can test Ada or Ampere only, also, Volta, Ampere, Ada, Hopper, ...
+export TORCH_CUDA_ARCH_LIST=Ada # for Ada only
+export TORCH_CUDA_ARCH_LIST=Ampere # for Ampere only
 python3 hgemm.py --wmma # test defalut wmma kernels for all MNK
 python3 hgemm.py --mma  # test defalut mma kernels for all MNK
 python3 hgemm.py --M 16384 --N 16384 --K 8192 --i 10 --wmma # test default wmma kernels for specific MNK
@@ -112,16 +126,21 @@ python3 hgemm.py --mma-all # test all mma kernels for all MNK
 python3 hgemm.py --cuda-all --wmma-all --mma-all # test all kernels for all MNK
 python3 hgemm.py --cute-tn --no-default # test cute hgemm kernels with smem swizzle for all MNK
 ```
-如果需要绘制TFLOPS曲线图，需要先安装matplotlib，并指定--plot-flops（或--plot）选项:
+If you want to draw a TFLOPS curve, you need to install `matplotlib` first and set the --plot-flops (or --plot) option.
 ```bash
 python3 -m pip install matplotlib
-# topk指定只绘制性能最好的topk个kernel
+# Specify topk to plot only the top k kernels with the best performance.
 python3 hgemm.py --mma-all --plot --topk 8
 # test default mma kernels & cute hgemm kernels with smem swizzle for all MNK
 python3 hgemm.py --cute-tn --mma --plot 
 ```
+**C++**: The HGEMM benchmark also supports C++ testing. Currently, it supports comparisons between the following implementations:
 
-**C++**: HGEMM benchmark也支持C++测试，目前支持本仓库实现的 MMA HGEMM NN, CuTe HGEMM TN 和 cuBLAS HGEMM TN 进行对比，C++ bin方式测试的性能数据会略优于Python测试方式，可能是PyTorch Python binding引入了一定的额外开销。
+- MMA HGEMM NN implemented in this repository
+- CuTe HGEMM TN implemented in this repository
+- cuBLAS HGEMM TN use default Tensor Cores math algorithm
+
+Performance data obtained from C++ binary tests tend to be slightly better than those from Python tests. This difference may be attributed to additional overhead introduced by the PyTorch Python bindings.
 ```bash
 make
 ./hgemm_mma_stage.bin
@@ -155,13 +174,24 @@ M N K =  16128  16128  16128, Time =   0.07319142   0.07320709   0.07326925 s, A
 M N K =  16384  16384  16384, Time =   0.07668429   0.07669371   0.07670784 s, AVG Performance =   114.6912 Tflops
 ```
 
-## 📖 目前性能  
+## 📖 Benchmark  
 
 <div id="perf-l20"></div>  
 
 ### NVIDIA L20  
-
+<!--
 目前最优的实现，在L20上（理论Tensor Cores FP16算力为 119.5 TFLOPS），整体上能达到cuBLAS大概`99~100+%`左右的性能。使用WMMA API能达到cuBLAS大概`95%~98%`左右的性能(105-113 TFLOPS vs 105-115 TFLOPS)，使用MMA API能达到115 TFLOPS，部分 case 会超越 cuBLAS。CuTe 版本的 HGEMM 实现了 Block Swizzle（L2 Cache friendly）和 SMEM Swizzle（bank conflicts free），性能最优，大规模矩阵乘能达到 116-117 TFLOPS，是 cuBLAS 大概`98%~100%+`左右的性能，很多case会超越cuBLAS。目前通过 SMEM Padding 和 SMEM Swizzle 的方式缓解 bank conflicts。对于 NN layout，使用 SMEM Padding 缓解 bank conflicts；对于 TN layout，通过 CUTLASS/CuTe 的 SMEM Swizzle 消除 bank conflicts。
+-->
+The current best implementation, on the L20 (with a theoretical Tensor Cores FP16 performance of 119.5 TFLOPS), achieves performance that is approximately 99~100+% of cuBLAS.
+
+- Using the WMMA API, it can achieve around 95%~98% of cuBLAS performance (105-113 TFLOPS vs 105-115 TFLOPS).
+- Using the MMA API, it can reach 115 TFLOPS, surpassing cuBLAS in some cases.
+- The CuTe version of HGEMM implements Block Swizzle (L2 Cache friendly) and SMEM Swizzle (bank conflicts free), achieving the best performance. For large-scale matrix multiplication, it can reach 116-117 TFLOPS, which is approximately 98%~100%+ of cuBLAS performance, and it outperforms cuBLAS in many cases.
+
+Currently, SMEM Padding and SMEM Swizzle are used to mitigate bank conflicts:
+
+- For the NN layout, SMEM Padding is used to alleviate bank conflicts.
+- For the TN layout, CUTLASS/CuTe's SMEM Swizzle is used to eliminate bank conflicts.
 
 <div id="NV-L20"></div>
 
@@ -169,7 +199,7 @@ M N K =  16384  16384  16384, Time =   0.07668429   0.07669371   0.07670784 s, A
 ![NVIDIA_L20_NN+TN+v2](https://github.com/user-attachments/assets/71927ac9-72b3-4ce9-b0e2-788b5885bc99)
 
   
-全量MNK测试命令（提示: 每个MNK单独测试的性能数据更准确）
+The command for testing all MNK setups (Tip: Performance data for each MNK tested individually is more accurate.)
 ```bash
 python3 hgemm.py --cute-tn --mma --plot
 ```
@@ -178,7 +208,14 @@ python3 hgemm.py --cute-tn --mma --plot
 
 <div id="perf-4090"></div>  
 
+<!--
 在NVIDIA RTX 4090上(FP16 Tensor Cores算力为330 TFLOPS)，WMMA(m16n16k16)性能表现比MMA(m16n8k16)要更好，大分部MNK下，本仓库的实现能达到cuBLAS 95%~99%的性能，某些case能超过cuBLAS。就本仓库的实现而言，在RTX 4090上，大规模矩阵乘(MNK>=8192)，WMMA表现更优，小规模矩阵乘，MMA表现更优。
+-->
+
+On the NVIDIA RTX 4090 (with an FP16 Tensor Cores performance of 330 TFLOPS), the WMMA (m16n16k16) implementation shows better performance compared to MMA (m16n8k16). For most MNK configurations, this repository's implementation achieves 95%~99% of cuBLAS performance, and in certain cases, it can surpass cuBLAS. Specifically:
+
+- For large-scale matrix multiplications (MNK >= 8192), the WMMA implementation performs better.
+- For small-scale matrix multiplications, the MMA implementation is more efficient.
 
 
 ![NVIDIA_GeForce_RTX_4090_NN+TN+v4](https://github.com/user-attachments/assets/05ef4f5e-d999-48ea-b58e-782cffb24e85)
@@ -191,8 +228,10 @@ python3 hgemm.py --cute-tn --mma --wmma-all --plot
 
 <div id="perf-3080"></div>  
 
+<!--
 在NVIDIA GeForce RTX 3080 Laptop上测试，使用mma4x4_warp4x4（16 WMMA m16n16k16 ops, warp tile 64x64）以及Thread block swizzle，大部分case能持平甚至超过cuBLAS，使用Windows WSL2 + RTX 3080 Laptop进行测试。
-
+-->
+Testing was conducted on a NVIDIA GeForce RTX 3080 Laptop using the mma4x4_warp4x4 configuration (which includes 16 WMMA m16n16k16 operations with a warp tile size of 64x64) along with Thread block swizzle. In most cases, this setup matches or even exceeds cuBLAS performance. The tests were performed using Windows WSL2 + RTX 3080 Laptop.
 
 ![image](https://github.com/user-attachments/assets/9472e970-c083-4b31-9252-3eeecc761078)
 
@@ -201,9 +240,9 @@ python3 hgemm.py --wmma-all --plot
 ```
 
 <details>
-<summary> 🔑️ 性能优化笔记(TODO) ！Click here! </summary>    
+<summary> 🔑️ Performance Optimization Notes(TODO) ！Click here! </summary>    
 
-## 📖 性能优化笔记
+## 📖 Performance Optimization Notes
 
 <div id="opt-docs"></div>  
 
@@ -312,11 +351,6 @@ TODO
 
 <div id="ref"></div>  
 
-- [CUDA编程概念】一、什么是bank conflict？](https://zhuanlan.zhihu.com/p/659142274)
-- [解决 bank conflict](https://github.com/PaddleJitLab/CUDATutorial/blob/develop/docs/09_optimize_reduce/02_bank_conflict/README.md)
-- [Bank Conflict free 的几种方式](https://zhuanlan.zhihu.com/p/722286440)
-- [Using Shared Memory in CUDA C/C++](https://developer.nvidia.com/blog/using-shared-memory-cuda-cc/)
-- [CUDA（三）：通用矩阵乘法：从入门到熟练](https://zhuanlan.zhihu.com/p/657632577)
 - [flash-attention-minimal](https://github.com/tspeterkim/flash-attention-minimal)
 - [tiny-flash-attention](https://github.com/66RING/tiny-flash-attention)
 - [cute-gemm](https://github.com/reed-lau/cute-gemm)
