@@ -97,7 +97,7 @@ void hgemm_mma_stages_block_swizzle_tn_cute(torch::Tensor a, torch::Tensor b, to
 <div id="prerequisites"></div>  
 
 - PyTorch >= 2.0, CUDA >= 12.0
-- Recommended: PyTorch >= 2.5.1, CUDA >= 12.6
+- Recommended: PyTorch 2.5.1, CUDA 12.5
 
 ## 📖 Installation  
 
