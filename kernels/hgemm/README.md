@@ -3,7 +3,7 @@
 
 ![toy-hgemm-library](https://github.com/user-attachments/assets/962bda14-b494-4423-b8eb-775da9f5503d)
 
-[📖Toy-HGEMM Library⚡️⚡️](./kernels/hgemm) is a library that write many HGEMM kernels from scratch using Tensor Cores with WMMA, MMA PTX and CuTe API, thus, can achieve `98%~100%` performance of **cuBLAS**. The codes here are source from 📖[CUDA-Learn-Notes](https://github.com/DefTruth/CUDA-Learn-Notes)  ![](https://img.shields.io/github/stars/DefTruth/CUDA-Learn-Notes.svg?style=social) and exported as a standalone library, please checkout [CUDA-Learn-Notes](https://github.com/DefTruth/CUDA-Learn-Notes) for latest updates. Welcome to 🌟👆🏻star this repo to support me, thanks ~ 🎉🎉
+[📖Toy-HGEMM Library⚡️⚡️](./kernels/hgemm) is a library that write many HGEMM kernels from scratch using Tensor Cores with WMMA, MMA PTX and CuTe API, thus, can achieve `98%~100%` performance of **cuBLAS**. The codes here are source from 📖[CUDA-Learn-Notes](https://github.com/DefTruth/CUDA-Learn-Notes)  ![](https://img.shields.io/github/stars/DefTruth/CUDA-Learn-Notes.svg?style=social) and exported as a standalone library, please checkout [CUDA-Learn-Notes](https://github.com/DefTruth/CUDA-Learn-Notes) for latest updates. Welcome to 🌟👆🏻star this repo to support me, many thanks ~ 🎉🎉
 
 <div id="hgemm-sgemm"></div>  
 
@@ -83,26 +83,34 @@ void hgemm_mma_stages_block_swizzle_tn_cute(torch::Tensor a, torch::Tensor b, to
 
 ## 📖 目录
 
+- [📖 Prerequisites](#prerequisites)
 - [📖 Installation](#install)
-- [📖 Python/C++ Testing](#test)
+- [📖 Python Testing](#test)
+- [📖 C++ Testing](#test-cpp)
 - [📖 NVIDIA L20 bench](#perf-l20)
 - [📖 NVIDIA RTX 4090 bench](#perf-4090)
 - [📖 NVIDIA RTX 3080 Laptop bench](#perf-3080)
 - [📖 Docs](#opt-docs)
 - [📖 References](#ref)
 
+## 📖 Prerequisites
+<div id="prerequisites"></div>  
+
+- PyTorch >= 2.0, CUDA >= 12.0
+- Recommended: PyTorch >= 2.5.1, CUDA >= 12.6
+
 ## 📖 Installation  
 
 <div id="install"></div>  
 
-The HGEMM implemented in this repo can be install as a python library, namely, `toy-hgemm` library (optional)
+The HGEMM implemented in this repo can be install as a python library, namely, `toy-hgemm` library (optional). 
 ```bash
 cd kernels/hgemm
 git submodule update --init --recursive --force # Fetch `CUTLASS` submodule， needed
 python3 setup.py bdist_wheel && cd dist && python3 -m pip install *.whl # pip uninstall toy-hgemm -y 
 ```
 
-## 📖 Python/C++ Testing
+## 📖 Python Testing
 
 <div id="test"></div>  
 
@@ -111,7 +119,7 @@ python3 setup.py bdist_wheel && cd dist && python3 -m pip install *.whl # pip un
 git submodule update --init --recursive --force
 ```
 
-**Python**: Test many custom HGEMM kernel via Python script and figure out the difference in their performance.
+You can test many custom HGEMM kernel via Python script and figure out the difference in their performance.
 
 ```bash
 # You can test Ada or Ampere only, also, Volta, Ampere, Ada, Hopper, ...
@@ -134,7 +142,12 @@ python3 hgemm.py --mma-all --plot --topk 8
 # test default mma kernels & cute hgemm kernels with smem swizzle for all MNK
 python3 hgemm.py --cute-tn --mma --plot 
 ```
-**C++**: The HGEMM benchmark also supports C++ testing. Currently, it supports comparisons between the following implementations:
+
+## 📖 C++ Testing
+
+<div id="test-cpp"></div>  
+
+The HGEMM benchmark also supports C++ testing. Currently, it supports comparisons between the following implementations:
 
 - MMA HGEMM NN implemented in this repository
 - CuTe HGEMM TN implemented in this repository
@@ -178,7 +191,7 @@ M N K =  16384  16384  16384, Time =   0.07668429   0.07669371   0.07670784 s, A
 
 <div id="perf-l20"></div>  
 
-### NVIDIA L20  
+### 📖 NVIDIA L20  
 <!--
 目前最优的实现，在L20上（理论Tensor Cores FP16算力为 119.5 TFLOPS），整体上能达到cuBLAS大概`99~100+%`左右的性能。使用WMMA API能达到cuBLAS大概`95%~98%`左右的性能(105-113 TFLOPS vs 105-115 TFLOPS)，使用MMA API能达到115 TFLOPS，部分 case 会超越 cuBLAS。CuTe 版本的 HGEMM 实现了 Block Swizzle（L2 Cache friendly）和 SMEM Swizzle（bank conflicts free），性能最优，大规模矩阵乘能达到 116-117 TFLOPS，是 cuBLAS 大概`98%~100%+`左右的性能，很多case会超越cuBLAS。目前通过 SMEM Padding 和 SMEM Swizzle 的方式缓解 bank conflicts。对于 NN layout，使用 SMEM Padding 缓解 bank conflicts；对于 TN layout，通过 CUTLASS/CuTe 的 SMEM Swizzle 消除 bank conflicts。
 -->
@@ -204,7 +217,7 @@ The command for testing all MNK setups (Tip: Performance data for each MNK teste
 python3 hgemm.py --cute-tn --mma --plot
 ```
 
-### NVIDIA GeForce RTX 4090
+### 📖 NVIDIA GeForce RTX 4090
 
 <div id="perf-4090"></div>  
 
@@ -224,7 +237,7 @@ On the NVIDIA RTX 4090 (with an FP16 Tensor Cores performance of 330 TFLOPS), th
 python3 hgemm.py --cute-tn --mma --wmma-all --plot
 ```
 
-### NVIDIA GeForce RTX 3080 Laptop   
+### 📖 NVIDIA GeForce RTX 3080 Laptop   
 
 <div id="perf-3080"></div>  
 
@@ -240,7 +253,7 @@ python3 hgemm.py --wmma-all --plot
 ```
 
 <details>
-<summary> 🔑️ Performance Optimization Notes(TODO) ！Click here! </summary>    
+<summary> 🔑️ Performance Optimization Notes(TODO)</summary>    
 
 ## 📖 Performance Optimization Notes
 
