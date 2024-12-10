@@ -735,7 +735,7 @@ __global__ void hgemm_t_8x8_sliced_k_f16x8_pack_bcf_dbuf_kernel(
     s_a[smem_sel_next][load_a_smem_k + 1][load_a_smem_m] = r_load_a[1];
     s_a[smem_sel_next][load_a_smem_k + 2][load_a_smem_m] = r_load_a[2];
     s_a[smem_sel_next][load_a_smem_k + 3][load_a_smem_m] = r_load_a[3];
-    LDST128BITS(s_b[smem_sel_next][load_b_smem_k][load_b_smem_n]) = LDST128BITS(r_load_b[0]);
+    LDST64BITS(s_b[smem_sel_next][load_b_smem_k][load_b_smem_n]) = LDST64BITS(r_load_b[0]);
 
     __syncthreads();
   }
