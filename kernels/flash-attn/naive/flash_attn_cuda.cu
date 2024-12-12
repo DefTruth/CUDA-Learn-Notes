@@ -16,7 +16,7 @@
 #define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162*>(&(value))[0])
 
 
-__global__ void flash_attn_1_fwd_f32_kernel(
+__global__ void flash_attn_cuda_kernel(
   const float* Q, 
   const float* K, 
   const float* V, 
@@ -135,7 +135,7 @@ if (((T2).size(0) != (T1).size(0)) ||                \
   throw std::runtime_error("Tensor size mismatch!"); \
 }
 
-void flash_attn_1_fwd_f32(
+void flash_attn_cuda(
   torch::Tensor Q, 
   torch::Tensor K, 
   torch::Tensor V,
@@ -174,7 +174,7 @@ void flash_attn_1_fwd_f32(
   dim3 grid(B, nh);  // batch_size x num_heads
   dim3 block(Bc);  // Bc threads per block
   
-  flash_attn_1_fwd_f32_kernel<<<grid, block, sram_size>>>(
+  flash_attn_cuda_kernel<<<grid, block, sram_size>>>(
     reinterpret_cast<float*>(Q.data_ptr()), 
     reinterpret_cast<float*>(K.data_ptr()), 
     reinterpret_cast<float*>(V.data_ptr()), 

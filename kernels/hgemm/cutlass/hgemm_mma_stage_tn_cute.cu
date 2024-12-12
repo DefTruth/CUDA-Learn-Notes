@@ -69,6 +69,12 @@ __global__ void hgemm_mma_stages_block_swizzle_tn_cute_kernel(
   auto g2s_thr_copy_a = g2s_tiled_copy_a.get_slice(idx);
   auto tAgA_copy = g2s_thr_copy_a.partition_S(gA); // (CPY, CPY_M, CPY_K, num_tile_k)
   auto tAsA_copy = g2s_thr_copy_a.partition_D(sA); // (CPY, CPY_M, CPY_K, kStage)
+#ifdef CUTE_HGEMM_DEBUG  
+  if (thread0()) {
+    print("\npartition_S(tAgA_copy): \n"); print(tAgA_copy); print("\n");
+    print("\nThrCopy(g2s_thr_copy_a): \n"); print(g2s_thr_copy_a); print("\n");
+  }
+#endif
 
   G2SCopyB g2s_tiled_copy_b;
   auto g2s_thr_copy_b = g2s_tiled_copy_b.get_slice(idx);
@@ -235,8 +241,10 @@ void launch_hgemm_mma_stages_block_swizzle_tn_cute(const T *a,
                   make_shape(Int<BN>{}, Int<BK>{}, Int<KStage>{}))
   ); // (m,n) -> smem_idx
 #ifdef CUTE_HGEMM_DEBUG  
-  print(SmemLayoutA{}); print("\n");
-  print(SmemLayoutB{}); print("\n");
+  print("SmemLayoutA: "); print(SmemLayoutA{}); print("\n");
+  print("SmemLayoutB: "); print(SmemLayoutB{}); print("\n");
+  print("SmemLayoutB: "); print(SmemLayoutB{}); print("\n");
+  print("SmemLayoutAtom A&B Latex: \n"); print_latex(SmemLayoutAtom{}); print("\n");
 #endif
   
   // mma
@@ -258,7 +266,8 @@ void launch_hgemm_mma_stages_block_swizzle_tn_cute(const T *a,
   using MMA_P_T = Tile<Int<kMmaPM>, Int<kMmaPN>, Int<kMmaPK>>;
   using MMA = decltype(make_tiled_mma(mma_atom{}, MMA_EU_RepeatT{}, MMA_P_T{}));
 #ifdef CUTE_HGEMM_DEBUG  
-  print(MMA{}); print("\n");
+  print("MMA: "); print(MMA{}); print("\n");
+  print("MMA Latex: \n"); print_latex(MMA{}); print("\n");
 #endif
   
   // copy from global memory to shared memory
@@ -281,6 +290,8 @@ void launch_hgemm_mma_stages_block_swizzle_tn_cute(const T *a,
 #ifdef CUTE_HGEMM_DEBUG  
   print("G2SCopyA: "); print(G2SCopyA{}); print("\n");
   print("G2SCopyB: "); print(G2SCopyB{}); print("\n");
+  print("G2SCopyA Latex: \n"); print_latex(G2SCopyA{}); print("\n");
+  print("G2SCopyB Latex: \n"); print_latex(G2SCopyB{}); print("\n");
 #endif
   // copy from shared memory to register
   // use mma tiled ,so no tiled here

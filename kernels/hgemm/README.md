@@ -19,7 +19,7 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3080 Laptop, compared with cuBLAS's d
 |CUDA Cores|Sliced K (Loop over K)|Tile Block (BMxBN)|Tile Thread (t 8x8)|
 |:---:|:---:|:---:|:---:|
 |✔️|✔️|✔️|✔️|
-|WMMA (m16n16k16)|MMA (m16n8k16)|Pack LDS T(pack 128 bits)|SMEM Padding|
+|WMMA (m16n16k16)|MMA (m16n8k16)|Pack LDST (pack 128 bits)|SMEM Padding|
 |✔️|✔️|✔️|✔️|
 |Copy Async (cp.async.cg/ca)|Tile MMA (More Threads)|Tile Warp (More Values)|Multi Stages(2/3/4/5)|  
 |✔️|✔️|✔️|✔️|
@@ -81,7 +81,7 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn(torch::Tensor a, torch::T
 void hgemm_mma_stages_block_swizzle_tn_cute(torch::Tensor a, torch::Tensor b, torch::Tensor c, int stages, bool swizzle, int swizzle_stride);
 ```
 
-## 📖 目录
+## 📖 Contents
 
 - [📖 Prerequisites](#prerequisites)
 - [📖 Installation](#install)
@@ -371,3 +371,6 @@ TODO
 - [cuda_learning](https://github.com/ifromeast/cuda_learning)
 - [cuda_hgemm](https://github.com/Bruce-Lee-LY/cuda_hgemm)
 - [cuda-tensorcore-hgemm](https://github.com/nicolaswilde/cuda-tensorcore-hgemm)
+- [How_to_optimize_in_GPU](https://github.com/Liu-xiandong/How_to_optimize_in_GPU/tree/master/sgemv)
+- [cute_gemm](https://github.com/weishengying/cute_gemm)
+- [cutlass](https://github.com/NVIDIA/cutlass)

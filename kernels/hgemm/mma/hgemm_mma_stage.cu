@@ -207,7 +207,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_kernel(
   }
 
   // make sure all memory issues ready.
-  if ((K_STAGE - 2) > 0) {
+  if constexpr ((K_STAGE - 2) > 0) {
     CP_ASYNC_WAIT_GROUP(0);
     __syncthreads(); 
   }
@@ -439,7 +439,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_kernel(
   }
 
   // make sure all memory issues ready.
-  if ((K_STAGE - 2) > 0) {
+  if constexpr ((K_STAGE - 2) > 0) {
     CP_ASYNC_WAIT_GROUP(0);
     __syncthreads(); 
   }
@@ -876,7 +876,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_kernel(
   }
 
   // make sure all memory issues ready.
-  if ((K_STAGE - 2) > 0) {
+  if constexpr ((K_STAGE - 2) > 0) {
     CP_ASYNC_WAIT_GROUP(0);
     __syncthreads(); 
   }
@@ -1304,7 +1304,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_x4_kernel(
   }
 
   // make sure all memory issues ready.
-  if ((K_STAGE - 2) > 0) {
+  if constexpr ((K_STAGE - 2) > 0) {
     CP_ASYNC_WAIT_GROUP(0);
     __syncthreads(); 
   }
@@ -1760,7 +1760,7 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_rr_kernel(
   }
 
   // make sure all memory issues ready.
-  if ((K_STAGE - 2) > 0) {
+  if constexpr ((K_STAGE - 2) > 0) {
     CP_ASYNC_WAIT_GROUP(0);
     __syncthreads(); 
   }

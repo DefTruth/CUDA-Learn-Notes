@@ -24,3 +24,9 @@ output
 *.egg-info
 *.whl
 dist
+*.pdf
+*.tex
+*.log
+*.md5
+*.aux*
+*.dpth
