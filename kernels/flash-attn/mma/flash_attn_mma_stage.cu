@@ -17,7 +17,7 @@ using namespace nvcuda;
 // The output is O, a 4D tensor with shape [batch_size, num_heads, seq_len, head_dim].
 
 // The FlashAttention-2 algorithm is described in the following paper:
-// https://arxiv.org/abs/2110.08210
+// https://arxiv.org/pdf/2307.08691
 
 // Q,K,V,O: [batch_size, num_heads, seq_len, head_dim], [B,H,N,d]
 // each block processes Q_tile with shape [Br,d] and full K,V with shape [N,d]

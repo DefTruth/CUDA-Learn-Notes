@@ -17,7 +17,7 @@ using namespace nvcuda;
 // The output is O, a 4D tensor with shape [batch_size, num_heads, seq_len, head_dim].
 
 // The FlashAttention-2 algorithm is described in the following paper:
-// https://arxiv.org/abs/2110.08210
+// https://arxiv.org/pdf/2307.08691
 
 // Q,K,V,O: [batch_size, num_heads, seq_len, head_dim], [B,H,N,d]
 // each block processes Q_tile with shape [Br,d] and full K,V with shape [N,d]
@@ -609,14 +609,8 @@ flash_attn_mma_stages_kernel(half* Q,
       // 15   T28: {a2, a3}  T29: {a2, a3}  T30: {a2, a3}  T31: {a2, a3}  T28: {a6, a7}  T29: {a6, a7}  T30: {a6, a7}  T31: {a6, a7}
       #pragma unroll
       for (int i = 0; i < kWarpTileSeqLenP; ++i) { // kWarpTileSeqLenQ=2
-        FA_MMA_CHECK_PRINT_REG(R_S[i][0][0], R_Q[i][0], "Check failed, R_S[%d][0][0], R_Q[%d][0], tile_V_Bc: %d, tid: %d, lane: %d", i, i, tile_V_Bc, tid, lane_id);
-        FA_MMA_CHECK_PRINT_REG(R_S[i][0][1], R_Q[i][1], "Check failed, R_S[%d][0][1], R_Q[%d][1], tile_V_Bc: %d, tid: %d, lane: %d", i, i, tile_V_Bc, tid, lane_id);
-        FA_MMA_CHECK_PRINT_REG(R_S[i][1][0], R_Q[i][2], "Check failed, R_S[%d][1][0], R_Q[%d][2], tile_V_Bc: %d, tid: %d, lane: %d", i, i, tile_V_Bc, tid, lane_id);
-        FA_MMA_CHECK_PRINT_REG(R_S[i][1][1], R_Q[i][3], "Check failed, R_S[%d][1][1], R_Q[%d][3], tile_V_Bc: %d, tid: %d, lane: %d", i, i, tile_V_Bc, tid, lane_id);
         #pragma unroll
         for (int j = 0; j < kWarpTileHeadDimV; ++j) { // kWarpTileHeadDimV=1,2,3,4,...
-          FA_MMA_PRINT_REG(R_V[j][0], "[Before] MMA P@V, R_V[%d][0], tile_V_Bc: %d, tid: %d, lane: %d", j, tile_V_Bc, tid, lane_id);
-          FA_MMA_PRINT_REG(R_V[j][1], "[Before] MMA P@V, R_V[%d][1], tile_V_Bc: %d, tid: %d, lane: %d", j, tile_V_Bc, tid, lane_id);
           HMMA16816(R_O[i][j][0], R_O[i][j][1], 
                     // FIXME(DefTruth): Still have some error while using R_S 
                     // as registers for P(A) matrix directly. I will remove this 
@@ -795,7 +789,7 @@ void launch_flash_attn_mma_stages(
   constexpr int kWarpTileHeadDimV = (kHeadDim / (kMmaAtomN*kMmaTileHeadDimV));
   constexpr int Br = kMmaAtomM * kMmaTileSeqLenQ * kWarpTileSeqLenQ; // 16*2*2=64
   constexpr int Bc = kMmaAtomN * kMmaTileSeqLenK * kWarpTileSeqLenK; // 8*4*2=64
-  constexpr int kPad = 0;
+  constexpr int kPad = 8;
 
   // Calculate SRAM size needed per block, Q,K,V,S smem size
   const int smem_max_size = ((Br * (kHeadDim + kPad)) + 

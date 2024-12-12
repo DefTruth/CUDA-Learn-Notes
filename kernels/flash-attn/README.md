@@ -10,16 +10,8 @@
 
 ## 📖 说明
 
-包含以下内容：(性能持续优化中，敬请期待...)
-
-- [X] flash_attn_cuda_kernel (F32)
-- [x] flash_attn_mma_naive_kernel (ldmatrix + MMA)
-- [X] flash_attn_mma_stage_kernel (ldmatrix + MMA, Stages, Tile MMA/Warp, Copy Async, Collective Store, SMEM Padding)
-
 本仓库FlashAttention仅用于学习CUDA编程，考虑性能最优请使用FlashAttention官方版本：[flash-attention](https://github.com/Dao-AILab/flash-attention)
 
-## 📖 Kernel 调用
-- flash_attn_mma_stage_kernel:
 ```C++
 template<
          const int kHeadDim,          // Headdim, 32,64,128     
