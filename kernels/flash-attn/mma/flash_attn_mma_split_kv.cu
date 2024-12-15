@@ -1,15 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <float.h>
-#include <vector>
-#include <algorithm>
-#include <cuda_runtime.h>
-#include <cuda_fp16.h>
-#include <cuda_bf16.h>
-#include <cuda_fp8.h>
-#include <mma.h>
-using namespace nvcuda;
 #include "utils.h"
 
 // Write FlashAttention-2 from scratch using Tensor Cores with MMA PTX instruction.
@@ -40,11 +28,11 @@ template<
          >
 __global__ void __launch_bounds__(
   WARP_SIZE * kMmaTileSeqLenQ * kMmaTileSeqLenK) 
-flash_attn_mma_stages_kernel(half* Q, 
-                             half* K, 
-                             half* V, 
-                             half* O, 
-                             int QKV_seqlen) {
+flash_attn_mma_stages_split_kv_kernel(half* Q, 
+                                      half* K, 
+                                      half* V, 
+                                      half* O, 
+                                      int QKV_seqlen) {
   // Matmul Layout: Q[Br,d]@K^T[d,Bc] NN, P[Br,Bc]@V[Bc,d] NN, all row major.
   static_assert(kMmaAtomM == 16 && kMmaAtomN == 8 && kMmaAtomK == 16); // m16n8k16
   static_assert(kMmaTileSeqLenQ  == 2 && kMmaTileSeqLenK  == 4); // Q@K^T
@@ -57,7 +45,7 @@ flash_attn_mma_stages_kernel(half* Q,
   static_assert(kPad >= 0 && kPad % 8 == 0); // 0,8,16
   constexpr int Br = kMmaAtomM * kMmaTileSeqLenQ * kWarpTileSeqLenQ; // 16*2*2=64
   constexpr int Bc = kMmaAtomN * kMmaTileSeqLenK * kWarpTileSeqLenK; // 8*4*2=64
-  constexpr int KNumThreads = WARP_SIZE * kMmaTileSeqLenQ * kMmaTileSeqLenK; // 32*2*4=256, num threads
+  constexpr int kNumThreads = WARP_SIZE * kMmaTileSeqLenQ * kMmaTileSeqLenK; // 32*2*4=256, num threads
   // Now, N must be mutliples of Bc(32/64) for KV tiling across seqlen.
   const int Tc = div_ceil(QKV_seqlen, Bc); // Tc K^T_tile[d,Bc]
   const float scale = 1.0f / sqrt((float) kHeadDim);
@@ -91,14 +79,14 @@ flash_attn_mma_stages_kernel(half* Q,
   const int O_gmem_offset = Q_gmem_offset; // O [seqlen,d]
 
   // Mapping Q gmem -> tid -> smem, Q[Br,d]=[64,64 or 128], 256 threads.
-  int load_smem_Q_Br = (tid / (KNumThreads / Br)); // Br 64, tid / 4, row 0~64
-  int load_smem_Q_d  = (tid % (KNumThreads / Br)) * (kHeadDim / (KNumThreads / Br)); // (tid % 4) * 16, 0,16,32,48
+  int load_smem_Q_Br = (tid / (kNumThreads / Br)); // Br 64, tid / 4, row 0~64
+  int load_smem_Q_d  = (tid % (kNumThreads / Br)) * (kHeadDim / (kNumThreads / Br)); // (tid % 4) * 16, 0,16,32,48
   // Mapping K gmem -> tid -> smem, K^T[d,Bc]=[64 or 128,64], 256 threads.
-  int load_smem_K_d  = (tid / (KNumThreads / kHeadDim)); // d 64, tid / 4, row 0~64
-  int load_smem_K_Bc = (tid % (KNumThreads / kHeadDim)) * (Bc / (KNumThreads / kHeadDim)); // (tid % 4) * 16, 0,16,32,48
+  int load_smem_K_d  = (tid / (kNumThreads / kHeadDim)); // d 64, tid / 4, row 0~64
+  int load_smem_K_Bc = (tid % (kNumThreads / kHeadDim)) * (Bc / (kNumThreads / kHeadDim)); // (tid % 4) * 16, 0,16,32,48
   // Mapping V gmem -> tid -> smem, V[Bc,d]=[64,64 or 128], 256 threads.
-  int load_smem_V_Bc = (tid / (KNumThreads / Bc)); // Bc 64, tid / 4, row 0~64
-  int load_smem_V_d  = (tid % (KNumThreads / Bc)) * (kHeadDim / (KNumThreads / Bc)); // (tid % 4) * 16, 0,16,32,48
+  int load_smem_V_Bc = (tid / (kNumThreads / Bc)); // Bc 64, tid / 4, row 0~64
+  int load_smem_V_d  = (tid % (kNumThreads / Bc)) * (kHeadDim / (kNumThreads / Bc)); // (tid % 4) * 16, 0,16,32,48
   // global Q row of current head for tile [Br,d] per block.
   int load_gmem_Q_Br = Q_tile_id * Br + load_smem_Q_Br; 
   if (load_gmem_Q_Br >= QKV_seqlen) return;
@@ -118,8 +106,6 @@ flash_attn_mma_stages_kernel(half* Q,
   half* K_tile_smem = Q_tile_smem + Q_tile_size; // 8M/16M
   half* V_tile_smem = K_tile_smem + kStage * K_tile_size; 
   half* S_tile_smem = V_tile_smem + V_tile_size; // for temp S=Q@K^T
-  // TODO: KV may shared same smem to reduce smem usage for headdim>=256
-  // half* V_tile_smem = K_tile_smem; // KV may shared same smem 8M/16M
   // stage 2, no shared KV smem, Br=Bc=64,  d=64: 8M+(8M)*2+8M   =32M,  shared KV smem: 24M
   // stage 2, no shared KV smem, Br=Bc=64, d=128: 16M+(16M)*2+16M=64M,  shared KV smem: 48M
   // stage 2, no shared KV smem, Br=Bc=64, d=256: 32M+(32M)*2+32M=128M, shared KV smem: 96M
@@ -137,12 +123,11 @@ flash_attn_mma_stages_kernel(half* Q,
   fill_2D_regs<float, kWarpTileSeqLenQ, 2>(lane_block_row_max_old, -INFINITY);
   fill_2D_regs<float, kWarpTileSeqLenQ, 2>(lane_block_row_sum_old, 0.0f);
   // m[Br], l[Br], for the output of P[Br,Bc]=Q[Br,d]@K^T[d,Bc],
-  // 64x(4)x4=1024 bytes, 1M+1M=2M. TODO: 64x4=256, may use each 
-  // thread to store a max/sum value instead of using shared memory 
-  // and mapping based on thread ID and row number in Br.
-  __shared__ float block_row_max_new_smem[Br][kMmaTileSeqLenK]; 
-  __shared__ float block_row_sum_new_smem[Br][kMmaTileSeqLenK];
-  
+  // 64x(4)x4=1024 bytes, 1M+1M=2M. For now, I have choose to 
+  // add 1 to reduce bank conflicts, may boost 2~3 TFLOPS.
+  __shared__ float block_row_max_new_smem[Br][kMmaTileSeqLenK + 1]; 
+  __shared__ float block_row_sum_new_smem[Br][kMmaTileSeqLenK + 1];
+
   // ---------------------- Registers for S=Q@K^T/O=P@V ----------------------------
   // registers for QKV, S=Q[Br,d]@K[Bc,d]=[Br,Bc] and O=P[Br,Bc]@V[Bc,d]=[Br,d].
   uint32_t R_Q[kWarpTileSeqLenQ][ 4];
@@ -167,7 +152,7 @@ flash_attn_mma_stages_kernel(half* Q,
     uint32_t load_smem_Q_ptr = (smem_Q_base_ptr + (
       load_smem_Q_Br * (kHeadDim + kPad) + load_smem_Q_d) * sizeof(half));
     #pragma unroll
-    for (int i = 0; i < (kHeadDim / (KNumThreads / Br)); i += 8) {
+    for (int i = 0; i < (kHeadDim / (kNumThreads / Br)); i += 8) {
       CP_ASYNC_CG(load_smem_Q_ptr + i * 2, &Q[load_gmem_Q_addr + i], 16);
     }
     CP_ASYNC_COMMIT_GROUP();
@@ -187,7 +172,7 @@ flash_attn_mma_stages_kernel(half* Q,
                            load_smem_K_d * (Bc + kPad) + 
                            load_smem_K_Bc) * sizeof(half));
       #pragma unroll
-      for (int i = 0; i < (Bc / (KNumThreads / kHeadDim)); i += 8) {
+      for (int i = 0; i < (Bc / (kNumThreads / kHeadDim)); i += 8) {
         CP_ASYNC_CG(load_smem_K_ptr + i * 2, &K[load_gmem_K_addr + i], 16);
       }
       CP_ASYNC_COMMIT_GROUP();
@@ -228,7 +213,7 @@ flash_attn_mma_stages_kernel(half* Q,
                              load_smem_V_d) * sizeof(half)
         );
         #pragma unroll
-        for (int i = 0; i < (kHeadDim / (KNumThreads / Bc)); i += 8) {
+        for (int i = 0; i < (kHeadDim / (kNumThreads / Bc)); i += 8) {
           CP_ASYNC_CG(load_smem_V_ptr + i * 2, &V[load_gmem_V_addr + i], 16);
         }
         CP_ASYNC_COMMIT_GROUP();
@@ -247,14 +232,10 @@ flash_attn_mma_stages_kernel(half* Q,
                              load_smem_K_Bc) * sizeof(half)
         );
         #pragma unroll
-        for (int i = 0; i < (Bc / (KNumThreads / kHeadDim)); i += 8) {
+        for (int i = 0; i < (Bc / (kNumThreads / kHeadDim)); i += 8) {
           CP_ASYNC_CG(load_smem_K_ptr + i * 2, &K[load_gmem_K_addr + i], 16);
         }
         CP_ASYNC_COMMIT_GROUP();
-      } else {
-        // wait all memory issues ready for last tile. (may not need)
-        CP_ASYNC_WAIT_GROUP(0);
-        __syncthreads(); 
       }
     } else {
       // If no stages, kStage = 1, we have to load current K tile
@@ -271,7 +252,7 @@ flash_attn_mma_stages_kernel(half* Q,
                              load_smem_K_d * (Bc + kPad) + 
                              load_smem_K_Bc) * sizeof(half));
         #pragma unroll
-        for (int i = 0; i < (Bc / (KNumThreads / kHeadDim)); i += 8) {
+        for (int i = 0; i < (Bc / (kNumThreads / kHeadDim)); i += 8) {
           CP_ASYNC_CG(load_smem_K_ptr + i * 2, &K[load_gmem_K_addr + i], 16);
         }
         CP_ASYNC_COMMIT_GROUP();
@@ -289,13 +270,13 @@ flash_attn_mma_stages_kernel(half* Q,
                              load_smem_V_d) * sizeof(half)
         );
         #pragma unroll
-        for (int i = 0; i < (kHeadDim / (KNumThreads / Bc)); i += 8) {
+        for (int i = 0; i < (kHeadDim / (kNumThreads / Bc)); i += 8) {
           CP_ASYNC_CG(load_smem_V_ptr + i * 2, &V[load_gmem_V_addr + i], 16);
         }
         CP_ASYNC_COMMIT_GROUP();
       }
 
-      // Wait K tile ready and let V tile copy async.
+      // Wait curr Q and K tile ready and let curr V tile copy async.
       CP_ASYNC_WAIT_GROUP(1); 
       __syncthreads(); 
     }
@@ -323,8 +304,8 @@ flash_attn_mma_stages_kernel(half* Q,
 
       // smem -> reg, load k16n8 from smem K, offset d according tile_K_d.
       // ldmatrix.x2.trans for K_tile_smem, [kMmaAtomK,Bc] from [d,Bc]=[K,N]
-      #pragma unroll
-      for (int j = 0; j < kWarpTileSeqLenK; ++j) {
+     #pragma unroll
+     for (int j = 0; j < kWarpTileSeqLenK; ++j) {
         int warp_smem_K_Bc = warp_KV * (kMmaAtomN * kWarpTileSeqLenK) + j * kMmaAtomN;  // (N)
         int lane_smem_K_d  = tile_K_d * kMmaAtomK + lane_id % 16; // 0~15 (K);
         int lane_smem_K_Bc = warp_smem_K_Bc; // 0(N)
@@ -350,21 +331,6 @@ flash_attn_mma_stages_kernel(half* Q,
     } // end loop over d, S=Q@K^T
     __syncthreads();
 
-    // TODO: May reuse K smem for V, for example, stages 2, stage
-    // 0 K smem can be reuse as V smem 0 because we do not need 
-    // K values on stage 0 K smem anymore.
-
-    // Now, we got a computed tile of S[Br,N], tile with shape [Br,Bc].
-    // Assume [Br, Bc] = [64, 64] = 64x64 = 4096 values. Each thread holds
-    // a portion of this [Br, Bc] block, specifically, R_S = R_S[2][2][2]. 
-    // This means that each Warp (MMA) repeats 2 times in the N direction 
-    // for both Q and K, resulting in 2x2 = 4 sets of MMA results. Each set 
-    // of results is stored in 2 32-bit registers, with each register holding 
-    // 2 half-precision values. In other words, each thread stores (4x2)x2 = 16 
-    // half-precision values. With a total of 256 threads, the total number of 
-    // half-precision values is 256x16 = 4096, which exactly matches the total 
-    // [Br, Bc] = [64, 64] values.
-
     // The layout of 8 MMA m16n8k16 (2x4)  [after] kWarpTileQPxkWarpTileKV(2x2) -> 32x2,32x2=64x64: 
     // |  [64,64]  |    warp_KV 0    |    warp_KV 1    |    warp_KV 2    |    warp_KV 3    |
     // | warp_QP 0 |-- MMA 0,MMA 0 --|-- MMA 2,MMA 2 --|-- MMA 4,MMA 4 --|-- MMA 6,MMA 6 --| row max
@@ -372,7 +338,7 @@ flash_attn_mma_stages_kernel(half* Q,
     // | warp_QP 1 |-- MMA 1,MMA 1 --|-- MMA 3,MMA 3 --|-- MMA 5,MMA 5 --|-- MMA 7,MMA 7 --| row max
     // | warp_QP 1 |-- MMA 1,MMA 1 --|-- MMA 3,MMA 3 --|-- MMA 5,MMA 5 --|-- MMA 7,MMA 7 --| row max
 
-    // WIP: online safe softmax, warp/block reduce max/sum, row wise
+    // Online safe softmax, warp/block reduce max/sum, row wise
     // warp 0/2/4/6, [0][2] row 0~15,  col 0/8/16/32, max, [1][2] row 16~31, col 0/8/16/32, max
     // warp 1/3/5/7, [0][2] row 32~47, col 0/8/16/32, max, [1][2] row 48~61, col 0/8/16/32, max
     float lane_row_max_new[kWarpTileSeqLenQ][2]; 
@@ -426,7 +392,8 @@ flash_attn_mma_stages_kernel(half* Q,
     } // end for kWarpTileSeqLenQ
     __syncthreads();
 
-    // Block level reduce max, row wise, 64x4=256
+    // Block level reduce max, row wise, 64x4=256. Warp reduce operation
+    // is faster than atomaicMaxFloat in my tests.
     float wrp_row_max_new = (
       block_row_max_new_smem[tid / kMmaTileSeqLenK][tid % kMmaTileSeqLenK]); // [0~63][0~4]
     float blk_row_max_new = warp_reduce_max<float, 4>(wrp_row_max_new);
@@ -444,22 +411,22 @@ flash_attn_mma_stages_kernel(half* Q,
       // Br 1, row_id, 8~15, 24~31, 40~47, 56~63;
       float block_row_max_new_1 = block_row_max_new_smem[
         warp_QP * 32 + i * 16 + 1 * 8 + (lane_id / 4)][0];
-      // m_new = max(m_old, m_new)
-      block_row_max_new_0 = (tile_K_seqlen > 0 ?
-                             max(lane_block_row_max_old[i][0], block_row_max_new_0) : 
-                             block_row_max_new_0);
-      block_row_max_new_1 = (tile_K_seqlen > 0 ? 
-                             max(lane_block_row_max_old[i][1],  block_row_max_new_1) : 
-                             block_row_max_new_1);
+  
+      float block_row_max_old_0 = lane_block_row_max_old[i][0];
+      float block_row_max_old_1 = lane_block_row_max_old[i][1];
+      // Apply m_new = max(m_old, m_new) here.
+      block_row_max_new_0 = max(block_row_max_old_0, block_row_max_new_0);
+      block_row_max_new_1 = max(block_row_max_old_1, block_row_max_new_1);
+
       #pragma unroll
       for (int j = 0; j < kWarpTileSeqLenK; ++j) {
         float2 t_reg_S_0 = __half22float2(HALF2(R_S[i][j][0])); // 0~7  {c0, c1}
         float2 t_reg_S_1 = __half22float2(HALF2(R_S[i][j][1])); // 8~15 {c2, c3}
-        // P = Exp(S - m_new)
-        t_reg_S_0.x = __expf(t_reg_S_0.x * scale - block_row_max_new_0);
-        t_reg_S_0.y = __expf(t_reg_S_0.y * scale - block_row_max_new_0);
-        t_reg_S_1.x = __expf(t_reg_S_1.x * scale - block_row_max_new_1);
-        t_reg_S_1.y = __expf(t_reg_S_1.y * scale - block_row_max_new_1);
+        // P = Exp(S - m_new), fmaf(x, y, z) = x * y + z;
+        t_reg_S_0.x = __expf(__fmaf_rn(t_reg_S_0.x, scale, - block_row_max_new_0));
+        t_reg_S_0.y = __expf(__fmaf_rn(t_reg_S_0.y, scale, - block_row_max_new_0));
+        t_reg_S_1.x = __expf(__fmaf_rn(t_reg_S_1.x, scale, - block_row_max_new_1));
+        t_reg_S_1.y = __expf(__fmaf_rn(t_reg_S_1.y, scale, - block_row_max_new_1));
         lane_row_sum_new[i][0] += (t_reg_S_0.x + t_reg_S_0.y);
         lane_row_sum_new[i][1] += (t_reg_S_1.x + t_reg_S_1.y);
         // Update R_S for P[Br,Bc] = Exp(S-m), point wise.
@@ -480,7 +447,8 @@ flash_attn_mma_stages_kernel(half* Q,
     } // end for kWarpTileSeqLenQ
     __syncthreads();
 
-    // Block level reduce sum, row wise, 64x4=256
+    // Block level reduce sum, row wise, 64x4=256. Warp reduce operation
+    // is faster than atomaicAdd float in my tests.
     float wrp_row_sum_new = (
       block_row_sum_new_smem[tid / kMmaTileSeqLenK][tid % kMmaTileSeqLenK]); // [0~63][0~4]
     float blk_row_sum_new = warp_reduce_sum<float, 4>(wrp_row_sum_new);
@@ -516,7 +484,7 @@ flash_attn_mma_stages_kernel(half* Q,
     // | warp_QP 1 |-- MMA 1,MMA 1,MMA 1,MMA 1 --|-- MMA 3,MMA 3,MMA 3,MMA 3 --|-- MMA 5,MMA 5,MMA 5,MMA 5 --|-- MMA 7,MMA 7,MMA 7,MMA 7 --|
     
     // Write R_P(R_S) to P_smem [Br,Bc]
-    // store S(for DEBUG now) [Br,Bc] of [seqlen,seqlen] [64,64]
+    // store S[Br,Bc] of [seqlen,seqlen] [64,64]
     #pragma unroll 
     for (int i = 0; i < kWarpTileSeqLenQ; ++i) {
       #pragma unroll 
@@ -548,9 +516,9 @@ flash_attn_mma_stages_kernel(half* Q,
 
     // Compute P[Br,Bc] @ V[Bc,d] = [Br,d] = [64, 64/128], partion Attention.
     // Here, we have to wait V ready before compute O = P @ V
-    if constexpr (kStage == 2) {
+    if constexpr (kStage > 1) {
       // NOTE: For kStage > 1, we have send V mem issues before K
-      CP_ASYNC_WAIT_GROUP(1); // s1->-1, s2->0, s3->1, s4->2
+      CP_ASYNC_WAIT_GROUP(1); 
     } else {
       CP_ASYNC_WAIT_GROUP(0);
     }
@@ -563,7 +531,7 @@ flash_attn_mma_stages_kernel(half* Q,
     #pragma unroll
     for (int tile_V_Bc = 0; tile_V_Bc < (Bc / kMmaAtomK); ++tile_V_Bc) {
       // smem -> reg, load m16k16 smem Q, offset d according tile_K_d.
-      // ldmatrix.x4 for S_tile_smem.
+      // ldmatrix.x4 from S_tile_smem.
       #pragma unroll
       for (int i = 0; i < kWarpTileSeqLenP; ++i) { // S[Br,Bc]=[M,K]
         int warp_smem_S_Br = warp_QP * (kMmaAtomM * kWarpTileSeqLenP) + i * kMmaAtomM;
@@ -576,7 +544,7 @@ flash_attn_mma_stages_kernel(half* Q,
         LDMATRIX_X4(R_Q[i][0], R_Q[i][1], R_Q[i][2], R_Q[i][3], 
                     lane_smem_S_ptr); // now, R_P
       }
- 
+
       // Load k16n8 V from smem -> regs, R_KV, ldmatrix.x2.trans.
       #pragma unroll
       for (int j = 0; j < kWarpTileHeadDimV; ++j) { 
@@ -584,8 +552,8 @@ flash_attn_mma_stages_kernel(half* Q,
         int lane_smem_V_Bc = tile_V_Bc * kMmaAtomK + lane_id % 16; // 0~15; Bc, matmul K
         int lane_smem_V_d  = warp_smem_V_d; // 0
         uint32_t lane_smem_V_ptr = (
-            smem_V_base_ptr + (lane_smem_V_Bc * (kHeadDim + kPad) + 
-                               lane_smem_V_d) * sizeof(half)
+          smem_V_base_ptr + (lane_smem_V_Bc * (kHeadDim + kPad) + 
+                             lane_smem_V_d) * sizeof(half)
         );
         LDMATRIX_X2_T(R_V[j][0], R_V[j][1], lane_smem_V_ptr); // R_V
       }
@@ -611,10 +579,14 @@ flash_attn_mma_stages_kernel(half* Q,
       for (int i = 0; i < kWarpTileSeqLenP; ++i) { // kWarpTileSeqLenQ=2
         #pragma unroll
         for (int j = 0; j < kWarpTileHeadDimV; ++j) { // kWarpTileHeadDimV=1,2,3,4,...
+          // tile_V_Bc = 0, all curr MMAs(0~7) need P[:,  0:16]; but only stored in MMA 0, MMA 1, S_P
+          // tile_V_Bc = 1, all curr MMAs(0~7) need P[:, 16:32]; but only stored in MMA 2, MMA 3, S_P 
+          // tile_V_Bc = 2, all curr MMAs(0~7) need P[:, 32:48]; but only stored in MMA 4, MMA 5, S_P 
+          // tile_V_Bc = 3, all curr MMAs(0~7) need P[:, 48:64]; but only stored in MMA 6, MMA 7, S_P 
+          // We have to comm across warps to get right values for MMA inner loop, namely,
+          // we have to use shared memory to collect values from other warps. Thus, S_P
+          // can not use as A matrix in MMA in split_kv mode.
           HMMA16816(R_O[i][j][0], R_O[i][j][1], 
-                    // FIXME(DefTruth): Still have some error while using R_S 
-                    // as registers for P(A) matrix directly. I will remove this 
-                    // comments when I have fixed it.
                     // R_S[i][0][0], R_S[i][0][1], R_S[i][1][0],  R_S[i][1][1], 
                     R_Q[i][0],    R_Q[i][1],    R_Q[i][2], R_Q[i][3], 
                     R_V[j][0],    R_V[j][1],
@@ -637,14 +609,13 @@ flash_attn_mma_stages_kernel(half* Q,
         warp_QP * 32 + i * 16 + 0 * 8 + (lane_id / 4)][0];
       float block_row_sum_new_1 = block_row_sum_new_smem[
         warp_QP * 32 + i * 16 + 1 * 8 + (lane_id / 4)][0];
+      
       float block_row_max_old_0 = lane_block_row_max_old[i][0];
       float block_row_max_old_1 = lane_block_row_max_old[i][1];
-      block_row_max_new_0 = (tile_K_seqlen > 0 ? max(block_row_max_old_0, 
-                                                     block_row_max_new_0) : 
-                                                     block_row_max_new_0);
-      block_row_max_new_1 = (tile_K_seqlen > 0 ? max(block_row_max_old_1, 
-                                                     block_row_max_new_1) : 
-                                                     block_row_max_new_1);
+      // NOTE: max(-inf, val) = val.
+      block_row_max_new_0 = max(block_row_max_old_0, block_row_max_new_0);
+      block_row_max_new_1 = max(block_row_max_old_1, block_row_max_new_1);   
+      // Avoid inf value while using m_old for rescaling O.
       block_row_max_old_0 = (tile_K_seqlen > 0 ? block_row_max_old_0 : 
                                                  block_row_max_new_0);                                       
       block_row_max_old_1 = (tile_K_seqlen > 0 ? block_row_max_old_1 : 
@@ -666,10 +637,10 @@ flash_attn_mma_stages_kernel(half* Q,
         // would result in an error during rescaling, namely, you have
         // use exp(m_old - m_new), not 1/(m_old - m_new).
         // O_new[Br,d] = exp(m_old - m_new) * O_old + P@V
-        t_reg_D_0.x = rescale_o_factor_0 * t_reg_D_0.x + t_reg_O_0.x;
-        t_reg_D_0.y = rescale_o_factor_0 * t_reg_D_0.y + t_reg_O_0.y;
-        t_reg_D_1.x = rescale_o_factor_1 * t_reg_D_1.x + t_reg_O_1.x;
-        t_reg_D_1.y = rescale_o_factor_1 * t_reg_D_1.y + t_reg_O_1.y;
+        t_reg_D_0.x = __fmaf_rn(rescale_o_factor_0, t_reg_D_0.x, t_reg_O_0.x);
+        t_reg_D_0.y = __fmaf_rn(rescale_o_factor_0, t_reg_D_0.y, t_reg_O_0.y);
+        t_reg_D_1.x = __fmaf_rn(rescale_o_factor_1, t_reg_D_1.x, t_reg_O_1.x);
+        t_reg_D_1.y = __fmaf_rn(rescale_o_factor_1, t_reg_D_1.y, t_reg_O_1.y);
         HALF2(R_D[i][j][0]) = __float22half2_rn(t_reg_D_0);
         HALF2(R_D[i][j][1]) = __float22half2_rn(t_reg_D_1);
       } // end for kWarpTileHeadDimV.
@@ -680,10 +651,10 @@ flash_attn_mma_stages_kernel(half* Q,
       float block_row_sum_old_0 = lane_block_row_sum_old[i][0];
       float block_row_sum_old_1 = lane_block_row_sum_old[i][1];
       // Update l = exp(m_old - m_new) * l_old + row_sum(P).
-      lane_block_row_sum_old[i][0] = (
-        rescale_o_factor_0 * block_row_sum_old_0 + block_row_sum_new_0);
-      lane_block_row_sum_old[i][1] = (
-        rescale_o_factor_1 * block_row_sum_old_1 + block_row_sum_new_1);
+      lane_block_row_sum_old[i][0] = (__fmaf_rn(
+        rescale_o_factor_0, block_row_sum_old_0, block_row_sum_new_0));
+      lane_block_row_sum_old[i][1] = (__fmaf_rn(
+        rescale_o_factor_1, block_row_sum_old_1, block_row_sum_new_1));
       // 2. Then, update block row max for each lane.
       lane_block_row_max_old[i][0] = block_row_max_new_0;
       lane_block_row_max_old[i][1] = block_row_max_new_1;
@@ -691,7 +662,7 @@ flash_attn_mma_stages_kernel(half* Q,
 
     // NOTE: After compute P @ V, we have to wait next K tile ready in smem.
     // do not need to wait any things if kStage == 1.
-    if constexpr (kStage == 2) {
+    if constexpr (kStage > 1) {
       CP_ASYNC_WAIT_GROUP(0);
       __syncthreads(); 
     }
@@ -703,12 +674,12 @@ flash_attn_mma_stages_kernel(half* Q,
   // O_output(D) = ( 1/l_final ) * O_final (FA2 paper)
   #pragma unroll
   for (int i = 0; i < kWarpTileSeqLenP; ++i) {
+    float rescale_factor_0 = __frcp_rn(lane_block_row_sum_old[i][0]);
+    float rescale_factor_1 = __frcp_rn(lane_block_row_sum_old[i][1]);
     #pragma unroll
     for (int j = 0; j < kWarpTileHeadDimV; ++j) {
       float2 t_reg_D_0 = __half22float2(HALF2(R_D[i][j][0])); // 0~7  {c0, c1}
       float2 t_reg_D_1 = __half22float2(HALF2(R_D[i][j][1])); // 8~15 {c2, c3}
-      float rescale_factor_0 = __frcp_rn(lane_block_row_sum_old[i][0]);
-      float rescale_factor_1 = __frcp_rn(lane_block_row_sum_old[i][1]);
       t_reg_D_0.x = rescale_factor_0 * t_reg_D_0.x;
       t_reg_D_0.y = rescale_factor_0 * t_reg_D_0.y;
       t_reg_D_1.x = rescale_factor_1 * t_reg_D_1.x;
@@ -752,29 +723,10 @@ flash_attn_mma_stages_kernel(half* Q,
   } // end for kWarpTileSeqLenQ
 }
 
-// --------------------- PyTorch bindings for custom kernel -----------------------
-#include <torch/types.h>
-#include <torch/extension.h>
-#define STRINGFY(str) #str
-#define TORCH_BINDING_COMMON_EXTENSION(func) \
-  m.def(STRINGFY(func), &func, STRINGFY(func));
 
-#define CHECK_TORCH_TENSOR_DTYPE(T, th_type)                 \
-if(((T).options().dtype() != (th_type))) {                   \
-  std::cout << "Tensor Info:" << (T).options() << std::endl; \
-  throw std::runtime_error("values must be "#th_type);       \
-}
-
-#define CHECK_TORCH_TENSOR_SHAPE(T1, T2)             \
-if (((T2).size(0) != (T1).size(0)) ||                \
-    ((T2).size(1) != (T1).size(1)) ||                \
-    ((T2).size(2) != (T1).size(2)) ||                \
-    ((T2).size(3) != (T1).size(3))) {                \
-  throw std::runtime_error("Tensor size mismatch!"); \
-}
-
+// Launch kernel for flash_attn_mma_stages_split_kv
 template<const int kHeadDim, const int kStage>
-void launch_flash_attn_mma_stages(
+void launch_flash_attn_mma_stages_split_kv(
   torch::Tensor Q, torch::Tensor K, torch::Tensor V, torch::Tensor O) {
   constexpr int kMmaAtomM = 16;
   constexpr int kMmaAtomN = 8;
@@ -806,7 +758,7 @@ void launch_flash_attn_mma_stages(
   dim3 block(WARP_SIZE * kMmaTileSeqLenQ * kMmaTileSeqLenK); // 8 warps per block
 
   cudaFuncSetAttribute(
-    flash_attn_mma_stages_kernel<
+    flash_attn_mma_stages_split_kv_kernel<
       kHeadDim, 
       kMmaAtomM, 
       kMmaAtomN, 
@@ -826,7 +778,7 @@ void launch_flash_attn_mma_stages(
     98304
   );
 
-  flash_attn_mma_stages_kernel<
+  flash_attn_mma_stages_split_kv_kernel<
     kHeadDim, 
     kMmaAtomM, 
     kMmaAtomN, 
@@ -850,9 +802,11 @@ void launch_flash_attn_mma_stages(
   );
 }
 
-void flash_attn_mma_stages(torch::Tensor Q, torch::Tensor K, 
-                           torch::Tensor V, torch::Tensor O, 
-                           int stages) {
+void flash_attn_mma_stages_split_kv(torch::Tensor Q, 
+                                    torch::Tensor K, 
+                                    torch::Tensor V, 
+                                    torch::Tensor O, 
+                                    int stages) {
   CHECK_TORCH_TENSOR_DTYPE(Q, torch::kHalf) // Q   [B,H,N,D]
   CHECK_TORCH_TENSOR_DTYPE(K, torch::kHalf) // K^T [B,H,D,N], transposed.
   CHECK_TORCH_TENSOR_DTYPE(V, torch::kHalf) // V   [B,H,N,D]
@@ -863,13 +817,13 @@ void flash_attn_mma_stages(torch::Tensor Q, torch::Tensor K,
     switch (d)
     {
     case 64:
-      launch_flash_attn_mma_stages<64,  2>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_kv<64,  2>(Q, K, V, O);
       break;
     case 96:
-      launch_flash_attn_mma_stages<96,  2>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_kv<96,  2>(Q, K, V, O);
       break;
     case 128:
-      launch_flash_attn_mma_stages<128, 2>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_kv<128, 2>(Q, K, V, O);
       break;
     default:
       throw std::runtime_error("headdim not support!");
@@ -879,13 +833,13 @@ void flash_attn_mma_stages(torch::Tensor Q, torch::Tensor K,
     switch (d)
     {
     case 64:
-      launch_flash_attn_mma_stages<64,  1>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_kv<64,  1>(Q, K, V, O);
       break;
     case 96:
-      launch_flash_attn_mma_stages<96,  1>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_kv<96,  1>(Q, K, V, O);
       break;
     case 128:
-      launch_flash_attn_mma_stages<128, 1>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_kv<128, 1>(Q, K, V, O);
       break;
     default:
       throw std::runtime_error("headdim not support!");

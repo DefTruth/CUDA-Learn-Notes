@@ -9,6 +9,8 @@
 #include <cuda_bf16.h>
 #include <cuda_fp8.h>
 #include <mma.h>
+#include <torch/types.h>
+#include <torch/extension.h>
 using namespace nvcuda;
 
 #define WARP_SIZE 32
@@ -56,6 +58,24 @@ using namespace nvcuda;
 #define HMMA16816F32(RD0, RD1, RD2, RD3, RA0, RA1, RA2, RA3, RB0, RB1, RC0, RC1, RC2, RC3) asm volatile("mma.sync.aligned.m16n8k16.row.col.f32.f16.f16.f32 {%0,  %1,  %2,  %3}, {%4, %5, %6, %7}, {%8, %9}, {%10, %11, %12, %13};\n" : "=r"(RD0), "=r"(RD1), "=r"(RD2), "=r"(RD3): "r"(RA0), "r"(RA1), "r"(RA2), "r"(RA3), "r"(RB0), "r"(RB1), "r"(RC0), "r"(RC1), "r"(RC2), "r"(RC3))
 
 
+#define STRINGFY(str) #str
+#define TORCH_BINDING_COMMON_EXTENSION(func) \
+  m.def(STRINGFY(func), &func, STRINGFY(func));
+
+#define CHECK_TORCH_TENSOR_DTYPE(T, th_type)                 \
+if(((T).options().dtype() != (th_type))) {                   \
+  std::cout << "Tensor Info:" << (T).options() << std::endl; \
+  throw std::runtime_error("values must be "#th_type);       \
+}
+
+#define CHECK_TORCH_TENSOR_SHAPE(T1, T2)             \
+if (((T2).size(0) != (T1).size(0)) ||                \
+    ((T2).size(1) != (T1).size(1)) ||                \
+    ((T2).size(2) != (T1).size(2)) ||                \
+    ((T2).size(3) != (T1).size(3))) {                \
+  throw std::runtime_error("Tensor size mismatch!"); \
+}
+
 HOST_DEVICE_INLINE 
 int div_ceil(int a, int b) { return (a % b != 0) ? (a / b + 1) : (a / b); }
 
@@ -72,8 +92,7 @@ template<typename T, const int kWarpSize = WARP_SIZE>
 DEVICE_INLINE T warp_reduce_max(T val) {
   #pragma unroll
   for (int mask = kWarpSize >> 1; mask >= 1; mask >>= 1) {
-    T val_compare = __shfl_xor_sync(0xffffffff, val, mask, kWarpSize);
-    val = val > val_compare ? val : val_compare;
+    val = max(val, __shfl_xor_sync(0xffffffff, val, mask, kWarpSize));
   }
   return val;
 }
@@ -102,6 +121,33 @@ DEVICE_INLINE void fill_2D_regs(T (&R)[M][N], T val) {
     }
   }
 }
+
+template<typename T, int M>
+DEVICE_INLINE void fill_1D_regs(T (&S)[M], T val) {
+  #pragma unroll
+  for (int i = 0; i < M; ++i) {
+    S[i] = val;
+  }
+}
+
+template<typename T, int M>
+DEVICE_INLINE void fill_1D_smem(T (&R)[M], T val, int tid) {
+  if (tid == 0) {
+    #pragma unroll
+    for (int i = 0; i < M; ++i) {
+      R[i] = val;
+    }
+  }
+}
+
+// Copy from: https://github.com/NVIDIA/cutlass/blob/e1cd8c7866dd6de02b66a89879795e7d7301aacc/examples/41_fused_multi_head_attention/kernel_forward.h#L87
+static DEVICE_INLINE float atomicMaxFloat(float* addr, float value) {
+  // source: https://stackoverflow.com/a/51549250
+  return (value >= 0)
+      ? __int_as_float(atomicMax((int*)addr, __float_as_int(value)))
+      : __uint_as_float(atomicMin((unsigned int*)addr, __float_as_uint(value)));
+}
+
 
 #define INFHALF __float2half(65536.0f)
 #define ZEROHALF __float2half(0.0f)
@@ -137,6 +183,19 @@ DEVICE_INLINE void fill_2D_regs(T (&R)[M][N], T val) {
 #define FA_MMA_CHECK_PRINT_REG(R0, R1, format, ...)                       \
 {                                                                         \
   {                                                                       \
+    float2 v_reg_0 = __half22float2(HALF2(R0));                           \
+    float2 v_reg_1 = __half22float2(HALF2(R1));                           \
+    if ((fabs(v_reg_0.x - v_reg_1.x) > 0.01f) ||                          \
+        (fabs(v_reg_0.y - v_reg_1.y) > 0.01f)) {                          \
+      printf(format", R0, V0=%f, V1=%f, R1, V0=%f, V1=%f\n",              \
+             ##__VA_ARGS__, v_reg_0.x, v_reg_0.y, v_reg_1.x, v_reg_1.y);  \
+    }                                                                     \
+  }                                                                       \
+}
+
+#define FA_MMA_CHECK_PRINT_T32_REG(R0, R1, format, ...)                   \
+{                                                                         \
+  if (tid < 32){                                                          \
     float2 v_reg_0 = __half22float2(HALF2(R0));                           \
     float2 v_reg_1 = __half22float2(HALF2(R1));                           \
     if ((fabs(v_reg_0.x - v_reg_1.x) > 0.01f) ||                          \
