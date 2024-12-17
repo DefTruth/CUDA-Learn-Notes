@@ -47,8 +47,8 @@ def get_args():
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--verbose", '--v', action="store_true")
-    parser.add_argument("--warmup", type=int, default=2)
-    parser.add_argument("--iters", type=int, default=10)
+    parser.add_argument("--warmup", type=int, default=1)
+    parser.add_argument("--iters", type=int, default=5)
     parser.add_argument("--range-k", '--gk', action="store_true")
     return parser.parse_args()
 
@@ -62,6 +62,8 @@ lib = load(name='flash_attn_lib',
            sources=[
                './mma/flash_attn_mma_split_kv.cu',
                './mma/flash_attn_mma_split_q.cu',
+               './mma/flash_attn_mma_share_kv.cu',
+               './mma/flash_attn_mma_share_qkv.cu',
                './pybind/flash_attn.cc'
             ], 
            extra_cuda_cflags=[
@@ -94,7 +96,7 @@ def get_mha_tflops(B, H, N, D, T=1.0):
     flops_subtract_max = B * H * N * N    # sub max
     flops_exp = B * H * N * N             # pointwise exp
     flops_row_sum = B * H * N * (N - 1)   # row sum
-    flops_normalization = B * H * N * N   # 归一化
+    flops_normalization = B * H * N * N   # normalization
     
     flops_safe_softmax = flops_row_max + flops_subtract_max + flops_exp + flops_row_sum + flops_normalization
     
@@ -118,7 +120,7 @@ def run_benchmark(perf_func: callable,
                   v: torch.Tensor,
                   tag: str, 
                   out: Optional[torch.Tensor] = None, 
-                  s: Optional[torch.Tensor] = None, # BUDEG
+                  s: Optional[torch.Tensor] = None, # DEBUG
                   stages: int = -1,
                   warmup: int = args.warmup, 
                   iters: int = args.iters,
@@ -173,7 +175,7 @@ def run_benchmark(perf_func: callable,
     out_val = out_val_first[:2]
     out_val.append(out_val_last[-1])
     out_val = [f"{v:<12}" for v in out_val]
-    print(f"{out_info:>25}: {out_val}, time:{mean_time:<.6f}ms, TFLOPS:{TFLOPS:<6.2f}")
+    print(f"{out_info:>30}: {out_val}, time:{mean_time:<.6f}ms, TFLOPS:{TFLOPS:<6.2f}")
     if show_all: 
         print(out)
     time.sleep(0.05)
@@ -234,7 +236,7 @@ def check_all_close(out_flash: torch.Tensor, out_mma: torch.Tensor,
 
 Bs = [1, 2, 4] if not args.B else [args.B]
 Hs = [1, 4, 8] if not args.H else [args.H]
-Ns = [1024, 2048] if not args.N else [args.N]
+Ns = [1024, 2048, 4096] if not args.N else [args.N]
 Ds = [64, 128] if not args.D else [args.D] 
 # batch_size, n_head, seq_len, head_dim (B,H,N,D)
 BHNDs = [(B, H, N, D) for B in Bs for H in Hs for N in Ns for D in Ds]
@@ -252,14 +254,17 @@ for (B, H, N, D) in BHNDs:
     torch.cuda.synchronize()
     
     if args.run_torch_unfused:
-        out_unfused,   _ = run_benchmark(unfused_standard_attn, q, k, v, "torch(unfused)")
-    out_mma_split_kv1, _ = run_benchmark(lib.flash_attn_mma_stages_split_kv, q, tk, v, "mma(split-kv+stage1)", o, stages=1)
-    out_mma_split_kv2, _ = run_benchmark(lib.flash_attn_mma_stages_split_kv, q, tk, v, "mma(split-kv+stage2)", o, stages=2)
-    out_mma_split_q1,  _ = run_benchmark(lib.flash_attn_mma_stages_split_q,  q, tk, v, "mma(split-q+stage1)",  o, stages=1)
-    out_mma_split_q2,  _ = run_benchmark(lib.flash_attn_mma_stages_split_q,  q, tk, v, "mma(split-q+stage2)",  o, stages=2)
-    out_flash,         _ = run_benchmark(flash_attn_func, fq, fk, fv, "(flash)")
+        out_unfused,    _ = run_benchmark(unfused_standard_attn, q, k, v, "torch(unfused)")
+    out_mma_split_kv1,  _ = run_benchmark(lib.flash_attn_mma_stages_split_kv, q, tk, v, "mma(split-kv+stage1)", o, stages=1)
+    out_mma_split_kv2,  _ = run_benchmark(lib.flash_attn_mma_stages_split_kv, q, tk, v, "mma(split-kv+stage2)", o, stages=2)
+    out_mma_split_q1,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q,  q, tk, v, "mma(split-q+stage1)",  o, stages=1)
+    out_mma_split_q2,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q,  q, tk, v, "mma(split-q+stage2)",  o, stages=2)
+    out_mma_share_kv,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_kv,  q, tk, v, "mma(split-q+share-kv+stage1)",  o, stages=1)
+    out_mma_share_qkv1, _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv,  q, tk, v, "mma(split-q+share-qkv+stage1)",  o, stages=1)
+    out_mma_share_qkv2, _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv,  q, tk, v, "mma(split-q+share-qkv+stage2)",  o, stages=2)
+    out_flash,          _ = run_benchmark(flash_attn_func, fq, fk, fv, "(flash)")
     if args.run_torch_sdpa:
-        out_sdpa,      _ = run_benchmark(F.scaled_dot_product_attention, q, k, v, "(sdpa)")
+        out_sdpa,       _ = run_benchmark(F.scaled_dot_product_attention, q, k, v, "(sdpa)")
     print("-" * 120)
     
     torch.cuda.synchronize()

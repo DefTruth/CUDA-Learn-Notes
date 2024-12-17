@@ -733,6 +733,9 @@ void flash_attn_mma_stages_split_q(torch::Tensor Q,
   if (stages == 2) {
     switch (d)
     {
+    case 32:
+      launch_flash_attn_mma_stages_split_q<32,  2>(Q, K, V, O);
+      break;
     case 64:
       launch_flash_attn_mma_stages_split_q<64,  2>(Q, K, V, O);
       break;
@@ -749,6 +752,9 @@ void flash_attn_mma_stages_split_q(torch::Tensor Q,
   } else {
     switch (d)
     {
+    case 32:
+      launch_flash_attn_mma_stages_split_q<32,  1>(Q, K, V, O);
+      break;
     case 64:
       launch_flash_attn_mma_stages_split_q<64,  1>(Q, K, V, O);
       break;
