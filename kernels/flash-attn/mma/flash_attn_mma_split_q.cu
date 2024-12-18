@@ -284,7 +284,7 @@ flash_attn_mma_stages_split_q_kernel(half* Q,
         CP_ASYNC_COMMIT_GROUP();
       }
 
-      // Then, prefetch curr K tile_K_seqlen [d,Bc] (no stages)
+      // Then, prefetch curr V tile_K_seqlen [d,Bc] (no stages)
       {
         load_gmem_V_Bc_offset = tile_K_seqlen * Bc; // e.g (0~3)*64=(0,64,128,192,...)
         int load_gmem_V_Bc = load_gmem_V_Bc_offset + load_smem_V_Bc;
