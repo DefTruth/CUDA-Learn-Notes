@@ -16,20 +16,23 @@ This repository's implementation of FlashAttention is intended solely for learni
 
 - Example: B=1, H=8, N=8192, D=64 (NVIDIA RTX 3080 Laptop)
 ```bash
-python3 flash_attn_mma.py --B 1 --H 8 --D 64 --N 8192 --iters 10 # NVIDIA RTX 3080 Laptop
+python3 flash_attn_mma.py --B 1 --H 8 --D 64 --N 8192 --iters 10 --torch --sdpa # NVIDIA RTX 3080 Laptop 
 ------------------------------------------------------------------------------------------------------------------------
-                    B: batch_size, H: n_head, N: seq_len, D: head_dim, seed: 1617, Warmup: 1, Iters: 10
+                    B: batch_size, H: n_head, N: seq_len, D: head_dim, seed: 805, Warmup: 1, Iters: 10
 ------------------------------------------------------------------------------------------------------------------------
                               B=1, H=8, N=8192, D=64, Warmup: 1, Iters: 10
-          mma(split-kv+stage1): ['0.01960754  ', '0.01452637  ', '-0.02592468 '], time:5.586338ms, TFLOPS:25.08
-          mma(split-kv+stage2): ['0.01960754  ', '0.01452637  ', '-0.02592468 '], time:5.326223ms, TFLOPS:26.31
-           mma(split-q+stage1): ['0.01960754  ', '0.01452637  ', '-0.02592468 '], time:3.834152ms, TFLOPS:36.54
-           mma(split-q+stage2): ['0.01960754  ', '0.01452637  ', '-0.02592468 '], time:4.328346ms, TFLOPS:32.37
-  mma(split-q+share-kv+stage1): ['0.01960754  ', '0.01452637  ', '-0.02592468 '], time:2.636528ms, TFLOPS:53.15
- mma(split-q+share-qkv+stage1): ['0.01960754  ', '0.01452637  ', '-0.02592468 '], time:2.594471ms, TFLOPS:54.01
- mma(split-q+share-qkv+stage2): ['0.01960754  ', '0.01452637  ', '-0.02592468 '], time:2.574611ms, TFLOPS:54.42
-                       (flash): ['0.01963806  ', '0.0145874   ', '-0.02593994 '], time:3.764462ms, TFLOPS:37.22
------------------------------------------------------------------------------------------------------------------------
+                torch(unfused): ['-0.00887299 ', '-0.00307083 ', '0.00674438  '], time:19.318247ms, TFLOPS:7.25
+          mma(split-kv+stage1): ['-0.0089035  ', '-0.00307846 ', '0.00675964  '], time:5.330205ms, TFLOPS:26.29
+          mma(split-kv+stage2): ['-0.0089035  ', '-0.00307846 ', '0.00675964  '], time:5.058098ms, TFLOPS:27.70
+           mma(split-q+stage1): ['-0.0089035  ', '-0.00307846 ', '0.00675964  '], time:3.639126ms, TFLOPS:38.50
+           mma(split-q+stage2): ['-0.0089035  ', '-0.00307846 ', '0.00675964  '], time:3.981400ms, TFLOPS:35.19
+  mma(split-q+share-kv+stage1): ['-0.0089035  ', '-0.00307846 ', '0.00675964  '], time:2.866197ms, TFLOPS:48.89
+  mma(split-q+share-kv+stage2): ['-0.0089035  ', '-0.00307846 ', '0.00675964  '], time:2.584863ms, TFLOPS:54.21
+ mma(split-q+share-qkv+stage1): ['-0.0089035  ', '-0.00307846 ', '0.00675964  '], time:2.691698ms, TFLOPS:52.06
+ mma(split-q+share-qkv+stage2): ['-0.0089035  ', '-0.00307846 ', '0.00675964  '], time:2.569842ms, TFLOPS:54.52
+                       (flash): ['-0.00886536 ', '-0.0030632  ', '0.00675201  '], time:3.734636ms, TFLOPS:37.52
+                        (sdpa): ['-0.00886536 ', '-0.0030632  ', '0.00675201  '], time:3.542566ms, TFLOPS:39.55
+------------------------------------------------------------------------------------------------------------------------
 ```
 
 ## 📖 Contents

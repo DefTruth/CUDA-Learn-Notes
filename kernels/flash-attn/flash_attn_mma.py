@@ -230,8 +230,11 @@ def check_all_close(out_flash: torch.Tensor, out_mma: torch.Tensor,
                 print(f"{tag}[:, :, {(i*8)}:{(i+1)*8}, :]:\n")
                 print(out_mma[:, :, (i*8):(i+1)*8, :].float())
         print("-" * 120)
-    all_close = torch.allclose(out_flash.float(), out_mma.float(), atol=1e-2)
-    print(f"out_flash vs {tag}: {all_close}")
+    diff = torch.abs(out_flash.float() - out_mma.float())
+    all_close = str(torch.allclose(out_flash.float(), out_mma.float(), atol=1e-2))
+    print(f"out_flash vs {tag:<20}, all close: {all_close:<6}, "
+          f"max diff: {diff.max().item():.6f}, min diff: {diff.min().item():.6f}, "
+          f"mean diff: {diff.mean().item():.6f}")
 
 
 Bs = [1, 2, 4] if not args.B else [args.B]
@@ -270,7 +273,13 @@ for (B, H, N, D) in BHNDs:
     
     torch.cuda.synchronize()
     if args.check:
+        print("-" * 120)
         check_all_close(out_flash, out_mma_split_kv1,  "out_mma_split_kv1",  args.show_all)
         check_all_close(out_flash, out_mma_split_q1,   "out_mma_split_q1",   args.show_all)
         check_all_close(out_flash, out_mma_share_kv1,  "out_mma_share_kv1",  args.show_all)
         check_all_close(out_flash, out_mma_share_qkv1, "out_mma_share_qkv1", args.show_all)
+        check_all_close(out_flash, out_mma_split_kv2,  "out_mma_split_kv2",  args.show_all)
+        check_all_close(out_flash, out_mma_split_q2,   "out_mma_split_q2",   args.show_all)
+        check_all_close(out_flash, out_mma_share_kv2,  "out_mma_share_kv2",  args.show_all)
+        check_all_close(out_flash, out_mma_share_qkv2, "out_mma_share_qkv2", args.show_all)
+        print("-" * 120)

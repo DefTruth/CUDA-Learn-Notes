@@ -233,7 +233,7 @@ flash_attn_mma_stages_split_q_shared_qkv_kernel(half* Q,
             int lane_smem_Q_d  = tile_K_d * kMmaAtomK + (lane_id / 16) * 8; // 0,8
             uint32_t lane_smem_Q_ptr = (
               smem_Q_base_ptr + (lane_smem_Q_Br * (kHeadDim + kPad) + 
-                                lane_smem_Q_d) * sizeof(half)
+                                 lane_smem_Q_d) * sizeof(half)
             );
             LDMATRIX_X4(R_Q[tile_K_d][i][0], R_Q[tile_K_d][i][1], 
                         R_Q[tile_K_d][i][2], R_Q[tile_K_d][i][3], 
@@ -754,7 +754,15 @@ void launch_flash_attn_mma_stages_split_q_shared_qkv(
   // static int kMaxSramPerBlock;
   // cudaDeviceGetAttribute(&kMaxSramPerBlock, cudaDevAttrMaxSharedMemoryPerBlock, 0);
   // Calculate SRAM size needed per block, QKV smem size, QKV fully shared the same smem.
-  const int smem_max_size = (Br * (kHeadDim + kPad)) * sizeof(half); // 128x(32/64/128)x2/1024=8/16/32M
+  constexpr int KV_tile_size = (
+    ((kHeadDim * (Bc + kPad))  > (Bc * (kHeadDim + kPad))) ? 
+    ((kHeadDim * (Bc + kPad))) : (Bc * (kHeadDim + kPad))
+  );
+  int smem_max_size = (Br * (kHeadDim + kPad)) * sizeof(half); // 128x(32/64/128)x2/1024=8/16/32M
+  if constexpr (kStage > 1) {
+    smem_max_size = smem_max_size > 2 * KV_tile_size * sizeof(half) ? 
+                    smem_max_size : 2 * KV_tile_size * sizeof(half);
+  }
 
   const int QKV_batch  = Q.size(0); 
   const int QKV_head   = Q.size(1);

@@ -450,7 +450,11 @@ flash_attn_mma_stages_split_q_kernel(half* Q,
     // Here, we have to wait V ready before compute O = P @ V
     if constexpr (kStage > 1) {
       // NOTE: For kStage > 1, we have send V mem issues before K
-      CP_ASYNC_WAIT_GROUP(1); 
+      if ((tile_K_seqlen + 1) < Tc) {
+        CP_ASYNC_WAIT_GROUP(1); 
+      } else {
+        CP_ASYNC_WAIT_GROUP(0);
+      }
     } else {
       CP_ASYNC_WAIT_GROUP(0);
     }
@@ -582,7 +586,9 @@ flash_attn_mma_stages_split_q_kernel(half* Q,
     // NOTE: After compute P @ V, we have to wait next K tile ready in smem.
     // do not need to wait any things if kStage == 1.
     if constexpr (kStage > 1) {
-      CP_ASYNC_WAIT_GROUP(0);
+      if ((tile_K_seqlen + 1) < Tc) {
+        CP_ASYNC_WAIT_GROUP(0); 
+      }
       __syncthreads(); 
     }
 
@@ -657,7 +663,7 @@ void launch_flash_attn_mma_stages_split_q(
   constexpr int kWarpTileSeqLenP = 1;
   constexpr int kWarpTileHeadDimV = (kHeadDim / (kMmaAtomN * kMmaTileHeadDimV)); // 8,16,32,....
   constexpr int Br = kMmaAtomM * kMmaTileSeqLenQ * kWarpTileSeqLenQ; // 16*4*1=64
-  constexpr int Bc = kMmaAtomN * kMmaTileSeqLenK * kWarpTileSeqLenK; //  8*1*8=64
+  constexpr int Bc = kMmaAtomN * kMmaTileSeqLenK * kWarpTileSeqLenK; // 8*1*8=64
   constexpr int kNumThreads = WARP_SIZE * kMmaTileSeqLenQ * kMmaTileSeqLenK; // 32*4*1=128, num threads
   constexpr int kPad = 8;
 
@@ -730,7 +736,7 @@ void flash_attn_mma_stages_split_q(torch::Tensor Q,
   CHECK_TORCH_TENSOR_DTYPE(O, torch::kHalf) // O   [B,H,N,D]
   const int d = Q.size(3); // B, H, N, d
 
-  if (stages == 2) {
+  if (stages > 1) {
     switch (d)
     {
     case 32:

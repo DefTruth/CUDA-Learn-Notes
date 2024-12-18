@@ -518,7 +518,11 @@ flash_attn_mma_stages_split_kv_kernel(half* Q,
     // Here, we have to wait V ready before compute O = P @ V
     if constexpr (kStage > 1) {
       // NOTE: For kStage > 1, we have send V mem issues before K
-      CP_ASYNC_WAIT_GROUP(1); 
+      if ((tile_K_seqlen + 1) < Tc) {
+        CP_ASYNC_WAIT_GROUP(1); 
+      } else {
+        CP_ASYNC_WAIT_GROUP(0);
+      }
     } else {
       CP_ASYNC_WAIT_GROUP(0);
     }
@@ -587,7 +591,6 @@ flash_attn_mma_stages_split_kv_kernel(half* Q,
           // we have to use shared memory to collect values from other warps. Thus, S_P
           // can not use as A matrix in MMA in split_kv mode.
           HMMA16816(R_O[i][j][0], R_O[i][j][1], 
-                    // R_S[i][0][0], R_S[i][0][1], R_S[i][1][0],  R_S[i][1][1], 
                     R_Q[i][0],    R_Q[i][1],    R_Q[i][2], R_Q[i][3], 
                     R_V[j][0],    R_V[j][1],
                     R_O[i][j][0], R_O[i][j][1]);
@@ -663,7 +666,9 @@ flash_attn_mma_stages_split_kv_kernel(half* Q,
     // NOTE: After compute P @ V, we have to wait next K tile ready in smem.
     // do not need to wait any things if kStage == 1.
     if constexpr (kStage > 1) {
-      CP_ASYNC_WAIT_GROUP(0);
+      if ((tile_K_seqlen + 1) < Tc) {
+        CP_ASYNC_WAIT_GROUP(0); 
+      }
       __syncthreads(); 
     }
 
