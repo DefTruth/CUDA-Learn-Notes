@@ -9,7 +9,7 @@
 |✔️|✔️|✔️|✔️|
 |Tile Warp (More Values)|Multi Stages (1/2)|Collective Store (Warp Shuffle & Reg Reuse)|**Split KV/Q**|
 |✔️|✔️|✔️|✔️|
-|**Shared KV** SMEM|Fully **Shared QKV** SMEM|**Prefetch Q** s2r|SMEM/Block Swizzle|
+|**Shared QKV/KV** SMEM|**Prefetch Q** s2r|**Prefetch K/V** g2s|SMEM/Block Swizzle|
 |✔️|✔️|✔️|?|
 
 This repository's implementation of FlashAttention is intended solely for learning CUDA programming. For optimal performance, please use the official [flash-attention](https://github.com/Dao-AILab/flash-attention). Currently, for small-scale attention `(B<=4, H <=48, SeqLen <= 8192)` can run faster than offical FA2 on some Devices, for example, NVIDIA RTX 3080 Laptop. However, for large-scale attention computations, there remains a performance gap. Performance optimizations are ongoing; stay tuned for updates.
@@ -107,7 +107,7 @@ flash_attn_mma_stages_split_q_shared_kv_kernel(half* Q,
 <div id="mma-share-qkv"></div>  
 
 ```C++
-// Q, K, V fully shared the same shared memory and prefetch Q s2r, improve block occupancy.
+// Q, K, V fully shared the same shared memory and prefetch Q s2r, improve block occupancy & reduce Q SMEM IO-Access.
 __global__ void 
 flash_attn_mma_stages_split_q_shared_qkv_kernel(half* Q, 
                                                 half* K, 
