@@ -675,8 +675,8 @@ void launch_flash_attn_mma_stages_split_q(
   constexpr int kNumThreads = WARP_SIZE * kMmaTileSeqLenQ * kMmaTileSeqLenK; // 32*4*1=128, num threads
   constexpr int kPad = 8;
 
-  static int kMaxSramPerBlock;
-  cudaDeviceGetAttribute(&kMaxSramPerBlock, cudaDevAttrMaxSharedMemoryPerBlock, 0);
+  // static int kMaxSramPerBlock;
+  // cudaDeviceGetAttribute(&kMaxSramPerBlock, cudaDevAttrMaxSharedMemoryPerBlock, 0);
   // Calculate SRAM size needed per block, Q,K,V smem size
   const int smem_max_size = ((Br * (kHeadDim + kPad)) + 
                              (kStage * Bc * (kHeadDim + kPad)) + 
@@ -708,8 +708,8 @@ void launch_flash_attn_mma_stages_split_q(
       kPad
     >,
     cudaFuncAttributeMaxDynamicSharedMemorySize,
-    kMaxSramPerBlock
-    // 98304
+    // kMaxSramPerBlock
+    98304
   );
 
   flash_attn_mma_stages_split_q_kernel<

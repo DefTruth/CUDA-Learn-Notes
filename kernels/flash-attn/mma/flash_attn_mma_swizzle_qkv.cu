@@ -60,11 +60,11 @@ template<
          >
 __global__ void __launch_bounds__(
   WARP_SIZE * kMmaTileSeqLenQ * kMmaTileSeqLenK) 
-flash_attn_mma_stages_split_q_shared_kv_kernel(half* Q, 
-                                               half* K, 
-                                               half* V, 
-                                               half* O, 
-                                               int QKV_seqlen) {
+flash_attn_mma_stages_split_q_swizzle_qkv_kernel(half* Q, 
+                                                 half* K, 
+                                                 half* V, 
+                                                 half* O, 
+                                                 int QKV_seqlen) {
   // Matmul Layout: Q[Br,d]@K^T[d,Bc] NT, P[Br,Bc]@V[Bc,d] NN.
   // NOTE: K[Bc,d] with row major means K^T[d,Bc] in col major.
   static_assert(kMmaAtomM == 16 && kMmaAtomN == 8 && kMmaAtomK == 16); // m16n8k16
@@ -731,7 +731,7 @@ flash_attn_mma_stages_split_q_shared_kv_kernel(half* Q,
 
 // Launch kernel for flash_attn_mma_stages_split_q
 template<const int kHeadDim, const int kStage>
-void launch_flash_attn_mma_stages_split_q_shared_kv(
+void launch_flash_attn_mma_stages_split_q_swizzle_qkv(
   torch::Tensor Q, torch::Tensor K, torch::Tensor V, torch::Tensor O) {
   // Now: fixed tile BrxBc=128x64
   // TODO: dynamic tile size for Br, Bc according to kHeadDim and shared memory size.
@@ -768,7 +768,7 @@ void launch_flash_attn_mma_stages_split_q_shared_kv(
   dim3 block(kNumThreads); // 4/8 warps per block
 
   cudaFuncSetAttribute(
-    flash_attn_mma_stages_split_q_shared_kv_kernel<
+    flash_attn_mma_stages_split_q_swizzle_qkv_kernel<
       kHeadDim, 
       kMmaAtomM, 
       kMmaAtomN, 
@@ -789,7 +789,7 @@ void launch_flash_attn_mma_stages_split_q_shared_kv(
     98304
   );
 
-  flash_attn_mma_stages_split_q_shared_kv_kernel<
+  flash_attn_mma_stages_split_q_swizzle_qkv_kernel<
     kHeadDim, 
     kMmaAtomM, 
     kMmaAtomN, 
@@ -813,11 +813,11 @@ void launch_flash_attn_mma_stages_split_q_shared_kv(
   );
 }
 
-void flash_attn_mma_stages_split_q_shared_kv(torch::Tensor Q, 
-                                             torch::Tensor K, 
-                                             torch::Tensor V, 
-                                             torch::Tensor O, 
-                                             int stages) {
+void flash_attn_mma_stages_split_q_swizzle_qkv(torch::Tensor Q, 
+                                               torch::Tensor K, 
+                                               torch::Tensor V, 
+                                               torch::Tensor O, 
+                                               int stages) {
   CHECK_TORCH_TENSOR_DTYPE(Q, torch::kHalf) // Q [B,H,N,D]
   CHECK_TORCH_TENSOR_DTYPE(K, torch::kHalf) // K [B,H,N,D]
   CHECK_TORCH_TENSOR_DTYPE(V, torch::kHalf) // V [B,H,N,D]
@@ -828,16 +828,16 @@ void flash_attn_mma_stages_split_q_shared_kv(torch::Tensor Q,
     switch (d)
     {
     case 32:
-      launch_flash_attn_mma_stages_split_q_shared_kv<32,  2>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_q_swizzle_qkv<32,  2>(Q, K, V, O);
       break;
     case 64:
-      launch_flash_attn_mma_stages_split_q_shared_kv<64,  2>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_q_swizzle_qkv<64,  2>(Q, K, V, O);
       break;
     case 96:
-      launch_flash_attn_mma_stages_split_q_shared_kv<96,  2>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_q_swizzle_qkv<96,  2>(Q, K, V, O);
       break;
     case 128:
-      launch_flash_attn_mma_stages_split_q_shared_kv<128, 2>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_q_swizzle_qkv<128, 2>(Q, K, V, O);
       break;
     default:
       throw std::runtime_error("headdim not support!");
@@ -847,16 +847,16 @@ void flash_attn_mma_stages_split_q_shared_kv(torch::Tensor Q,
     switch (d)
     {
     case 32:
-      launch_flash_attn_mma_stages_split_q_shared_kv<32,  1>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_q_swizzle_qkv<32,  1>(Q, K, V, O);
       break;
     case 64:
-      launch_flash_attn_mma_stages_split_q_shared_kv<64,  1>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_q_swizzle_qkv<64,  1>(Q, K, V, O);
       break;
     case 96:
-      launch_flash_attn_mma_stages_split_q_shared_kv<96,  1>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_q_swizzle_qkv<96,  1>(Q, K, V, O);
       break;
     case 128:
-      launch_flash_attn_mma_stages_split_q_shared_kv<128, 1>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_q_swizzle_qkv<128, 1>(Q, K, V, O);
       break;
     default:
       throw std::runtime_error("headdim not support!");

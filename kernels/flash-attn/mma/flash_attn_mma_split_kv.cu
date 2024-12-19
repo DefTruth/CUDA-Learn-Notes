@@ -760,8 +760,8 @@ void launch_flash_attn_mma_stages_split_kv(
   constexpr int Bc = kMmaAtomN * kMmaTileSeqLenK * kWarpTileSeqLenK; // 8*4*2=64
   constexpr int kPad = 8;
 
-  static int kMaxSramPerBlock;
-  cudaDeviceGetAttribute(&kMaxSramPerBlock, cudaDevAttrMaxSharedMemoryPerBlock, 0);
+  // static int kMaxSramPerBlock;
+  // cudaDeviceGetAttribute(&kMaxSramPerBlock, cudaDevAttrMaxSharedMemoryPerBlock, 0);
   // Calculate SRAM size needed per block, Q,K,V,S smem size
   const int smem_max_size = ((Br * (kHeadDim + kPad)) + 
                              (kStage * Bc * (kHeadDim + kPad)) + 
@@ -794,8 +794,8 @@ void launch_flash_attn_mma_stages_split_kv(
       kPad
     >,
     cudaFuncAttributeMaxDynamicSharedMemorySize,
-    kMaxSramPerBlock
-    // 98304
+    // kMaxSramPerBlock
+    98304
   );
 
   flash_attn_mma_stages_split_kv_kernel<
@@ -833,7 +833,7 @@ void flash_attn_mma_stages_split_kv(torch::Tensor Q,
   CHECK_TORCH_TENSOR_DTYPE(O, torch::kHalf) // O [B,H,N,D]
   const int d = Q.size(3); // B, H, N, d
 
-  if (stages == 2) {
+  if (stages > 1) {
     switch (d)
     {
     case 32:
