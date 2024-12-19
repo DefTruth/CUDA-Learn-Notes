@@ -32,7 +32,8 @@ flash_attn_mma_stages_split_kv_kernel(half* Q,
                                       half* K, 
                                       half* V, 
                                       half* O, 
-                                      int QKV_seqlen) {
+                                      int QKV_seqlen,
+                                      int QKV_head) {
   // Matmul Layout: Q[Br,d]@K^T[d,Bc] NT, P[Br,Bc]@V[Bc,d] NN.
   // NOTE: K[Bc,d] with row major means K^T[d,Bc] in col major.
   static_assert(kMmaAtomM == 16 && kMmaAtomN == 8 && kMmaAtomK == 16); // m16n8k16
@@ -51,10 +52,10 @@ flash_attn_mma_stages_split_kv_kernel(half* Q,
   const int Tc = div_ceil(QKV_seqlen, Bc); // Tc K^T_tile[d,Bc]
   const float scale = 1.0f / sqrt((float) kHeadDim);
   
-  // Launch: grid(batch, head_num, N/Br=Tr), block(256=8*mma or 128=4*mma)
-  const int QKV_batch_id = blockIdx.x;      // Batch size, bx
-  const int QKV_head_id  = blockIdx.y;      // Head num, by
-  const int Q_tile_id    = blockIdx.z;      // Q tile_id, range [0, Tr), bz.
+  // grid(div_ceil(QKV_seqlen, Br), QKV_batch * QKV_head), (x,y,z)
+  const int QKV_batch_id = blockIdx.y / QKV_head; // Batch size
+  const int QKV_head_id  = blockIdx.y % QKV_head; // Head num
+  const int Q_tile_id    = blockIdx.x;            // Q tile_id, range [0, Tr]
   const int O_tile_id    = Q_tile_id;       // O tile_id, same as Q.
   const int tid          = threadIdx.x;     // within block
   const int warp_id      = tid / WARP_SIZE; // 0~7 warp_id within block
@@ -72,10 +73,10 @@ flash_attn_mma_stages_split_kv_kernel(half* Q,
   // | warp_QP 1 |-- MMA 1,MMA 1 --|-- MMA 3,MMA 2 --|-- MMA 5,MMA 5 --|-- MMA 7,MMA 7 --|
   // | warp_QP 1 |-- MMA 1,MMA 1 --|-- MMA 3,MMA 2 --|-- MMA 5,MMA 5 --|-- MMA 7,MMA 7 --|
   // gridDim.y = head_num, gridDim.z = N/Br = Tr.
-  const int Q_gmem_offset = ((QKV_batch_id * gridDim.y * QKV_seqlen * kHeadDim) + 
+  const int Q_gmem_offset = ((QKV_batch_id * QKV_head * QKV_seqlen * kHeadDim) + 
                              (QKV_head_id * QKV_seqlen * kHeadDim)); // Q [seqlen,d]
-  const int K_gmem_offset = ((QKV_batch_id * gridDim.y * QKV_seqlen * kHeadDim) + 
-                             (QKV_head_id * QKV_seqlen * kHeadDim)); // K [seqlen,d]
+  const int K_gmem_offset = ((QKV_batch_id * QKV_head * QKV_seqlen * kHeadDim) + 
+                             (QKV_head_id * QKV_seqlen * kHeadDim)); // K [seqlen,d] 
   const int V_gmem_offset = Q_gmem_offset; // V [seqlen,d]
   const int O_gmem_offset = Q_gmem_offset; // O [seqlen,d]
 
@@ -758,6 +759,7 @@ void launch_flash_attn_mma_stages_split_kv(
   constexpr int kWarpTileHeadDimV = (kHeadDim / (kMmaAtomN*kMmaTileHeadDimV));
   constexpr int Br = kMmaAtomM * kMmaTileSeqLenQ * kWarpTileSeqLenQ; // 16*2*2=64
   constexpr int Bc = kMmaAtomN * kMmaTileSeqLenK * kWarpTileSeqLenK; // 8*4*2=64
+  constexpr int kNumThreads = WARP_SIZE * kMmaTileSeqLenQ * kMmaTileSeqLenK;
   constexpr int kPad = 8;
 
   // static int kMaxSramPerBlock;
@@ -773,8 +775,14 @@ void launch_flash_attn_mma_stages_split_kv(
   const int QKV_seqlen = Q.size(2); // QKV_seqlen
   assert(QKV_seqlen % Bc == 0); // multiple of Bc=64
 
-  dim3 grid(QKV_batch, QKV_head, div_ceil(QKV_seqlen, Br)); // batch_size x num_heads x Tr(=N/Br)
-  dim3 block(WARP_SIZE * kMmaTileSeqLenQ * kMmaTileSeqLenK); // 8 warps per block
+  // TODO: How to apply block swizzle to improve L2 Cache hit rate?
+  // NOTE: reorder (B,H,Tr) -> (Tr,B*H) seems can improve L2 Cache hit rate. 
+  // This might be because SM schedules blocks starting from the x-dimension. 
+  // Placing Tr at the forefront ensures that identical KV pairs are placed 
+  // in consecutive scheduling queues, thereby improving L2 Cache hit rates.
+  // Tr(=N/Br), batch_size x num_heads
+  dim3 grid(div_ceil(QKV_seqlen, Br), QKV_batch * QKV_head); 
+  dim3 block(kNumThreads); // 4/8 warps per block
 
   cudaFuncSetAttribute(
     flash_attn_mma_stages_split_kv_kernel<
@@ -818,7 +826,8 @@ void launch_flash_attn_mma_stages_split_kv(
     reinterpret_cast<half*>(K.data_ptr()),
     reinterpret_cast<half*>(V.data_ptr()),
     reinterpret_cast<half*>(O.data_ptr()),
-    QKV_seqlen
+    QKV_seqlen,
+    QKV_head
   );
 }
 

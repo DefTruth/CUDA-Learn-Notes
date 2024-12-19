@@ -77,6 +77,7 @@ lib = load(name='flash_attn_lib',
                './mma/flash_attn_mma_split_q.cu',
                './mma/flash_attn_mma_share_kv.cu',
                './mma/flash_attn_mma_share_qkv.cu',
+               './mma/flash_attn_mma_swizzle_qkv.cu',
                './pybind/flash_attn.cc'
             ], 
            extra_cuda_cflags=[
@@ -311,6 +312,8 @@ for (B, H, N, D) in BHNDs:
     out_mma_share_qkv2, _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv, q, k, v, "mma(split-q+share-qkv+stage2)", o, stages=2)
     out_mma_share_kv1,  _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_kv,  q, k, v, "mma(split-q+share-kv+stage1)",  o, stages=1)
     out_mma_share_kv2,  _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_kv,  q, k, v, "mma(split-q+share-kv+stage2)",  o, stages=2)
+    out_mma_swizzle1,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q_swizzle_qkv,  q, k, v, "mma(split-q+swizzle-qkv+stage1)",  o, stages=1)
+    out_mma_swizzle2,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q_swizzle_qkv,  q, k, v, "mma(split-q+swizzle-qkv+stage2)",  o, stages=2)
     out_flash,          _ = run_benchmark(flash_attn_func, fq, fk, fv, "(flash)")
     if args.run_torch_sdpa:
         out_sdpa,       _ = run_benchmark(F.scaled_dot_product_attention, q, k, v, "(sdpa)")
@@ -320,11 +323,13 @@ for (B, H, N, D) in BHNDs:
     if args.check:
         pretty_print_line()
         check_all_close(out_flash, out_mma_split_kv1,  "out_mma_split_kv1",  args.check_all)
-        check_all_close(out_flash, out_mma_split_q1,   "out_mma_split_q1",   args.check_all)
-        check_all_close(out_flash, out_mma_share_kv1,  "out_mma_share_kv1",  args.check_all)
-        check_all_close(out_flash, out_mma_share_qkv1, "out_mma_share_qkv1", args.check_all)
         check_all_close(out_flash, out_mma_split_kv2,  "out_mma_split_kv2",  args.check_all)
+        check_all_close(out_flash, out_mma_split_q1,   "out_mma_split_q1",   args.check_all)
         check_all_close(out_flash, out_mma_split_q2,   "out_mma_split_q2",   args.check_all)
+        check_all_close(out_flash, out_mma_share_kv1,  "out_mma_share_kv1",  args.check_all)
         check_all_close(out_flash, out_mma_share_kv2,  "out_mma_share_kv2",  args.check_all)
+        check_all_close(out_flash, out_mma_share_qkv1, "out_mma_share_qkv1", args.check_all)
         check_all_close(out_flash, out_mma_share_qkv2, "out_mma_share_qkv2", args.check_all)
+        check_all_close(out_flash, out_mma_swizzle1,   "out_mma_swizzle1",   args.check_all)
+        check_all_close(out_flash, out_mma_swizzle2,   "out_mma_swizzle2",   args.check_all)
         pretty_print_line()

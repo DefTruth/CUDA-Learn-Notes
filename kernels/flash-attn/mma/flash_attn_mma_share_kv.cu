@@ -64,7 +64,8 @@ flash_attn_mma_stages_split_q_shared_kv_kernel(half* Q,
                                                half* K, 
                                                half* V, 
                                                half* O, 
-                                               int QKV_seqlen) {
+                                               int QKV_seqlen,
+                                               int QKV_head) {
   // Matmul Layout: Q[Br,d]@K^T[d,Bc] NT, P[Br,Bc]@V[Bc,d] NN.
   // NOTE: K[Bc,d] with row major means K^T[d,Bc] in col major.
   static_assert(kMmaAtomM == 16 && kMmaAtomN == 8 && kMmaAtomK == 16); // m16n8k16
@@ -85,16 +86,16 @@ flash_attn_mma_stages_split_q_shared_kv_kernel(half* Q,
   const int Tc = div_ceil(QKV_seqlen, Bc); // Tc K_tile[Bc,d]
   const float scale = 1.0f / sqrt((float) kHeadDim);
   
-  // Launch: grid(batch, head_num, N/Br=Tr), block(256=8*mma or 128=4*mma)
-  const int QKV_batch_id = blockIdx.x;      // Batch size, bx
-  const int QKV_head_id  = blockIdx.y;      // Head num, by
-  const int Q_tile_id    = blockIdx.z;      // Q tile_id, range [0, Tr), bz.
-  const int O_tile_id    = Q_tile_id;       // O tile_id, same as Q.
-  const int tid          = threadIdx.x;     // within block
-  const int warp_id      = tid / WARP_SIZE; // 0~7 warp_id within block
-  const int lane_id      = tid % WARP_SIZE; // 0~31
-  const int warp_QP      = warp_id;         // 0,1,2,3 or 0~7
-  const int warp_KV      = 0;               // 0
+  // grid(div_ceil(QKV_seqlen, Br), QKV_batch * QKV_head), (x,y,z)
+  const int QKV_batch_id = blockIdx.y / QKV_head; // Batch size
+  const int QKV_head_id  = blockIdx.y % QKV_head; // Head num
+  const int Q_tile_id    = blockIdx.x;            // Q tile_id, range [0, Tr]
+  const int O_tile_id    = Q_tile_id;             // O tile_id, same as Q.
+  const int tid          = threadIdx.x;           // within block
+  const int warp_id      = tid / WARP_SIZE;       // 0~7 warp_id within block
+  const int lane_id      = tid % WARP_SIZE;       // 0~31
+  const int warp_QP      = warp_id;               // 0,1,2,3 or 0~7
+  const int warp_KV      = 0;                     // 0
   // MMA Layout [Br,Bc]=[64,64], MMA = m16n8k16, Br=16x4=64, Bc=8x8=64, layout: 4 warps
   // |   64x64   |      warp_KV 0       |
   // | warp_QP 0 | MMA 0 ... MMA 0 (x8) |
@@ -111,10 +112,10 @@ flash_attn_mma_stages_split_q_shared_kv_kernel(half* Q,
   // | warp_QP 5 | MMA 5 ... MMA 5 (x16) |
   // | warp_QP 6 | MMA 6 ... MMA 6 (x16) |
   // | warp_QP 7 | MMA 7 ... MMA 7 (x16) |
-  const int Q_gmem_offset = ((QKV_batch_id * gridDim.y * QKV_seqlen * kHeadDim) + 
+  const int Q_gmem_offset = ((QKV_batch_id * QKV_head * QKV_seqlen * kHeadDim) + 
                              (QKV_head_id * QKV_seqlen * kHeadDim)); // Q [seqlen,d]
-  const int K_gmem_offset = ((QKV_batch_id * gridDim.y * QKV_seqlen * kHeadDim) + 
-                             (QKV_head_id * QKV_seqlen * kHeadDim)); // K [seqlen,d]
+  const int K_gmem_offset = ((QKV_batch_id * QKV_head * QKV_seqlen * kHeadDim) + 
+                             (QKV_head_id * QKV_seqlen * kHeadDim)); // K [seqlen,d]  
   const int V_gmem_offset = Q_gmem_offset; // V [seqlen,d]
   const int O_gmem_offset = Q_gmem_offset; // O [seqlen,d]
 
@@ -764,7 +765,12 @@ void launch_flash_attn_mma_stages_split_q_shared_kv(
   assert(QKV_seqlen % max(Br, Bc) == 0); // multiple of max(Br, Bc)
   
   // TODO: How to apply block swizzle to improve L2 Cache hit rate?
-  dim3 grid(QKV_batch, QKV_head, div_ceil(QKV_seqlen, Br)); // batch_size x num_heads x Tr(=N/Br)
+  // NOTE: reorder (B,H,Tr) -> (Tr,B*H) seems can improve L2 Cache hit rate. 
+  // This might be because SM schedules blocks starting from the x-dimension. 
+  // Placing Tr at the forefront ensures that identical KV pairs are placed 
+  // in consecutive scheduling queues, thereby improving L2 Cache hit rates.
+  // Tr(=N/Br), batch_size x num_heads
+  dim3 grid(div_ceil(QKV_seqlen, Br), QKV_batch * QKV_head); 
   dim3 block(kNumThreads); // 4/8 warps per block
 
   cudaFuncSetAttribute(
@@ -809,7 +815,8 @@ void launch_flash_attn_mma_stages_split_q_shared_kv(
     reinterpret_cast<half*>(K.data_ptr()),
     reinterpret_cast<half*>(V.data_ptr()),
     reinterpret_cast<half*>(O.data_ptr()),
-    QKV_seqlen
+    QKV_seqlen,
+    QKV_head
   );
 }
 
