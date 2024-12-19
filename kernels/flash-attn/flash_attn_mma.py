@@ -176,7 +176,7 @@ def run_benchmark(perf_func: callable,
     out_val = out_val_first[:2]
     out_val.append(out_val_last[-1])
     out_val = [f"{v:<12}" for v in out_val]
-    print(f"{out_info:>30}: {out_val}, time:{mean_time:<.6f}ms, TFLOPS:{TFLOPS:<6.2f}")
+    print(f"{out_info:>32}: {out_val}, time:{mean_time:<.6f}ms, TFLOPS:{TFLOPS:<6.2f}")
     if show_all: 
         print(out)
     time.sleep(args.sleep)
@@ -203,12 +203,12 @@ def get_qkvo(B, H, N, D):
         v = torch.ones(B, H, N, D, device="cuda", dtype=torch.half).contiguous()
 
     o = torch.zeros(B, H, N, D, device="cuda", dtype=torch.half).contiguous()
-    tk = k.transpose(-2, -1).contiguous()
+    # transpose (H,N) -> (N,H) for FA2.
     fq = q.transpose(1,   2).contiguous()
     fk = k.transpose(1,   2).contiguous()
     fv = v.transpose(1,   2).contiguous()
 
-    return q, k, v, o, tk, fq, fk, fv
+    return q, k, v, o, fq, fk, fv
 
 
 # un-fused naive attn
@@ -233,7 +233,7 @@ def check_all_close(out_flash: torch.Tensor, out_mma: torch.Tensor,
         print("-" * 120)
     diff = torch.abs(out_flash.float() - out_mma.float())
     all_close = str(torch.allclose(out_flash.float(), out_mma.float(), atol=1e-2))
-    print(f"out_flash vs {tag:<20}, all close: {all_close:<6}, "
+    print(f"out_flash vs {tag:<18}, all close: {all_close:<6}, "
           f"max diff: {diff.max().item():.6f}, min diff: {diff.min().item():.6f}, "
           f"mean diff: {diff.mean().item():.6f}")
 
@@ -254,19 +254,19 @@ print(" "* 20 + f"B: batch_size, H: n_head, N: seq_len, D: head_dim, "
 for (B, H, N, D) in BHNDs:
     print("-" * 120)
     print(" " * 30 + f"B={B}, H={H}, N={N}, D={D}, Warmup: {args.warmup}, Iters: {args.iters}")
-    q, k, v, o, tk, fq, fk, fv = get_qkvo(B, H, N, D)
+    q, k, v, o, fq, fk, fv = get_qkvo(B, H, N, D)
     torch.cuda.synchronize()
     
     if args.run_torch_unfused:
         out_unfused,    _ = run_benchmark(unfused_standard_attn, q, k, v, "torch(unfused)")
-    out_mma_split_kv1,  _ = run_benchmark(lib.flash_attn_mma_stages_split_kv, q, tk, v, "mma(split-kv+stage1)", o, stages=1)
-    out_mma_split_kv2,  _ = run_benchmark(lib.flash_attn_mma_stages_split_kv, q, tk, v, "mma(split-kv+stage2)", o, stages=2)
-    out_mma_split_q1,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q,  q, tk, v, "mma(split-q+stage1)",  o, stages=1)
-    out_mma_split_q2,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q,  q, tk, v, "mma(split-q+stage2)",  o, stages=2)
-    out_mma_share_kv1,  _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_kv,  q, tk, v, "mma(split-q+share-kv+stage1)",  o, stages=1)
-    out_mma_share_kv2,  _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_kv,  q, tk, v, "mma(split-q+share-kv+stage2)",  o, stages=2)
-    out_mma_share_qkv1, _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv, q, tk, v, "mma(split-q+share-qkv+stage1)", o, stages=1)
-    out_mma_share_qkv2, _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv, q, tk, v, "mma(split-q+share-qkv+stage2)", o, stages=2)
+    out_mma_split_kv1,  _ = run_benchmark(lib.flash_attn_mma_stages_split_kv, q, k, v, "mma(split-kv+stage1)", o, stages=1)
+    out_mma_split_kv2,  _ = run_benchmark(lib.flash_attn_mma_stages_split_kv, q, k, v, "mma(split-kv+stage2)", o, stages=2)
+    out_mma_split_q1,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q,  q, k, v, "mma(split-q+stage1)",  o, stages=1)
+    out_mma_split_q2,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q,  q, k, v, "mma(split-q+stage2)",  o, stages=2)
+    out_mma_share_qkv1, _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv, q, k, v, "mma(split-q+share-qkv+stage1)", o, stages=1)
+    out_mma_share_qkv2, _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv, q, k, v, "mma(split-q+share-qkv+stage2)", o, stages=2)
+    out_mma_share_kv1,  _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_kv,  q, k, v, "mma(split-q+share-kv+stage1)",  o, stages=1)
+    out_mma_share_kv2,  _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_kv,  q, k, v, "mma(split-q+share-kv+stage2)",  o, stages=2)
     out_flash,          _ = run_benchmark(flash_attn_func, fq, fk, fv, "(flash)")
     if args.run_torch_sdpa:
         out_sdpa,       _ = run_benchmark(F.scaled_dot_product_attention, q, k, v, "(sdpa)")
