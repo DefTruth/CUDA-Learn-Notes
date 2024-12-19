@@ -240,10 +240,12 @@ flash_attn_mma_stages_split_q_shared_qkv_kernel(half* Q,
                         lane_smem_Q_ptr); // now, R_Q[1/2/4/8][1][4]
           }
         }
+        __syncthreads(); // wait all warps ready.
       } // end if tile_K_seqlen == 0
     } // end if kCanPrefetchQs2r
 
-    // Load K tile from gmem -> smem, always use smem part 0.
+    // Load K tile from gmem -> smem, always use smem part 0. 
+    // must after prefetch Q s2r in order to reuse Q smem.
     if constexpr (kCanPrefetchKVg2s) {
       if (tile_K_seqlen == 0) {
         load_gmem_K_Bc_offset = tile_K_seqlen * Bc; // e.g (0~3)*64=(0,64,128,192,...)
@@ -251,9 +253,9 @@ flash_attn_mma_stages_split_q_shared_qkv_kernel(half* Q,
         int load_gmem_K_Bc = load_gmem_K_Bc_offset + load_smem_K_Bc; // < seqlen
         int load_gmem_K_addr = (K_gmem_offset + load_gmem_K_d * QKV_seqlen + load_gmem_K_Bc);
         uint32_t load_smem_K_ptr = (
-        smem_K_base_ptr + (kPrefetchKg2sSmemId * KV_tile_size + 
-                           load_smem_K_d * (Bc + kPad) + 
-                           load_smem_K_Bc) * sizeof(half));
+          smem_K_base_ptr + (kPrefetchKg2sSmemId * KV_tile_size + 
+                             load_smem_K_d * (Bc + kPad) + 
+                             load_smem_K_Bc) * sizeof(half));
         #pragma unroll
         for (int i = 0; i < (Bc / (kNumThreads / kHeadDim)); i += 8) {
         CP_ASYNC_CG(load_smem_K_ptr + i * 2, &K[load_gmem_K_addr + i], 16);

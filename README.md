@@ -119,7 +119,7 @@ flash_attn_mma_stages_split_q_kernel(half* Q, // [B, H, N, D]
                                      int QKV_seqlen);
 ```
 
-- 📚 Split Q + Shared KV SMEM (Faster+)
+- 📚 Split Q + Shared KV SMEM (**1/2 SRAM** vs FA2)
 <div id="mma-share-kv"></div>  
 
 ```C++
@@ -131,7 +131,7 @@ flash_attn_mma_stages_split_q_shared_kv_kernel(half* Q,
                                                half* O, 
                                                int QKV_seqlen);
 ```
-- 📚 Split Q + Fully Shared QKV SMEM (Faster++)
+- 📚 Split Q + Fully Shared QKV SMEM (**1/4 SRAM** vs FA2)
 
 <div id="mma-share-qkv"></div>  
 

@@ -45,10 +45,11 @@ def get_args():
     parser.add_argument("--N", type=int, default=None)
     parser.add_argument("--D", type=int, default=None)
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--sleep", type=float, default=0.05)
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--verbose", '--v', action="store_true")
-    parser.add_argument("--warmup", type=int, default=1)
-    parser.add_argument("--iters", type=int, default=5)
+    parser.add_argument("--warmup", "--w", type=int, default=1)
+    parser.add_argument("--iters", "--i", type=int, default=5)
     parser.add_argument("--range-k", '--gk', action="store_true")
     return parser.parse_args()
 
@@ -178,7 +179,7 @@ def run_benchmark(perf_func: callable,
     print(f"{out_info:>30}: {out_val}, time:{mean_time:<.6f}ms, TFLOPS:{TFLOPS:<6.2f}")
     if show_all: 
         print(out)
-    time.sleep(0.05)
+    time.sleep(args.sleep)
     torch.cuda.synchronize()
     return out.clone(), mean_time
 
