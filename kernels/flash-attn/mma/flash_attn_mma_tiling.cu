@@ -60,12 +60,12 @@ template<
          >
 __global__ void __launch_bounds__(
   WARP_SIZE * kMmaTileSeqLenQ * kMmaTileSeqLenK) 
-flash_attn_mma_stages_split_q_swizzle_qkv_kernel(half* Q, 
-                                                 half* K, 
-                                                 half* V, 
-                                                 half* O, 
-                                                 int QKV_seqlen,
-                                                 int QKV_head) {
+flash_attn_mma_stages_split_q_tiling_kernel(half* Q, 
+                                            half* K, 
+                                            half* V, 
+                                            half* O, 
+                                            int QKV_seqlen,
+                                            int QKV_head) {
   // Matmul Layout: Q[Br,d]@K^T[d,Bc] NT, P[Br,Bc]@V[Bc,d] NN.
   // NOTE: K[Bc,d] with row major means K^T[d,Bc] in col major.
   static_assert(kMmaAtomM == 16 && kMmaAtomN == 8 && kMmaAtomK == 16); // m16n8k16
@@ -670,7 +670,8 @@ flash_attn_mma_stages_split_q_swizzle_qkv_kernel(half* Q,
   }
 
   // Store O(D): Write O[Br,d] from regs -> gmem, collective store 
-  // with reg reuse & warp shuffle. need R_Z[2][4].
+  // with reg reuse & warp shuffle. need R_Z[2][4]. 
+  // TODO: reuse Q smem for collective store: regs -> smem -> gmem
   #pragma unroll
   for (int i = 0; i < kWarpTileSeqLenP; ++i) { // 1
     #pragma unroll
@@ -732,21 +733,21 @@ flash_attn_mma_stages_split_q_swizzle_qkv_kernel(half* Q,
 
 // Launch kernel for flash_attn_mma_stages_split_q
 template<const int kHeadDim, const int kStage>
-void launch_flash_attn_mma_stages_split_q_swizzle_qkv(
+void launch_flash_attn_mma_stages_split_q_tiling(
   torch::Tensor Q, torch::Tensor K, torch::Tensor V, torch::Tensor O) {
-  // Now: fixed tile BrxBc=128x64
+  // Now: fixed tile BrxBc=128x64 for d < 128, 128x16 for d >= 128
   // TODO: dynamic tile size for Br, Bc according to kHeadDim and shared memory size.
   constexpr int kMmaAtomM = 16;
   constexpr int kMmaAtomN = 8;
   constexpr int kMmaAtomK = 16;
-  constexpr int kMmaTileSeqLenQ = 8;
-  constexpr int kMmaTileSeqLenK = 1;
-  constexpr int kMmaTileSeqLenP = 8;
+  constexpr int kMmaTileSeqLenQ  = (kHeadDim < 128) ? 8 : 8;
+  constexpr int kMmaTileSeqLenK  = 1;
+  constexpr int kMmaTileSeqLenP  = (kHeadDim < 128) ? 8 : 8;
   constexpr int kMmaTileHeadDimV = 1;
   constexpr int kWarpTileSeqLenQ = 1;
-  constexpr int kWarpTileSeqLenK = 8;
+  constexpr int kWarpTileSeqLenK = (kHeadDim < 128) ? 8 : 2;
   constexpr int kWarpTileSeqLenP = 1;
-  constexpr int kWarpTileHeadDimV = (kHeadDim / (kMmaAtomN * kMmaTileHeadDimV)); // 8,16,32,....
+  constexpr int kWarpTileHeadDimV = (kHeadDim / (kMmaAtomN * kMmaTileHeadDimV)); // (d=64)8,(d=128)16,32,....
   constexpr int Br = kMmaAtomM * kMmaTileSeqLenQ * kWarpTileSeqLenQ; // 16*4*1=64
   constexpr int Bc = kMmaAtomN * kMmaTileSeqLenK * kWarpTileSeqLenK; //  8*1*8=64
   constexpr int kNumThreads = WARP_SIZE * kMmaTileSeqLenQ * kMmaTileSeqLenK; // 32*4*1=128, num threads
@@ -774,7 +775,7 @@ void launch_flash_attn_mma_stages_split_q_swizzle_qkv(
   dim3 block(kNumThreads); // 4/8 warps per block
 
   cudaFuncSetAttribute(
-    flash_attn_mma_stages_split_q_swizzle_qkv_kernel<
+    flash_attn_mma_stages_split_q_tiling_kernel<
       kHeadDim, 
       kMmaAtomM, 
       kMmaAtomN, 
@@ -795,7 +796,7 @@ void launch_flash_attn_mma_stages_split_q_swizzle_qkv(
     98304
   );
 
-  flash_attn_mma_stages_split_q_swizzle_qkv_kernel<
+  flash_attn_mma_stages_split_q_tiling_kernel<
     kHeadDim, 
     kMmaAtomM, 
     kMmaAtomN, 
@@ -820,11 +821,11 @@ void launch_flash_attn_mma_stages_split_q_swizzle_qkv(
   );
 }
 
-void flash_attn_mma_stages_split_q_swizzle_qkv(torch::Tensor Q, 
-                                               torch::Tensor K, 
-                                               torch::Tensor V, 
-                                               torch::Tensor O, 
-                                               int stages) {
+void flash_attn_mma_stages_split_q_tiling(torch::Tensor Q, 
+                                          torch::Tensor K, 
+                                          torch::Tensor V, 
+                                          torch::Tensor O, 
+                                          int stages) {
   CHECK_TORCH_TENSOR_DTYPE(Q, torch::kHalf) // Q [B,H,N,D]
   CHECK_TORCH_TENSOR_DTYPE(K, torch::kHalf) // K [B,H,N,D]
   CHECK_TORCH_TENSOR_DTYPE(V, torch::kHalf) // V [B,H,N,D]
@@ -835,16 +836,16 @@ void flash_attn_mma_stages_split_q_swizzle_qkv(torch::Tensor Q,
     switch (d)
     {
     case 32:
-      launch_flash_attn_mma_stages_split_q_swizzle_qkv<32,  2>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_q_tiling<32,  2>(Q, K, V, O);
       break;
     case 64:
-      launch_flash_attn_mma_stages_split_q_swizzle_qkv<64,  2>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_q_tiling<64,  2>(Q, K, V, O);
       break;
     case 96:
-      launch_flash_attn_mma_stages_split_q_swizzle_qkv<96,  2>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_q_tiling<96,  2>(Q, K, V, O);
       break;
     case 128:
-      launch_flash_attn_mma_stages_split_q_swizzle_qkv<128, 2>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_q_tiling<128, 2>(Q, K, V, O);
       break;
     default:
       throw std::runtime_error("headdim not support!");
@@ -854,16 +855,16 @@ void flash_attn_mma_stages_split_q_swizzle_qkv(torch::Tensor Q,
     switch (d)
     {
     case 32:
-      launch_flash_attn_mma_stages_split_q_swizzle_qkv<32,  1>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_q_tiling<32,  1>(Q, K, V, O);
       break;
     case 64:
-      launch_flash_attn_mma_stages_split_q_swizzle_qkv<64,  1>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_q_tiling<64,  1>(Q, K, V, O);
       break;
     case 96:
-      launch_flash_attn_mma_stages_split_q_swizzle_qkv<96,  1>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_q_tiling<96,  1>(Q, K, V, O);
       break;
     case 128:
-      launch_flash_attn_mma_stages_split_q_swizzle_qkv<128, 1>(Q, K, V, O);
+      launch_flash_attn_mma_stages_split_q_tiling<128, 1>(Q, K, V, O);
       break;
     default:
       throw std::runtime_error("headdim not support!");

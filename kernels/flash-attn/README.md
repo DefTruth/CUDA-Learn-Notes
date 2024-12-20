@@ -50,27 +50,6 @@ python3 flash_attn_mma.py --B 1 --H 8 --D 64 --N 8192 --iters 10 --torch # NVIDI
 <div id="mma"></div>  
 
 The `Split KV` and `Split Q` implementations have been carried out in [flash-attention-mma⚡️⚡️](.) for performance comparison. The `Split KV` method, which involves splitting all QKV across MMA (Warps) using a naive matmul (MMA) and Warp tiling policy, is slower compared to the `Split Q` policy, which splitting Q across MMA(Warps) and keep access KV for all MMA(Warps).
-<!--
-![flash-attn](https://github.com/user-attachments/assets/11490fbc-2a4a-4630-abe8-91a9d1251cba)
--->
-- 📚 Split KV (Basic, FlashAttention-1)
-<div id="mma-split-kv"></div>  
-
-```C++
-// Split QKV across MMA(Warps) using naive matmul MMA&Warp tiling policy.
-// case: The layout of 8 MMA(2x4)  [after] kWarpTileSeqLenQxkWarpTileSeqLenK(2x2) -> 32x2,32x2=64x64: 
-// |  [64,64]  |    warp_KV 0    |    warp_KV 1    |    warp_KV 2    |    warp_KV 3    |
-// | warp_QP 0 |-- MMA 0,MMA 0 --|-- MMA 2,MMA 2 --|-- MMA 4,MMA 4 --|-- MMA 6,MMA 6 --|
-// | warp_QP 0 |-- MMA 0,MMA 0 --|-- MMA 2,MMA 2 --|-- MMA 4,MMA 4 --|-- MMA 6,MMA 6 --|
-// | warp_QP 1 |-- MMA 1,MMA 1 --|-- MMA 3,MMA 2 --|-- MMA 5,MMA 5 --|-- MMA 7,MMA 7 --|
-// | warp_QP 1 |-- MMA 1,MMA 1 --|-- MMA 3,MMA 2 --|-- MMA 5,MMA 5 --|-- MMA 7,MMA 7 --|
-__global__ void 
-flash_attn_mma_stages_split_kv_kernel(half* Q, // [B, H, N, D]
-                                      half* K, // [B, H, N, D]
-                                      half* V, // [B, H, N, D] 
-                                      half* O, // [B, H, N, D] 
-                                      int QKV_seqlen);
-```
 
 - 📚 Split Q (Faster, FlashAttention-2)
 <div id="mma-split-q"></div>  
@@ -84,12 +63,8 @@ flash_attn_mma_stages_split_kv_kernel(half* Q, // [B, H, N, D]
 // | warp_QP 1 | MMA 1 ... MMA 1 (x8) |
 // | warp_QP 2 | MMA 2 ... MMA 2 (x8) |
 // | warp_QP 3 | MMA 3 ... MMA 3 (x8) |
-__global__ void
-flash_attn_mma_stages_split_q_kernel(half* Q, // [B, H, N, D]
-                                     half* K, // [B, H, N, D]
-                                     half* V, // [B, H, N, D] 
-                                     half* O, // [B, H, N, D] 
-                                     int QKV_seqlen);
+__global__ void // Q, K, V, O -> [B, H, N, D]
+flash_attn_mma_stages_split_q_kernel(half* Q, half* K, half* V, half* O, ...);
 ```
 
 - 📚 Split Q + Shared KV SMEM (**1/2 SRAM** vs FA2)
@@ -97,12 +72,8 @@ flash_attn_mma_stages_split_q_kernel(half* Q, // [B, H, N, D]
 
 ```C++
 // K, V shared the same shared memory, improve block occupancy.
-__global__ void 
-flash_attn_mma_stages_split_q_shared_kv_kernel(half* Q, // [B, H, N, D]
-                                               half* K, // [B, H, N, D]
-                                               half* V, // [B, H, N, D]
-                                               half* O, // [B, H, N, D]
-                                               int QKV_seqlen);
+__global__ void // Q, K, V, O -> [B, H, N, D]
+flash_attn_mma_stages_split_q_shared_kv_kernel(half* Q, half* K, half* V, half* O, ...);
 ```
 - 📚 Split Q + Fully Shared QKV SMEM (**1/4 SRAM** vs FA2)
 
@@ -111,14 +82,9 @@ flash_attn_mma_stages_split_q_shared_kv_kernel(half* Q, // [B, H, N, D]
 ```C++
 // Q, K, V fully shared the same shared memory and prefetch Q s2r, improve block occupancy
 // and reduce Q SMEM IO-Access.
-__global__ void 
-flash_attn_mma_stages_split_q_shared_qkv_kernel(half* Q, // [B, H, N, D]
-                                                half* K, // [B, H, N, D]
-                                                half* V, // [B, H, N, D]
-                                                half* O, // [B, H, N, D]
-                                                int QKV_seqlen);
+__global__ void // Q, K, V, O -> [B, H, N, D]
+flash_attn_mma_stages_split_q_shared_qkv_kernel(half* Q, half* K, half* V, half* O, ...);
 ```
-
 
 ## 📖 Prerequisites
 <div id="prerequisites"></div>  
