@@ -166,9 +166,11 @@ flash_attn_mma_stages_split_q_shared_qkv_kernel(half* Q,
   // By the way, we have to reduce R_Z to 0 regs and reuse R_Q for collective store.
   // Then we can load Q from smem only once and reuse it for <loop over K seqlen>
   // processes. This will reduce large io-access for Q smem while N is large.
-  static_assert(kHeadDim <= 128, "shared_qkv only support headdim<=128");
+  static_assert(kHeadDim <= 256, "shared_qkv only support headdim<=256");
   static_assert(kHeadDim >= 32,  "shared_qkv only support headdim>=32");
-  constexpr bool kCanPrefetchQs2r = ((kHeadDim / kMmaAtomK) <= 8); // always true.
+  // prefetch Q s2r will reduce large io-access for Q smem while N is large, 
+  // but cost more registers, so, we only prefetch Q s2r for d<=256.
+  constexpr bool kCanPrefetchQs2r = ((kHeadDim / kMmaAtomK) <= 16); // always true.
   // Use kStage and(Q_tile_size / KV_tile_size) to control multi-stage policy for K/V g2s.
   constexpr bool kCanPrefetchKVg2s = ( 
     ((Q_tile_size / KV_tile_size) >= 2) && (kStage >= 2)); // for d<=64 is true.
@@ -872,6 +874,9 @@ void flash_attn_mma_stages_split_q_shared_qkv(torch::Tensor Q,
       break;
     case 128:
       launch_flash_attn_mma_stages_split_q_shared_qkv<128, 1>(Q, K, V, O);
+      break;
+    case 256:
+      launch_flash_attn_mma_stages_split_q_shared_qkv<256, 1>(Q, K, V, O);
       break;
     default:
       throw std::runtime_error("headdim not support!");

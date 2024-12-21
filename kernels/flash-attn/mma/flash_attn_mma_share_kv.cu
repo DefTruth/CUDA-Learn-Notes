@@ -145,11 +145,12 @@ flash_attn_mma_stages_split_q_shared_kv_kernel(half* Q,
   half* K_tile_smem = Q_tile_smem + Q_tile_size; // 8M/16M
   half* V_tile_smem = K_tile_smem; // KV shared the same smem
   // NOTE: KV may shared same smem to reduce smem usage for kStage 1
-  // stage 1, w shared KV smem, Br=Bc=64,  d=64:  8M+(8M) =16M, +Pad(2M) = 18M
-  // stage 1, w shared KV smem, Br=Bc=128, d=64:  16M+16M =32M, +Pad(2M) = 34M
-  // stage 1, w shared KV smem, Br=Bc=64,  d=128: 16M+16M =32M, +Pad(4M) = 36M
-  // stage 1, w shared KV smem, Br=Bc=128, d=128: 32M+32M =64M, +Pad(4M) = 68M
-  // stage 1, w shared KV smem, Br=Bc=32,  d=256: 16M+16M =32M, +Pad(1M) = 34M
+  // stage 1, w shared KV smem, Br=Bc=64,    d=64:  8M+(8M) =16M, +Pad(2M) = 18M
+  // stage 1, w shared KV smem, Br=Bc=128,   d=64:  16M+16M =32M, +Pad(4M) = 36M
+  // stage 1, w shared KV smem, Br=Bc=64,    d=128: 16M+16M =32M, +Pad(2M) = 36M
+  // stage 1, w shared KV smem, Br=Bc=64,    d=256: 32M+32M =64M, +Pad(2M) = 66M
+  // stage 1, w shared KV smem, Br=64,Bc=32, d=256: 32M+16M =48M, +Pad(2M) = 50M
+  // stage 1, w shared KV smem, Br=128,Bc=16,d=256: 64M+16M =80M, +Pad(2M) = 82M
  
   uint32_t smem_Q_base_ptr = __cvta_generic_to_shared(Q_tile_smem);
   uint32_t smem_K_base_ptr = __cvta_generic_to_shared(K_tile_smem);
@@ -864,6 +865,9 @@ void flash_attn_mma_stages_split_q_shared_kv(torch::Tensor Q,
       break;
     case 128:
       launch_flash_attn_mma_stages_split_q_shared_kv<128, 1>(Q, K, V, O);
+      break;
+    case 256:
+      launch_flash_attn_mma_stages_split_q_shared_kv<256, 1>(Q, K, V, O);
       break;
     default:
       throw std::runtime_error("headdim not support!");

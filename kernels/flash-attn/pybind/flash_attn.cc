@@ -29,16 +29,16 @@ void flash_attn_mma_stages_split_q_shared_qkv(torch::Tensor Q,
                                               torch::Tensor O, 
                                               int stages);
 
-void flash_attn_mma_stages_split_q_tiling(torch::Tensor Q, 
-                                          torch::Tensor K, 
-                                          torch::Tensor V, 
-                                          torch::Tensor O, 
-                                          int stages);
+void flash_attn_mma_stages_split_q_tiling_qk(torch::Tensor Q, 
+                                             torch::Tensor K, 
+                                             torch::Tensor V, 
+                                             torch::Tensor O, 
+                                             int stages);
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(flash_attn_mma_stages_split_kv)
   TORCH_BINDING_COMMON_EXTENSION(flash_attn_mma_stages_split_q)
   TORCH_BINDING_COMMON_EXTENSION(flash_attn_mma_stages_split_q_shared_kv)
   TORCH_BINDING_COMMON_EXTENSION(flash_attn_mma_stages_split_q_shared_qkv)
-  TORCH_BINDING_COMMON_EXTENSION(flash_attn_mma_stages_split_q_tiling)
+  TORCH_BINDING_COMMON_EXTENSION(flash_attn_mma_stages_split_q_tiling_qk)
 }
