@@ -66,6 +66,8 @@ def get_args():
 
 
 args = get_args()
+if args.D and args.D >= 256:
+    args.run_torch_sdpa = True
 pretty_print_line()
 print(args)
 pretty_print_line()

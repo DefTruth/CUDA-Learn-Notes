@@ -138,6 +138,8 @@ flash_attn_mma_stages_split_q_tiling_qk_kernel(half* Q,
   int load_gmem_Q_Br = Q_tile_id * Br + load_smem_Q_Br; 
   if (load_gmem_Q_Br >= QKV_seqlen) return;
   constexpr bool kIsVCanLoadIn128b = (kHeadDim / (kNumThreads / kMmaAtomK)) % 8 == 0;
+  constexpr bool kIsVCanLoadIn64b  = (kHeadDim / (kNumThreads / kMmaAtomK)) % 4 == 0;
+  static_assert(kIsVCanLoadIn128b || kIsVCanLoadIn64b, "V can't load in 128b or 64b."); // 32,64,128,192,256,...
 
   // Shared memory for Q,K,V, we don not need additional smem for O 
   // collective store which perform via registers reuse and warp shuffle.
@@ -763,17 +765,17 @@ flash_attn_mma_stages_split_q_tiling_qk_kernel(half* Q,
 template<const int kHeadDim, const int kStage>
 void launch_flash_attn_mma_stages_split_q_tiling_qk(
   torch::Tensor Q, torch::Tensor K, torch::Tensor V, torch::Tensor O) {
-  // Now: fixed tile BrxBc=128x128
+  // Now: fixed tile BrxBc=128x128 for d>= 128, 64x64 for d<128.
   // TODO: dynamic tile size for Br, Bc according to kHeadDim and shared memory size.
   constexpr int kMmaAtomM = 16;
   constexpr int kMmaAtomN = 8;
   constexpr int kMmaAtomK = 16;
-  constexpr int kMmaTileSeqLenQ  = 8;
+  constexpr int kMmaTileSeqLenQ  = (kHeadDim < 128) ? 4 : 8;
   constexpr int kMmaTileSeqLenK  = 1;
-  constexpr int kMmaTileSeqLenP  = 8;
+  constexpr int kMmaTileSeqLenP  = (kHeadDim < 128) ? 4 : 8;
   constexpr int kMmaTileHeadDimV = 1;
   constexpr int kWarpTileSeqLenQ = 1;
-  constexpr int kWarpTileSeqLenK = 16;
+  constexpr int kWarpTileSeqLenK = (kHeadDim < 128) ? 8 : 16;
   constexpr int kWarpTileSeqLenP = 1;
   constexpr int kWarpTileHeadDimV = (kHeadDim / (kMmaAtomN * kMmaTileHeadDimV)); // (d=64)8,(d=128)16,32,....
   constexpr int Br = kMmaAtomM * kMmaTileSeqLenQ * kWarpTileSeqLenQ; // 16*4*1=64
