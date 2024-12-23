@@ -2,10 +2,13 @@ import os
 import math
 import time
 import torch
+from torch import Tensor
 from torch.nn import functional as F
 from torch.utils.cpp_extension import load
 from typing import Optional
+from torch.nn.attention import sdpa_kernel, SDPBackend
 from flash_attn import flash_attn_func
+from functools import partial
 import argparse
 import random
 import numpy as np
@@ -263,6 +266,16 @@ def unfused_standard_attn(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor):
     return y
 
 
+def sdpa(q: Tensor, k: Tensor, v: Tensor, use_flash: bool = False):
+    if not use_flash:
+        with sdpa_kernel(SDPBackend.EFFICIENT_ATTENTION):
+            out: Tensor = F.scaled_dot_product_attention(q, k, v)
+    else:
+        with sdpa_kernel(SDPBackend.FLASH_ATTENTION):
+            out: Tensor = F.scaled_dot_product_attention(q, k, v)
+    return out
+
+
 def check_all_close(out_flash_or_sdpa: torch.Tensor, out_mma: torch.Tensor, 
                     tag: str = "out_mma", check_all: bool = False, 
                     is_flash: bool = True):
@@ -330,7 +343,7 @@ for (B, H, N, D) in BHNDs:
     if D <= 256:
         out_flash,              _ = run_benchmark(flash_attn_func, fq, fk, fv, "(flash)")
     if args.run_torch_sdpa:
-        out_sdpa,               _ = run_benchmark(F.scaled_dot_product_attention, q, k, v, "(sdpa)")
+        out_sdpa,               _ = run_benchmark(partial(sdpa, use_flash=(D<=256)), q, k, v, "(sdpa)")
     pretty_print_line()
     
     torch.cuda.synchronize()
