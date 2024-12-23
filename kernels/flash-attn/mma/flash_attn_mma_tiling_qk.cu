@@ -42,10 +42,10 @@
 // | warp_QP 6 | MMA 6 ... MMA 6 (x8) |
 // | warp_QP 7 | MMA 7 ... MMA 7 (x8) |
 
-// Fine grain tiling (MMA level) for Q, K the cause constant SRAM size 64*kMmaAtomK, 
-// and O(kMmaAtomK*d) SRAM complexity for V, thus, the SRAM complexity is O(kMmaAtomK*d).
-// Thus, this kernel can extend D(headdim) to 1024. Performance is continuously being 
-// optimized. Stay tuned for updates ~
+// Fine-grained tiling at the MMA level for Q and K results in a constant SRAM usage of
+// 64 * kMmaAtomK for Q and K. For V, the SRAM complexity is O(kMmaAtomK * d), leading to
+// an overall SRAM complexity of O(kMmaAtomK * d). Consequently, this approach allows us to
+// extend D (head dimension) up to 1024. Performance is stay tuned for updates ~
 
 template<
          const int kHeadDim,          // Headdim, 32,64,128     

@@ -1,6 +1,10 @@
-// TODO: flash_attn_mma_stages_split_q_full_tiling_kernel
-// fully tiling for headdim(d) while perform P@V, kMmaAtomK * (kMmaAtomN)
-// NOTE: For R_V[kWarpTileHeadDimV][2], kWarpTileHeadDimV will increase with d.
-// so, for large d, R_V will need more registers and cause performance down.
-// We have to find a way to apply MMA level tiling for V(R_V) for large d.
-// Also, R_O and R_D will bound by registers resources.
+// TODO: Implement flash_attn_mma_stages_split_q_tiling_qkv_kernel
+// Fully tile the head dimension (d) while performing P@V with dimensions kMmaAtomK * kMmaAtomN.
+//
+// NOTE: For R_V[kWarpTileHeadDimV][2], kWarpTileHeadDimV increases as d grows.
+// As a result, for large values of d, R_V will require more registers, potentially 
+// leading to decreased performance. We need to find a way to apply MMA-level tiling 
+// for V (R_V) when d is large to mitigate this issue.
+//
+// Additionally, R_O and R_D are also constrained by register resources, which must 
+// be considered in the optimization process.
