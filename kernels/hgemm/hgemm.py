@@ -160,11 +160,11 @@ def run_benchmark(perf_func: callable,
         else:
             improve = 0
         MAX_TFLOPS = TFLOPS
-        print(f"{out_info:>50}: {out_val}, time:{mean_time_ms}ms, "
+        print(f"{out_info:>52}: {out_val}, time:{mean_time_ms}ms, "
               f"swizzle<block>: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}(+{improve:.2f}%)")
     else:
         if not only_show_improved or "cublas" in tag:
-            print(f"{out_info:>50}: {out_val}, time:{mean_time_ms}ms, "
+            print(f"{out_info:>52}: {out_val}, time:{mean_time_ms}ms, "
                   f"swizzle<block>: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}")
     if show_matrix: print(out)
     if args.plot_flops:
@@ -359,6 +359,9 @@ for (M, N, K) in zip(Ms, Ns, Ks):
         run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem, a, b, "(mma2x4+warp4x4x2+stage4+dsmem)", c, stages=4)
         run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem, a, b, "(mma2x4+warp4x4x2+stage3+dsmem)", c, stages=3)
         run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem, a, b, "(mma2x4+warp4x4x2+stage2+dsmem)", c, stages=2)
+        run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_swizzle, a, b, "(mma2x4+warp4x4x2+stage4+dsmem+swizzle<smem>)", c, stages=4)
+        run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_swizzle, a, b, "(mma2x4+warp4x4x2+stage3+dsmem+swizzle<smem>)", c, stages=3)
+        run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_swizzle, a, b, "(mma2x4+warp4x4x2+stage2+dsmem+swizzle<smem>)", c, stages=2)
     if args.enable_mma_all: # more mma kernel tests.
         run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_rr, a, b, "(mma2x4+warp4x4x2+stage4+dsmem+rr)", c, stages=4)
         run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_rr, a, b, "(mma2x4+warp4x4x2+stage3+dsmem+rr)", c, stages=3)
@@ -373,6 +376,9 @@ for (M, N, K) in zip(Ms, Ns, Ks):
         run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem, a, b, "(mma2x4+warp4x4x2+stage4+dsmem+swizzle<block>)", c, stages=4, swizzle=True)
         run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem, a, b, "(mma2x4+warp4x4x2+stage3+dsmem+swizzle<block>)", c, stages=3, swizzle=True)
         run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem, a, b, "(mma2x4+warp4x4x2+stage2+dsmem+swizzle<block>)", c, stages=2, swizzle=True)
+        run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_swizzle, a, b, "(mma2x4+warp4x4x2+stage4+dsmem+swizzle<smem+block>)", c, stages=4, swizzle=True)
+        run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_swizzle, a, b, "(mma2x4+warp4x4x2+stage3+dsmem+swizzle<smem+block>)", c, stages=3, swizzle=True)
+        run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_swizzle, a, b, "(mma2x4+warp4x4x2+stage2+dsmem+swizzle<smem+block>)", c, stages=2, swizzle=True)
     if args.enable_mma_all:
         run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages, a, b, "(mma2x4+warp4x4+stage3+swizzle<block>)", c, stages=3, swizzle=True)
         run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages, a, b, "(mma2x4+warp4x4+stage2+swizzle<block>)", c, stages=2, swizzle=True)

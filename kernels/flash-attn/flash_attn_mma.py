@@ -83,6 +83,7 @@ lib = load(name='flash_attn_lib',
                './mma/flash_attn_mma_share_kv.cu',
                './mma/flash_attn_mma_share_qkv.cu',
                './mma/flash_attn_mma_tiling_qk.cu',
+               './mma/flash_attn_mma_tiling_qk_swizzle.cu',
                './pybind/flash_attn.cc'
             ], 
            extra_cuda_cflags=[
@@ -218,11 +219,11 @@ def run_benchmark(perf_func: callable,
         else:
             improve = 0
         MAX_TFLOPS = TFLOPS
-        print(f"{out_info:>32}: {out_val}, time:{mean_time:<.6f}ms, "
+        print(f"{out_info:>38}: {out_val}, time:{mean_time:<.6f}ms, "
               f"TFLOPS:{TFLOPS:<6.2f}(+{improve:.2f}%)")
     else:
-        if not only_show_improved or "flash" in tag:
-            print(f"{out_info:>32}: {out_val}, time:{mean_time:<.6f}ms, "
+        if not only_show_improved or "flash" in tag or "sdpa" in tag:
+            print(f"{out_info:>38}: {out_val}, time:{mean_time:<.6f}ms, "
                   f"TFLOPS:{TFLOPS:<6.2f}")
             
     if show_matrix: print(out)
@@ -296,7 +297,7 @@ def check_all_close(out_flash_or_sdpa: torch.Tensor, out_mma: torch.Tensor,
     diff = torch.abs(out_flash_or_sdpa.float() - out_mma.float())
     all_close = str(torch.allclose(out_flash_or_sdpa.float(), out_mma.float(), atol=1e-2))
     pretty_print_line(
-        f"{true_tag} vs {tag:<18}, all close: {all_close:<6}, "
+        f"{true_tag} vs {tag:<22}, all close: {all_close:<6}, "
         f"max diff: {diff.max().item():.6f}, min diff: {diff.min().item():.6f}, "
         f"mean diff: {diff.mean().item():.6f}"
     )
@@ -340,6 +341,8 @@ for (B, H, N, D) in BHNDs:
             out_mma_share_kv2,  _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_kv,  q, k, v, "mma(split-q+share-kv+stage2)",  o, stages=2)
     out_mma_tiling_qk1,         _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qk,  q, k, v, "mma(split-q+tiling-qk+stage1)",  o, stages=1)
     out_mma_tiling_qk2,         _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qk,  q, k, v, "mma(split-q+tiling-qk+stage2)",  o, stages=2)
+    out_mma_tiling_qk_sw1,      _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qk_swizzle,  q, k, v, "mma(split-q+tiling-qk+swizzle+stage1)",  o, stages=1)
+    out_mma_tiling_qk_sw2,      _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qk_swizzle,  q, k, v, "mma(split-q+tiling-qk+swizzle+stage2)",  o, stages=2)
     if D <= 256:
         out_flash,              _ = run_benchmark(flash_attn_func, fq, fk, fv, "(flash)")
     if args.run_torch_sdpa:
@@ -360,9 +363,13 @@ for (B, H, N, D) in BHNDs:
             check_all_close(out_flash, out_mma_share_qkv2, "out_mma_share_qkv2", args.check_all)
             check_all_close(out_flash, out_mma_tiling_qk1, "out_mma_tiling_qk1", args.check_all)
             check_all_close(out_flash, out_mma_tiling_qk2, "out_mma_tiling_qk2", args.check_all)
+            check_all_close(out_flash, out_mma_tiling_qk_sw1, "out_mma_tiling_qk_sw1", args.check_all)
+            check_all_close(out_flash, out_mma_tiling_qk_sw2, "out_mma_tiling_qk_sw2", args.check_all)
             pretty_print_line()
         elif args.run_torch_sdpa:
             pretty_print_line()
             check_all_close(out_sdpa, out_mma_tiling_qk1,  "out_mma_tiling_qk1", args.check_all, False)
             check_all_close(out_sdpa, out_mma_tiling_qk2,  "out_mma_tiling_qk2", args.check_all, False)
+            check_all_close(out_sdpa, out_mma_tiling_qk_sw1,  "out_mma_tiling_qk_sw1", args.check_all, False)
+            check_all_close(out_sdpa, out_mma_tiling_qk_sw2,  "out_mma_tiling_qk_sw2", args.check_all, False)
             pretty_print_line()

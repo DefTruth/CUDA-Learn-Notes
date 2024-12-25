@@ -1974,13 +1974,11 @@ void lanunch_hgemm_mma_m16n8k16_nn(
   constexpr int WARP_TILE_M = 4;
   constexpr int WARP_TILE_N = 4;
   constexpr int WARP_TILE_K = 2;
-  // s_a 4  ways bank conflicts within warp, after pad 8  -> 4 ways bank conflicts.
-  // s_b 16 ways bank conflicts within warp, after pad 8  -> 8 ways bank conflicts.
-  // s_b 16 ways bank conflicts within warp, after pad 16 -> 4 ways bank conflicts.
-  // so, the best padding policy for s_a and s_b is A_PAD=0/8, B_PAD=16. Thus, 
-  // improve B_PAD consume 8x~ less smem than A_PAD, 16xB_PAD vs 128xA_PAD.
-  constexpr int A_PAD = 0;  // 0,8,16
-  constexpr int B_PAD = 16; // 0,8,16
+  // bank conflicts free via pad = 8, reject fantasy, trust the profile.
+  // ncu --metrics l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld ./hgemm_mma_stage.debug.89.bin
+  // ncu --metrics sm__sass_l1tex_data_bank_conflicts_pipe_lsu_mem_shared_op_ldsm ./hgemm_mma_stage.debug.89.bin
+  constexpr int A_PAD = 8; // 0,8,16
+  constexpr int B_PAD = 8; // 0,8,16
   constexpr int NUM_THREADS= (
     MMA_TILE_M * MMA_TILE_N * WARP_SIZE); // 2 * 4 * 32 = 256
   constexpr int BM = MMA_M * MMA_TILE_M * WARP_TILE_M;    
@@ -1993,8 +1991,16 @@ void lanunch_hgemm_mma_m16n8k16_nn(
   LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_KERNEL(K_STAGE, BLOCK_SWIZZLE_STRIDE);
 }
 
-int main() {
+#ifdef HGEMM_MMA_DEBUG  
+#include <iostream>
+#endif 
+
+int main(int argc, char *argv[]) {
+#ifdef HGEMM_MMA_DEBUG  
+  const int test_num = 1;
+#else
   const int test_num = 64;
+#endif
   int M_list[test_num];
   int N_list[test_num];
   int K_list[test_num];
@@ -2005,9 +2011,22 @@ int main() {
     K_list[i] = (i + 1) * 256;
   }
 
-  const int outer_repeat = 10, inner_repeat = 1;
+#ifdef HGEMM_MMA_DEBUG  
+  if (argc > 1) M_list[0] = std::stoi(argv[1]);
+  if (argc > 2) N_list[0] = std::stoi(argv[2]);
+  if (argc > 3) K_list[0] = std::stoi(argv[3]);
+#endif
+
+#ifdef HGEMM_MMA_DEBUG  
+  int outer_repeat = 1, inner_repeat = 1, warmup = 1;
+  if (argc > 4) warmup = std::stoi(argv[4]);
+  if (argc > 5) inner_repeat = std::stoi(argv[5]);
+#else
+  int outer_repeat = 10, inner_repeat = 1, warmup = 1;
+#endif
 
   printf("ALGO = MMA16816 HGEMM NN MMA=2x4 WARP=4x4x2 STAGES=2 BLOCK SWIZZLE=2048\n");
+#ifndef HGEMM_MMA_DEBUG  
   for (int j = 0; j < 5; j++) {
     int M = M_list[j], N = N_list[j], K = K_list[j];
     float max_error = gemm_error_check_nn<half>(
@@ -2016,6 +2035,7 @@ int main() {
     printf("M N K = %6d %6d %6d, ", M, N, K);
     printf("Max Error = %f\n", max_error);
   }
+#endif
 
   for (int j = 0; j < test_num; j++) {
     int M = M_list[j], N = N_list[j], K = K_list[j];
@@ -2027,7 +2047,7 @@ int main() {
     for (int k = 0; k < outer_repeat; k++) {
       double this_sec = perf_gemm<half>(
         lanunch_hgemm_mma_m16n8k16_nn<2, 2048>, 
-        M, N, K, inner_repeat);
+        M, N, K, inner_repeat, warmup);
       max_sec = max(max_sec, this_sec);
       min_sec = min(min_sec, this_sec);
       total_sec += this_sec;
@@ -2120,13 +2140,11 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4_stages(
   constexpr int MMA_TILE_N = 4; 
   constexpr int WARP_TILE_M = 4;
   constexpr int WARP_TILE_N = 4;
-  // s_a 4  ways bank conflicts within warp, after pad 8  -> 4 ways bank conflicts.
-  // s_b 16 ways bank conflicts within warp, after pad 8  -> 8 ways bank conflicts.
-  // s_b 16 ways bank conflicts within warp, after pad 16 -> 4 ways bank conflicts.
-  // so, the best padding policy for s_a and s_b is A_PAD=0/8, B_PAD=16. Thus, 
-  // improve B_PAD consume 8x~ less smem than A_PAD, 16xB_PAD vs 128xA_PAD.
-  constexpr int A_PAD = 0;  // 0,8,16
-  constexpr int B_PAD = 16; // 0,8,16
+  // bank conflicts free via pad = 8, reject fantasy, trust the profile.
+  // ncu --metrics l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld ./hgemm_mma_stage.89.debug.bin
+  // ncu --metrics sm__sass_l1tex_data_bank_conflicts_pipe_lsu_mem_shared_op_ldsm ./hgemm_mma_stage.89.debug.bin
+  constexpr int A_PAD = 8; // 0,8,16
+  constexpr int B_PAD = 8; // 0,8,16
   constexpr int NUM_THREADS= (
     MMA_TILE_M * MMA_TILE_N * WARP_SIZE); // 2 * 4 * 32 = 256
   constexpr int BM = MMA_M * MMA_TILE_M * WARP_TILE_M;    
@@ -2250,13 +2268,11 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem(
   constexpr int MMA_TILE_N = 4; 
   constexpr int WARP_TILE_M = 4;
   constexpr int WARP_TILE_N = 4;
-  // s_a 4  ways bank conflicts within warp, after pad 8  -> 4 ways bank conflicts.
-  // s_b 16 ways bank conflicts within warp, after pad 8  -> 8 ways bank conflicts.
-  // s_b 16 ways bank conflicts within warp, after pad 16 -> 4 ways bank conflicts.
-  // so, the best padding policy for s_a and s_b is A_PAD=0/8, B_PAD=16. Thus, 
-  // improve B_PAD consume 8x~ less smem than A_PAD, 16xB_PAD vs 128xA_PAD.
-  constexpr int A_PAD = 0;  // 0,8,16
-  constexpr int B_PAD = 16; // 0,8,16
+  // bank conflicts free via pad = 8, reject fantasy, trust the profile.
+  // ncu --metrics l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld ./hgemm_mma_stage.89.debug.bin
+  // ncu --metrics sm__sass_l1tex_data_bank_conflicts_pipe_lsu_mem_shared_op_ldsm ./hgemm_mma_stage.89.debug.bin
+  constexpr int A_PAD = 8; // 0,8,16
+  constexpr int B_PAD = 8; // 0,8,16
   constexpr int NUM_THREADS= (
     MMA_TILE_M * MMA_TILE_N * WARP_SIZE); // 2 * 4 * 32 = 256
   constexpr int BM = MMA_M * MMA_TILE_M * WARP_TILE_M;    
@@ -2381,13 +2397,11 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem(
   constexpr int WARP_TILE_M = 4;
   constexpr int WARP_TILE_N = 4;
   constexpr int WARP_TILE_K = 2;
-  // s_a 4  ways bank conflicts within warp, after pad 8  -> 4 ways bank conflicts.
-  // s_b 16 ways bank conflicts within warp, after pad 8  -> 8 ways bank conflicts.
-  // s_b 16 ways bank conflicts within warp, after pad 16 -> 4 ways bank conflicts.
-  // so, the best padding policy for s_a and s_b is A_PAD=0/8, B_PAD=16. Thus, 
-  // improve B_PAD consume 8x~ less smem than A_PAD, 16xB_PAD vs 128xA_PAD.
-  constexpr int A_PAD = 0;  // 0,8,16
-  constexpr int B_PAD = 16; // 0,8,16
+  // bank conflicts free via pad = 8, reject fantasy, trust the profile.
+  // ncu --metrics l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld ./hgemm_mma_stage.89.debug.bin
+  // ncu --metrics sm__sass_l1tex_data_bank_conflicts_pipe_lsu_mem_shared_op_ldsm ./hgemm_mma_stage.89.debug.bin
+  constexpr int A_PAD = 8; // 0,8,16
+  constexpr int B_PAD = 8; // 0,8,16
   constexpr int NUM_THREADS= (
     MMA_TILE_M * MMA_TILE_N * WARP_SIZE); // 2 * 4 * 32 = 256
   constexpr int BM = MMA_M * MMA_TILE_M * WARP_TILE_M;    
@@ -2513,13 +2527,11 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_x4(
   constexpr int WARP_TILE_M = 4;
   constexpr int WARP_TILE_N = 4;
   constexpr int WARP_TILE_K = 2;
-  // s_a 4  ways bank conflicts within warp, after pad 8  -> 4 ways bank conflicts.
-  // s_b 16 ways bank conflicts within warp, after pad 8  -> 8 ways bank conflicts.
-  // s_b 16 ways bank conflicts within warp, after pad 16 -> 4 ways bank conflicts.
-  // so, the best padding policy for s_a and s_b is A_PAD=0/8, B_PAD=16. Thus, 
-  // improve B_PAD consume 8x~ less smem than A_PAD, 16xB_PAD vs 128xA_PAD.
-  constexpr int A_PAD = 0;  // 0,8,16
-  constexpr int B_PAD = 16; // 0,8,16
+  // bank conflicts free via pad = 8, reject fantasy, trust the profile.
+  // ncu --metrics l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld ./hgemm_mma_stage.89.debug.bin
+  // ncu --metrics sm__sass_l1tex_data_bank_conflicts_pipe_lsu_mem_shared_op_ldsm ./hgemm_mma_stage.89.debug.bin
+  constexpr int A_PAD = 8; // 0,8,16
+  constexpr int B_PAD = 8; // 0,8,16
   constexpr int NUM_THREADS= (
     MMA_TILE_M * MMA_TILE_N * WARP_SIZE); // 2 * 4 * 32 = 256
   constexpr int BM = MMA_M * MMA_TILE_M * WARP_TILE_M;    
@@ -2646,13 +2658,11 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_rr(
   constexpr int WARP_TILE_M = 4;
   constexpr int WARP_TILE_N = 4;
   constexpr int WARP_TILE_K = 2;
-  // s_a 4  ways bank conflicts within warp, after pad 8  -> 4 ways bank conflicts.
-  // s_b 16 ways bank conflicts within warp, after pad 8  -> 8 ways bank conflicts.
-  // s_b 16 ways bank conflicts within warp, after pad 16 -> 4 ways bank conflicts.
-  // so, the best padding policy for s_a and s_b is A_PAD=0/8, B_PAD=16. Thus, 
-  // improve B_PAD consume 8x~ less smem than A_PAD, 16xB_PAD vs 128xA_PAD.
-  constexpr int A_PAD = 0;  // 0,8,16
-  constexpr int B_PAD = 16; // 0,8,16
+  // bank conflicts free via pad = 8, reject fantasy, trust the profile.
+  // ncu --metrics l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld ./hgemm_mma_stage.89.debug.bin
+  // ncu --metrics sm__sass_l1tex_data_bank_conflicts_pipe_lsu_mem_shared_op_ldsm ./hgemm_mma_stage.89.debug.bin
+  constexpr int A_PAD = 8; // 0,8,16
+  constexpr int B_PAD = 8; // 0,8,16
   constexpr int NUM_THREADS= (
     MMA_TILE_M * MMA_TILE_N * WARP_SIZE); // 2 * 4 * 32 = 256
   constexpr int BM = MMA_M * MMA_TILE_M * WARP_TILE_M;    

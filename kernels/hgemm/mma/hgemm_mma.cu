@@ -313,8 +313,11 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4(
   constexpr int MMA_TILE_N = 4; 
   constexpr int WARP_TILE_M = 4;
   constexpr int WARP_TILE_N = 4;
-  constexpr int A_PAD = 0;
-  constexpr int B_PAD = 16;
+  // bank conflicts free via pad = 8, reject fantasy, trust the profile.
+  // ncu --metrics l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld ./hgemm_mma_stage.89.debug.bin
+  // ncu --metrics sm__sass_l1tex_data_bank_conflicts_pipe_lsu_mem_shared_op_ldsm ./hgemm_mma_stage.89.debug.bin
+  constexpr int A_PAD = 8;
+  constexpr int B_PAD = 8;
   constexpr int NUM_THREADS= (
     MMA_TILE_M * MMA_TILE_N * WARP_SIZE); // 2 * 4 * 32 = 256
 

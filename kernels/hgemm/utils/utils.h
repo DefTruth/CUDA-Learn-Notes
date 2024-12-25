@@ -6,7 +6,7 @@
 template <typename T>
 float perf_gemm(
   void (*gpu_hgemm) (const T *, const T *, T *, int, int, int),
-  int M, int N, int K, int repeat) {
+  int M, int N, int K, int repeat, int warmup = 1) {
 
   size_t size_a = M * K * sizeof(T);
   size_t size_b = K * N * sizeof(T);
@@ -19,7 +19,7 @@ float perf_gemm(
   cudaMalloc(&d_c, size_c);
   
   // warmup
-  for (int i = 0; i < 10; ++i){
+  for (int i = 0; i < warmup; ++i){
     gpu_hgemm(d_a, d_b, d_c, M, N, K);
   }
   cudaDeviceSynchronize();
@@ -52,7 +52,7 @@ float perf_gemm(
 template <typename T>
 float perf_gemm_swizzle(
   void (*gpu_hgemm) (const T *, const T *, T *, int, int, int, int),
-  int M, int N, int K, int swizzle_stride, int repeat) {
+  int M, int N, int K, int swizzle_stride, int repeat, int warmup = 1) {
 
   size_t size_a = M * K * sizeof(T);
   size_t size_b = K * N * sizeof(T);
@@ -65,7 +65,7 @@ float perf_gemm_swizzle(
   cudaMalloc(&d_c, size_c);
   
   // warmup
-  for (int i = 0; i < 10; ++i){
+  for (int i = 0; i < warmup; ++i){
     gpu_hgemm(d_a, d_b, d_c, M, N, K, swizzle_stride);
   }
   cudaDeviceSynchronize();
