@@ -934,16 +934,16 @@ void launch_flash_attn_mma_stages_split_q_tiling_qk_swizzle(
   constexpr int kNumThreads = WARP_SIZE * kMmaTileSeqLenQ * kMmaTileSeqLenK; // 32*4*1=128, num threads
   constexpr int kPadQ = 0;
   constexpr int kPadK = 0;
-  constexpr int kPadV = 8;
+  constexpr int kPadV = 8; // 0.25~0.5M
   
   // static int kMaxSramPerBlock;
   // cudaDeviceGetAttribute(&kMaxSramPerBlock, cudaDevAttrMaxSharedMemoryPerBlock, 0);
   // Calculate SRAM size needed per block, Q,K,V smem size, V shared the QK smem.
   constexpr int QK_smem_size = (kStage * (Br * (kMmaAtomK + kPadQ)) + 
                                 kStage * (Bc * (kMmaAtomK + kPadK)));
-  // Now, for V_smem_size, s=2, d=4M, 16 regs; d=128, 8M, 32 regs; 
+  // Now, for V_smem_size, s=2, d=64, 4M, 16 regs; d=128, 8M, 32 regs; 
   // d=256, 16M, 64 regs; d=512, 32M, 128 regs; d=1024, 64M, 256 regs;
-  // TODO: sub-tiling for d while perform P@V, kMmaAtomK * (kMmaAtomN)
+  // TODO: Fully sub-tiling for d while perform P@V, kMmaAtomK * (kMmaAtomN)
   constexpr int V_smem_size  = (kStage * (kMmaAtomK * (kHeadDim + kPadV))); 
   // try to let V reuse all Q+K smem after Q@K^T, reduce smem usage.
   const int smem_max_size = max(QK_smem_size, V_smem_size) * sizeof(half);
@@ -961,7 +961,6 @@ void launch_flash_attn_mma_stages_split_q_tiling_qk_swizzle(
   // Tr(=N/Br), batch_size x num_heads
   dim3 grid(div_ceil(QKV_seqlen, Br), QKV_batch * QKV_head); 
   dim3 block(kNumThreads); // 4/8 warps per block
-  // when N >= 6016, stage 1 will have precision gap, why?
 
   cudaFuncSetAttribute(
     flash_attn_mma_stages_split_q_tiling_qk_swizzle_kernel<

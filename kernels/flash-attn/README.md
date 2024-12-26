@@ -17,11 +17,11 @@ This repository's implementation of FlashAttention is intended solely for learni
 |Algorithm| (B,H,N,D) | NVIDIA RTX 3080 Laptop | NVIDIA L20 | NVIDIA GeForce RTX 4090 |   
 |:---:|:---:|:---:|:---:|:---:|  
 |FlashAttention-2|(1,8,8192,64)|37 TFLOPS|100 TFLOPS|145 TFLOPS|  
-|mma(split-q+share-qkv+stage2)|(1,8,8192,64)|**55 TFLOPS**|96 TFLOPS|**218 TFLOPS**|  
+|split-q+share-qkv+stage2|(1,8,8192,64)|**55 TFLOPS**|99 TFLOPS|**218 TFLOPS**|  
 |FlashAttention-2|(1,48,8192,64)|37 TFLOPS|109 TFLOPS|163 TFLOPS|
-|mma(split-q+share-qkv+stage2)|(1,48,8192,64)|35 TFLOPS|104 TFLOPS|**223 TFLOPS**|
+|split-q+share-qkv+stage2|(1,48,8192,64)|35 TFLOPS|107 TFLOPS|**220 TFLOPS**|
 |SDPA(EFFICIENT ATTENTION)|(1,48,8192,512)|16 TFLOPS|58 TFLOPS|85 TFLOPS|
-|mma(split-q+tiling-qk+stage2)|(1,48,8192,512)|**23 TFLOPS**|**81 TFLOPS**|**120 TFLOPS**|
+|split-q+tiling-qk+swizzle+stage2|(1,48,8192,512)|**23 TFLOPS**|**81 TFLOPS**|**127 TFLOPS**|
 
 For example, on NVIDIA RTX 3080 Laptop, [📚 Split Q + Fully Shared QKV SMEM](#mma-share-qkv) can achieve **55 TFLOPS (D=64)** that almost **~1.5x** 🎉 faster than FA2. Moreover, on NVIDIA L20, [📚 Split Q + QK Fine-grained Tiling](#mma-tiling-qk) can achieve **81 TFLOPS (D=512)** that almost **~1.4x** 🎉 faster than SDPA (EFFICIENT ATTENTION).
 
