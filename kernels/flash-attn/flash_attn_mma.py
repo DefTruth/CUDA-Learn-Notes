@@ -78,6 +78,7 @@ def get_build_sources():
     build_sources.append('./mma/flash_attn_mma_tiling_qk_swizzle.cu')
     build_sources.append('./mma/flash_attn_mma_share_kv_swizzle.cu')
     build_sources.append('./mma/flash_attn_mma_share_kv_fully_swizzle.cu')
+    build_sources.append('./mma/flash_attn_mma_tiling_qk_fully_swizzle.cu')
     build_sources.append('./pybind/flash_attn.cc')
     return build_sources
 
@@ -422,6 +423,9 @@ for (B, H, N, D) in BHNDs:
     out_mma_tiling_qk_sw1,        _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qk_swizzle,  q, k, v, "mma(split-q+tiling-qk+swizzle+stage1)",  o, stages=1)
     out_mma_tiling_qk_sw2,        _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qk_swizzle,  q, k, v, "mma(split-q+tiling-qk+swizzle+stage2)",  o, stages=2)
     if D <= 256:
+        out_mma_tiling_qk_fs1,        _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qk_fully_swizzle,  q, k, tv, "mma(split-q+tiling-qk+fully+swizzle+stage1)",  o, stages=1)
+        out_mma_tiling_qk_fs2,        _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qk_fully_swizzle,  q, k, tv, "mma(split-q+tiling-qk+fully+swizzle+stage2)",  o, stages=2)
+    if D <= 256:
         out_flash,                _ = run_benchmark(flash_attn_func, fq, fk, fv, "(flash)")
     if args.run_torch_sdpa:
         out_sdpa,                 _ = run_benchmark(partial(sdpa, use_flash=(D<=256)), q, k, v, "(sdpa)")
@@ -447,6 +451,8 @@ for (B, H, N, D) in BHNDs:
             check_all_close(out_flash, out_mma_share_kv_sw2, "out_mma_share_kv_sw2", args.check_all)
             check_all_close(out_flash, out_mma_share_kv_fs1, "out_mma_share_kv_fs1", args.check_all)
             check_all_close(out_flash, out_mma_share_kv_fs2, "out_mma_share_kv_fs2", args.check_all)
+            check_all_close(out_flash, out_mma_tiling_qk_fs1, "out_mma_tiling_qk_fs1", args.check_all)
+            check_all_close(out_flash, out_mma_tiling_qk_fs2, "out_mma_tiling_qk_fs2", args.check_all)
             pretty_print_line()
         elif args.run_torch_sdpa:
             pretty_print_line()

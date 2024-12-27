@@ -747,7 +747,6 @@ flash_attn_mma_stages_split_q_shared_qkv_kernel(half* Q,
 template<const int kHeadDim, const int kStage>
 void launch_flash_attn_mma_stages_split_q_shared_qkv(
   torch::Tensor Q, torch::Tensor K, torch::Tensor V, torch::Tensor O) {
-
   constexpr int kMmaAtomM = 16;
   constexpr int kMmaAtomN = 8;
   constexpr int kMmaAtomK = 16;
@@ -765,7 +764,7 @@ void launch_flash_attn_mma_stages_split_q_shared_qkv(
   constexpr int kMmaTileSeqLenP  = (kHeadDim < 128) ? 8 : 8;
   constexpr int kMmaTileHeadDimV = 1;
   constexpr int kWarpTileSeqLenQ = 1;
-  constexpr int kWarpTileSeqLenK = (kHeadDim < 128) ? 8 : 2;
+  constexpr int kWarpTileSeqLenK = (kHeadDim < 128) ? 8 : 8;
   constexpr int kWarpTileSeqLenP = 1;
 #endif
   constexpr int kWarpTileHeadDimV = (kHeadDim / (kMmaAtomN * kMmaTileHeadDimV)); // 8,16,32,....
