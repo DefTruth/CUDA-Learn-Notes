@@ -905,7 +905,7 @@ void launch_flash_attn_mma_stages_split_q_shared_kv_swizzle_qkv(
   constexpr int kMmaTileSeqLenP  = (kHeadDim < 256) ? 8 : 8;
   constexpr int kMmaTileHeadDimV = 1;
   constexpr int kWarpTileSeqLenQ = 1;
-  constexpr int kWarpTileSeqLenK = (kHeadDim < 256) ? ((kStage > 1) ? 8 : 8) : 8;
+  constexpr int kWarpTileSeqLenK = (kHeadDim < 256) ? ((kStage > 1) ? 8 : 8) : 4;
   constexpr int kWarpTileSeqLenP = 1;
 #endif
   constexpr int kWarpTileHeadDimV = (kHeadDim / (kMmaAtomN * kMmaTileHeadDimV)); // 8,16,32,....
