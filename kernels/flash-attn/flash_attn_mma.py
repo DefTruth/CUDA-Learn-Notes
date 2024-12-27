@@ -42,6 +42,7 @@ def get_args():
     parser.add_argument("--warmup", "--w", type=int, default=1)
     parser.add_argument("--iters", "--i", type=int, default=5)
     parser.add_argument("--range-k", '--gk', action="store_true")
+    parser.add_argument("--build-others", '--others', action="store_true")
     parser.add_argument("--tag-hints", '--tags', '--hints', type=str, default=None)
     return parser.parse_args()
 
@@ -84,6 +85,8 @@ def get_build_sources():
     build_sources.append('./mma/swizzle/flash_attn_mma_tiling_qk_swizzle_q.cu')
     build_sources.append('./mma/swizzle/flash_attn_mma_tiling_qk_swizzle_qk.cu')
     build_sources.append('./mma/swizzle/flash_attn_mma_tiling_qk_swizzle_qkv.cu')
+    if args.build_others:
+        build_sources.append('./mma/others/flash_attn_mma_share_qkv_s2g_o.cu')
     build_sources.append('./pybind/flash_attn.cc')
     return build_sources
 
@@ -127,6 +130,7 @@ def get_build_cuda_cflags(build_pkg: bool = False):
     extra_cuda_cflags.append("--expt-extended-lambda")
     extra_cuda_cflags.append("--use_fast_math")
     extra_cuda_cflags.append("-DFLASH_ATTN_MMA_DEBUG" if args.debug else "")
+    extra_cuda_cflags.append("-DBUILD_FLASH_ATTN_MMA_OTHERS" if args.build_others else "")
     extra_cuda_cflags.append("-DBUILD_FLASH_ATTN_MMA_L20"  if "L20"  in device_name else "")
     extra_cuda_cflags.append("-DBUILD_FLASH_ATTN_MMA_4090" if "4090" in device_name else "")
     extra_cuda_cflags.append("-DBUILD_FLASH_ATTN_MMA_3080" if "3080" in device_name else "")
@@ -137,11 +141,19 @@ def get_build_cuda_cflags(build_pkg: bool = False):
     extra_cuda_cflags.append(f'-I {project_dir}/kernels/flash-attn/mma')
     extra_cuda_cflags.append(f'-I {project_dir}/kernels/flash-attn/mma/basic')
     extra_cuda_cflags.append(f'-I {project_dir}/kernels/flash-attn/mma/swizzle')
+    extra_cuda_cflags.append(f'-I {project_dir}/kernels/flash-attn/mma/others')
     extra_cuda_cflags.append(f'-I {project_dir}/kernels/flash-attn/cutlass')
     extra_cuda_cflags.append(f'-I {project_dir}/kernels/flash-attn/pybind')
     extra_cuda_cflags.append(f'-I {project_dir}/third-party/cutlass/include')
     extra_cuda_cflags.append(f'-I {project_dir}/third-party/cutlass/tools/util/include')
     return extra_cuda_cflags
+
+
+def get_build_cflags():
+    extra_cflags = []
+    extra_cflags.append("-std=c++17")
+    extra_cflags.append("-DBUILD_FLASH_ATTN_MMA_OTHERS" if args.build_others else "")
+    return extra_cflags
 
 
 def pretty_print_line(m: str = "", sep: str = "-", width: int = 150):
@@ -164,8 +176,13 @@ pretty_print_line()
 lib = load(name='flash_attn_lib', 
            sources=get_build_sources(), 
            extra_cuda_cflags=get_build_cuda_cflags(), 
-           extra_cflags=['-std=c++17'],
+           extra_cflags=get_build_cflags(),
            verbose=args.verbose)
+
+
+if not args.build_others:
+    setattr(lib, "flash_attn_mma_stages_split_q_shared_qkv_s2g_o", 
+            lambda q, k, v, o, s: o)
 
 
 def get_mha_tflops(B: int, H: int, N: int, D: int, secs: float=1.0, 
@@ -234,6 +251,10 @@ def run_benchmark(perf_func: callable,
             if hint in tag:
                 hit_hints = True
         if not hit_hints:
+            return None, None
+    
+    if not args.build_others:
+        if "s2g-o" in tag:
             return None, None
 
     if "sdpa" in tag and (not args.run_torch_sdpa):
@@ -434,6 +455,8 @@ MAX_HEADDIM_CFG: dict[str, int] = {
     "mma(split-q+share-qkv+swizzle-qk+stage2)":     128,
     "mma(split-q+share-qkv+swizzle-qkv+stage1)":    256,
     "mma(split-q+share-qkv+swizzle-qkv+stage2)":    128,
+    "mma(split-q+share-qkv+s2g-o+stage1)":          256,
+    "mma(split-q+share-qkv+s2g-o+stage2)":          128,
     # Split-Q + QK Fine-grained Tiling
     "mma(split-q+tiling-qk+stage1)":                1024,
     "mma(split-q+tiling-qk+stage2)":                1024,
@@ -482,6 +505,8 @@ for (B, H, N, D) in BHNDs:
     # Split-Q + Fully Shared QKV SMEM + Swizzle
     out_mma_share_qkv1,        _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv, q, k, v, "mma(split-q+share-qkv+stage1)", o, stages=1)
     out_mma_share_qkv2,        _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv, q, k, v, "mma(split-q+share-qkv+stage2)", o, stages=2)
+    out_mma_share_qkv_s2g1,    _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv_s2g_o, q, k, v, "mma(split-q+share-qkv+s2g-o+stage1)", o, stages=1)
+    out_mma_share_qkv_s2g2,    _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv_s2g_o, q, k, v, "mma(split-q+share-qkv+s2g-o+stage2)", o, stages=2)
     out_mma_share_qkv_sq1,     _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv_swizzle_q, q, k, v, "mma(split-q+share-qkv+swizzle-q+stage1)", o, stages=1)
     out_mma_share_qkv_sq2,     _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv_swizzle_q, q, k, v, "mma(split-q+share-qkv+swizzle-q+stage2)", o, stages=2)
     out_mma_share_qkv_sqk1,    _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv_swizzle_qk, q, k, v, "mma(split-q+share-qkv+swizzle-qk+stage1)", o, stages=1)
@@ -524,6 +549,8 @@ for (B, H, N, D) in BHNDs:
             # Split-Q + Fully Shared QKV SMEM
             check_all_close(out_flash, out_mma_share_qkv1,        "out_mma_share_qkv1",       args.check_all)
             check_all_close(out_flash, out_mma_share_qkv2,        "out_mma_share_qkv2",       args.check_all)
+            check_all_close(out_flash, out_mma_share_qkv_s2g1,    "out_mma_share_qkv_s2g1",   args.check_all)
+            check_all_close(out_flash, out_mma_share_qkv_s2g2,    "out_mma_share_qkv_s2g2",   args.check_all)
             check_all_close(out_flash, out_mma_share_qkv_sq1,     "out_mma_share_qkv_sq1",    args.check_all)
             check_all_close(out_flash, out_mma_share_qkv_sq2,     "out_mma_share_qkv_sq2",    args.check_all)
             check_all_close(out_flash, out_mma_share_qkv_sqk1,    "out_mma_share_qkv_sqk1",   args.check_all)
