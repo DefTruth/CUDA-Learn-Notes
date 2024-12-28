@@ -40,10 +40,11 @@ def swizzle_permuted_j(i: int,
 
 
 def print_smem_swizzle_layout(rows: int = 16, 
-                             logical_col_stride: int = 16, 
-                             num_elems_per_128b: int = 8, 
-                             show_logical_col_id: bool = False,
-                             use_logical_col_stride: bool = False):
+                              logical_col_stride: int = 16, 
+                              num_elems_per_128b: int = 8, 
+                              smem_pading: int = 0,
+                              show_logical_col_id: bool = False,
+                              use_logical_col_stride: bool = False):
     # ----------------------------------------------------------------
     # [INFO] Assert smem store layout col_stride <= 16, prefer 16.   |
     # [INFO] For logical_col_stride > 16, we have to permute the     |
@@ -95,12 +96,17 @@ def print_smem_swizzle_layout(rows: int = 16,
     # ----------------------------------------------------------------
     str_len = 0
     total_banks = 0
+    assert smem_pading == 0 or smem_pading == 8, "smem_pading must be 0 or 8"
     # 4 bytes per bank
     banks_per_col = int((16 * 2) / 4) if logical_col_stride >= 16 else 4 
     if use_logical_col_stride:
         banks_per_col = int((logical_col_stride * 2) / 4)
         if logical_col_stride > 16:
             print(f"[WARN] col_stride must <= 16, but got {logical_col_stride}") 
+    if smem_pading == 8:
+        banks_per_col += 4
+        print(f"[INFO] smem padding 8 half values, 4 banks, banks_per_col: {banks_per_col}")
+
     banks_per_num_elems_per_128b = int((num_elems_per_128b * 2) / 4)
     for i in range(rows):
         layout_str_len = 0
@@ -139,13 +145,33 @@ def print_smem_swizzle_layout(rows: int = 16,
                                               num_elems_per_128b)
                 logical_col_ids.append(j)
                 smem_layout_col_ids.append(layout_j)
+
         smem_layout_str = f"|row {i:<2}|"
+
+        r = 0
         for c, l in zip(logical_col_ids, smem_layout_col_ids):
-            smem_layout_str += pretty_print_line((f"{c:>2}:{l:<2}" if 
-                                                 show_logical_col_id else f"{l:<2}"), 
-                                                 sep=" ",
-                                                 width=max_bank_str_len-1, 
-                                                 return_str=True) + "|"
+            smem_layout_str += pretty_print_line(
+                (f"{c:>2}:{l:<2}" if show_logical_col_id else f"{l:<2}"), 
+                sep=" ",
+                width=(max_bank_str_len-1), 
+                return_str=True
+            ) + "|"
+            r += 1
+            if logical_col_stride >= 16:
+                if smem_pading == 8 and (r > 1 and r % 2 == 0):
+                    smem_layout_str += pretty_print_line(
+                        (f"pad"), 
+                        sep=" ", width=max_bank_str_len-1, 
+                        return_str=True
+                    ) + "|"
+            else:
+                if smem_pading == 8:
+                    smem_layout_str += pretty_print_line(
+                        (f"pad"), 
+                        sep=" ", width=max_bank_str_len-1, 
+                        return_str=True
+                    ) + "|"
+
         layout_str_len = len(smem_layout_str)
         str_len = max(layout_str_len, banks_str_len)
 
@@ -172,6 +198,7 @@ def print_smem_swizzle_layout(rows: int = 16,
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--rows", type=int, default=16)
+    parser.add_argument("--smem-padding", "--pad", type=int, default=0)
     parser.add_argument("--num-elems-per-128b", "--num-elems", type=int, default=8)
     parser.add_argument("--logical-col-stride", "--logical-col", "--col", type=int, default=64)
     parser.add_argument("--use-logical-col-stride", "--use-logical-col", action="store_true")
@@ -186,6 +213,7 @@ if __name__ == "__main__":
     print_smem_swizzle_layout(rows=args.rows, 
                               logical_col_stride=args.logical_col_stride, 
                               num_elems_per_128b=args.num_elems_per_128b, 
+                              smem_pading=args.smem_padding,
                               show_logical_col_id=args.show_logical_col_id,
                               use_logical_col_stride=args.use_logical_col_stride)
 

@@ -520,7 +520,7 @@ void launch_hgemm_mma_m16n8k16_mma2x4_warp4x4(
   constexpr int MMA_TILE_N = 4; 
   constexpr int WARP_TILE_M = 4;
   constexpr int WARP_TILE_N = 4;
-  // bank conflicts free via pad = 8, 拒绝幻想，相信profile
+  // bank conflicts free via pad = 8.
   // ncu --metrics l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld ./hgemm_mma_swizzle.bin
   // ncu --metrics sm__sass_l1tex_data_bank_conflicts_pipe_lsu_mem_shared_op_ldsm ./hgemm_mma_swizzle.bin
   // constexpr int A_PAD = 8;
@@ -541,6 +541,7 @@ void launch_hgemm_mma_m16n8k16_mma2x4_warp4x4(
   );
 }
 
+template <const int B_PAD = 8>
 void launch_hgemm_mma_m16n8k16_mma2x4_warp4x4_smem_swizzle(
   half* a, half* b, half* c, int M, int N, int K) {
   constexpr int MMA_M = 16;
@@ -551,7 +552,7 @@ void launch_hgemm_mma_m16n8k16_mma2x4_warp4x4_smem_swizzle(
   constexpr int WARP_TILE_M = 4;
   constexpr int WARP_TILE_N = 4;
   constexpr int A_PAD = 0;
-  constexpr int B_PAD = 8;
+  // B_PAD = 8, bank conflicts free via pad = 8.
   constexpr int NUM_THREADS= (
     MMA_TILE_M * MMA_TILE_N * WARP_SIZE); // 2 * 4 * 32 = 256                                  
   dim3 block(NUM_THREADS);
@@ -644,9 +645,16 @@ int main(int argc, char *argv[]) {
   avg_Tflops = ((double)M) * N * K * 2 * 1e-12 / avg_sec;      
   printf("M N K = %6d %6d %6d, W = %d, R = %d, ", M, N, K, W, R);
   printf("Time = %12.8lf s, AVG Performance = %10.4lf Tflops\n", avg_sec, avg_Tflops); 
+  
+  printf("\nALGO = HGEMM mma2x4_warp4x4 + A SMEM SWIZZLE + B_PAD 0\n");
+  avg_sec = perf_gemm<half>(launch_hgemm_mma_m16n8k16_mma2x4_warp4x4_smem_swizzle<0>, 
+                            M, N, K, W, R);
+  avg_Tflops = ((double)M) * N * K * 2 * 1e-12 / avg_sec;      
+  printf("M N K = %6d %6d %6d, W = %d, R = %d, ", M, N, K, W, R);
+  printf("Time = %12.8lf s, AVG Performance = %10.4lf Tflops\n", avg_sec, avg_Tflops);
 
-  printf("\nALGO = HGEMM mma2x4_warp4x4 + SMEM SWIZZLE\n");
-  avg_sec = perf_gemm<half>(launch_hgemm_mma_m16n8k16_mma2x4_warp4x4_smem_swizzle, 
+  printf("\nALGO = HGEMM mma2x4_warp4x4 + A SMEM SWIZZLE + B_PAD 8\n");
+  avg_sec = perf_gemm<half>(launch_hgemm_mma_m16n8k16_mma2x4_warp4x4_smem_swizzle<8>, 
                             M, N, K, W, R);
   avg_Tflops = ((double)M) * N * K * 2 * 1e-12 / avg_sec;      
   printf("M N K = %6d %6d %6d, W = %d, R = %d, ", M, N, K, W, R);
