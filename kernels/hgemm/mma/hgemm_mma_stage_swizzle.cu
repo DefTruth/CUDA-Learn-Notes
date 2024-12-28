@@ -54,33 +54,12 @@ HOST_DEVICE_INLINE
 int div_ceil(int a, int b) { return (a % b != 0) ? (a / b + 1) : (a / b); }
 
 // i: row index; j: col index. 
-// e.g kColStride = 64, kStep = 8 -> load 8 half as 128 bits memory issue.
-template<const int kColStride = 64, const int kStep = 8>
+// e.g kColStride = 16, kStep = 8 -> load 8 half as 128 bits memory issue.
+template<const int kColStride = 16, const int kStep = 8>
 static __device__ __forceinline__ int swizzle_permuted_j(int i, int j) {
-  // -------------------------------------------
-  // --------------swizzle layout---------------
-  // -------------col 0~64, step 8--------------
-  // -------------------------------------------
-  // | row 0  | (0, 8, 16, 24, 32, 40, 48, 56) |
-  // | row 1  | (0, 8, 16, 24, 32, 40, 48, 56) |
-  // | row 2  | (0, 8, 16, 24, 32, 40, 48, 56) |
-  // | row 3  | (0, 8, 16, 24, 32, 40, 48, 56) |
-  // -------------------------------------------
-  // | row 4  | (8, 0, 24, 16, 40, 32, 56, 48) |
-  // | row 5  | (8, 0, 24, 16, 40, 32, 56, 48) |
-  // | row 6  | (8, 0, 24, 16, 40, 32, 56, 48) |
-  // | row 7  | (8, 0, 24, 16, 40, 32, 56, 48) |
-  // -------------------------------------------
-  // | row 8  | (16, 24, 0, 8, 48, 56, 32, 40) |
-  // | row 9  | (16, 24, 0, 8, 48, 56, 32, 40) |
-  // | row 10 | (16, 24, 0, 8, 48, 56, 32, 40) |
-  // | row 11 | (16, 24, 0, 8, 48, 56, 32, 40) |
-  // -------------------------------------------
-  // | row 12 | (24, 16, 8, 0, 56, 48, 40, 32) |
-  // | row 13 | (24, 16, 8, 0, 56, 48, 40, 32) |
-  // | row 14 | (24, 16, 8, 0, 56, 48, 40, 32) |
-  // | row 15 | (24, 16, 8, 0, 56, 48, 40, 32) |
-  // -------------------------------------------
+  // for col_stride > 16, we have to permute it using col major ZigZag order.
+  // e.g, A smem logical layout [Br,d]=[Br,64] -> store layout [4][Br][16].
+  static_assert(kColStride <= 16, "kColStride must <= 16");
   // swizzle: ((int(j / kStep) ^ int(i / 4)) % int(kColStride / kStep)) * kStep;
   static_assert(kStep == 4 || kStep == 8, "kStep must be 8 or 4.");
   static_assert(kColStride % kStep == 0, "kColStride must be multiple of kStep.");
