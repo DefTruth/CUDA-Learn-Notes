@@ -3,12 +3,12 @@
 ## 📚 build bin
 
 ```bash
-make
+make # build all default binaries
 ```
 
 ## 📚 ncu profile
 
-Achieve 0 bank conflicts for LDSM via smem swizzle.
+- 📚 Achieve 0 bank conflicts for LDSM via smem swizzle.
 
 ```bash
 ncu --metrics l1tex__data_bank_reads ./mat_trans_swizzle.bin
@@ -20,7 +20,7 @@ ncu --metrics l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld ./hgemm_mma_s
 ncu --metrics sm__sass_l1tex_data_bank_conflicts_pipe_lsu_mem_shared_op_ldsm ./hgemm_mma_swizzle.bin 1024 1024 1024 0 1
 ```
 
-log: (achieve 0 bank conflicts for LDSM via smem swizzle)
+- 📚 log: (achieve 0 bank conflicts for LDSM via smem swizzle)
 
 ```bash
 ncu --metrics sm__sass_l1tex_data_bank_conflicts_pipe_lsu_mem_shared_op_ldsm ./hgemm_mma_swizzle.bin 1024 1024 1024 0 1
@@ -72,15 +72,9 @@ ncu --metrics sm__sass_l1tex_data_bank_conflicts_pipe_lsu_mem_shared_op_ldsm ./h
 
 ## 📚 performance  
 
-- NVIDIA TRX 3080 Laptop
+- 📚 NVIDIA RTX 3080 Laptop
 ```bash
  ./hgemm_mma_swizzle.bin 4096 4096 4096 1 10
-
-ALGO = HGEMM MMA NAIVE
-M N K =   4096   4096   4096, W = 1, R = 10, Time =   0.02986609 s, AVG Performance =     4.6018 Tflops
-
-ALGO = HGEMM MMA NAIVE + SMEM SWIZZLE
-M N K =   4096   4096   4096, W = 1, R = 10, Time =   0.02860964 s, AVG Performance =     4.8039 Tflops
 
 ALGO = HGEMM mma2x4_warp4x4
 M N K =   4096   4096   4096, W = 1, R = 10, Time =   0.00392888 s, AVG Performance =    34.9817 Tflops
@@ -92,7 +86,7 @@ M N K =   4096   4096   4096, W = 1, R = 10, Time =   0.00234496 s, AVG Performa
 
 ## 📚 print swizzle layout  
 
-- M16K16  
+- 📚 M16K16  
 
 ```bash
 python3 print_swizzle_layout.py --logical-col 64 --show-logical-col
@@ -147,7 +141,7 @@ smem col 0~16, step 8-
 ----------------------
 ```
 
-- M16K64  
+- 📚 M16K64 (Zigzag)
 
 ```bash
 python3 print_swizzle_layout.py --logical-col 64 --show-logical-col
