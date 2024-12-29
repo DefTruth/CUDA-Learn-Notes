@@ -8,8 +8,6 @@
 #include <cuda_bf16.h>
 #include <cuda_fp8.h>
 #include <mma.h>
-#include <torch/types.h>
-#include <torch/extension.h>
 using namespace nvcuda;
 
 #define WARP_SIZE 32
@@ -251,8 +249,8 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn_kernel(
         int lane_smem_b_k = ((lane_id / 8) % 2) * 8; // 0,8
         uint32_t lane_smem_b_ptr = (
           smem_b_base_ptr + (stage_sel * s_b_stage_offset + 
-                            lane_smem_b_n * (BK + B_PAD) + 
-                            lane_smem_b_k) * sizeof(half)
+                             lane_smem_b_n * (BK + B_PAD) + 
+                             lane_smem_b_k) * sizeof(half)
         );
         LDMATRIX_X2(RB[j][0], RB[j][1], lane_smem_b_ptr);
       }
@@ -309,7 +307,144 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn_kernel(
   }
 }
 
+// build cpp binary
+#ifndef NO_MMA_HGEMM_BIN
+
+#include "utils.h"
+
+// 128x128, mma2x4, warp4x4(64,32,16), stages, block swizzle, dsmem, TN
+#define LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4_DSMEM_TN_KERNEL(stages, stride)   \
+{                                                                                   \
+  const int smem_max_size = (                                                       \
+    (stages) * BM * (BK + A_PAD) * sizeof(half) +                                   \
+    (stages) * BN * (BK + B_PAD) * sizeof(half));                                   \
+  cudaFuncSetAttribute(                                                             \
+    hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn_kernel<                       \
+      MMA_M, MMA_N, MMA_K, MMA_TILE_M, MMA_TILE_N,                                  \
+      WARP_TILE_M, WARP_TILE_N, A_PAD, B_PAD, (stages), true>,                      \
+    cudaFuncAttributeMaxDynamicSharedMemorySize,                                    \
+    98304);                                                                         \
+  const int N_SWIZZLE = (N + (stride) - 1) / (stride);                              \
+  dim3 block(NUM_THREADS);                                                          \
+  dim3 grid((div_ceil(N, BN) + N_SWIZZLE - 1) / N_SWIZZLE,                          \
+             div_ceil(M, BM),                                                       \
+             N_SWIZZLE);                                                            \
+  hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn_kernel<                         \
+    MMA_M, MMA_N, MMA_K, MMA_TILE_M, MMA_TILE_N,                                    \
+    WARP_TILE_M, WARP_TILE_N, A_PAD, B_PAD, (stages), true><<<                      \
+    grid, block, smem_max_size>>>(                                                  \
+    a, b, c,                                                                        \
+    M, N, K                                                                         \
+  );                                                                                \
+}
+
+template <const int K_STAGE = 2, const int BLOCK_SWIZZLE_STRIDE = 2048>
+void lanunch_hgemm_mma_m16n8k16_tn(
+  half* a, half* b, half* c, int M, int N, int K) {
+  constexpr int MMA_M = 16;
+  constexpr int MMA_N = 8;
+  constexpr int MMA_K = 16;
+  constexpr int MMA_TILE_M = 2;
+  constexpr int MMA_TILE_N = 4; 
+  constexpr int WARP_TILE_M = 4;
+  constexpr int WARP_TILE_N = 4;
+  constexpr int A_PAD = 0; 
+  constexpr int B_PAD = 0; 
+  constexpr int NUM_THREADS= (
+    MMA_TILE_M * MMA_TILE_N * WARP_SIZE); // 2 * 4 * 32 = 256
+  constexpr int BM = MMA_M * MMA_TILE_M * WARP_TILE_M;    
+  constexpr int BN = MMA_N * MMA_TILE_N * WARP_TILE_N;    
+  constexpr int BK = MMA_K;   
+  // s2: 2*128*(32)*2=16KB, 2*32*(128+16)*2=18KB, ~35KB
+  // s3: 3*128*(32)*2=24KB, 3*32*(128+16)*2=27KB, ~51KB
+  // s4: 4*128*(32)*2=32KB, 4*32*(128+16)*2=36KB, ~68KB                            
+  // s5: 5*128*(32)*2=40KB, 5*32*(128+16)*2=45KB, ~85KB    
+  LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4_DSMEM_TN_KERNEL(
+    K_STAGE, BLOCK_SWIZZLE_STRIDE);
+}
+
+#ifdef HGEMM_MMA_DEBUG  
+#include <iostream>
+#endif
+
+
+int main(int argc, char *argv[]) {
+#ifdef HGEMM_MMA_DEBUG  
+  const int test_num = 1;
+#else
+  const int test_num = 64;
+#endif
+  int M_list[test_num];
+  int N_list[test_num];
+  int K_list[test_num];
+  
+  for (int i = 0; i < test_num; i++) {
+    M_list[i] = (i + 1) * 256;
+    N_list[i] = (i + 1) * 256;
+    K_list[i] = (i + 1) * 256;
+  }
+  
+#ifdef HGEMM_MMA_DEBUG  
+  if (argc > 1) M_list[0] = std::stoi(argv[1]);
+  if (argc > 2) N_list[0] = std::stoi(argv[2]);
+  if (argc > 3) K_list[0] = std::stoi(argv[3]);
+#endif
+  
+#ifdef HGEMM_MMA_DEBUG  
+  int outer_repeat = 1, inner_repeat = 1, warmup = 1;
+  if (argc > 4) warmup = std::stoi(argv[4]);
+  if (argc > 5) inner_repeat = std::stoi(argv[5]);
+#else
+  int outer_repeat = 10, inner_repeat = 1, warmup = 1;
+#endif
+  
+  printf("ALGO = MMA16816 HGEMM TN MMA=2x4 WARP=4x4 STAGES=2 BLOCK SWIZZLE=2048\n");
+#ifndef HGEMM_MMA_DEBUG  
+  for (int j = 0; j < 5; j++) {
+    int M = M_list[j], N = N_list[j], K = K_list[j];
+    float max_error = gemm_error_check_tn<half>(
+      lanunch_hgemm_mma_m16n8k16_tn<2, 2048>, 
+      M, N, K);
+    printf("M N K = %6d %6d %6d, ", M, N, K);
+    printf("Max Error = %f\n", max_error);
+  }
+#endif
+  
+  for (int j = 0; j < test_num; j++) {
+    int M = M_list[j], N = N_list[j], K = K_list[j];
+   
+    double max_sec = 0.0;
+    double min_sec = DBL_MAX;
+    double total_sec = 0.0;
+  
+    for (int k = 0; k < outer_repeat; k++) {
+      double this_sec = perf_gemm<half>(
+        lanunch_hgemm_mma_m16n8k16_tn<2, 2048>, 
+        M, N, K, inner_repeat, warmup);
+      max_sec = max(max_sec, this_sec);
+      min_sec = min(min_sec, this_sec);
+      total_sec += this_sec;
+    }
+      
+    // 1 TFLOPS = 10^12 FLOPS
+    // ref: https://imgtec.eetrend.com/blog/2021/100062210.html.
+    double avg_sec = total_sec / outer_repeat;
+    double avg_Tflops = ((double)M) * N * K * 2 * 1e-12 / avg_sec;
+  
+    printf("M N K = %6d %6d %6d, W = %1d, R = %2d ", M, N, K, warmup, inner_repeat);
+    printf("Time = %12.8lf %12.8lf %12.8lf s, ", min_sec, avg_sec, max_sec);
+    printf("AVG Performance = %10.4lf Tflops\n", avg_Tflops);
+  }
+  
+  return 0;
+}
+  
+
+#else
+
 // --------------------- PyTorch bindings for custom kernel -----------------------
+#include <torch/types.h>
+#include <torch/extension.h>
 #define STRINGFY(str) #str
 #define TORCH_BINDING_COMMON_EXTENSION(func)   \
   m.def(STRINGFY(func), &func, STRINGFY(func));
@@ -398,7 +533,7 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn(
   constexpr int WARP_TILE_M = 4;
   constexpr int WARP_TILE_N = 4;
   constexpr int A_PAD = 0; // 0,8,16
-  constexpr int B_PAD = 0; // 0,8,16
+  constexpr int B_PAD = 8; // 0,8,16
   constexpr int NUM_THREADS= (
     MMA_TILE_M * MMA_TILE_N * WARP_SIZE); // 2 * 4 * 32 = 256
   constexpr int BM = MMA_M * MMA_TILE_M * WARP_TILE_M;    
@@ -446,3 +581,5 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn(
     }
   }
 }
+
+#endif

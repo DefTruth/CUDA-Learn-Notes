@@ -5,7 +5,7 @@
 
 template <typename T>
 float perf_gemm(
-  void (*gpu_hgemm) (const T *, const T *, T *, int, int, int),
+  void (*gpu_hgemm) (T *, T *, T *, int, int, int),
   int M, int N, int K, int repeat, int warmup = 1) {
 
   size_t size_a = M * K * sizeof(T);
@@ -51,7 +51,7 @@ float perf_gemm(
 
 template <typename T>
 float perf_gemm_swizzle(
-  void (*gpu_hgemm) (const T *, const T *, T *, int, int, int, int),
+  void (*gpu_hgemm) (T *, T *, T *, int, int, int, int),
   int M, int N, int K, int swizzle_stride, int repeat, int warmup = 1) {
 
   size_t size_a = M * K * sizeof(T);
@@ -97,7 +97,7 @@ float perf_gemm_swizzle(
 
 template <typename T>
 float gemm_error_check_tn(
-  void (*gpu_hgemm) (const T *, const T *, T *, int, int, int),
+  void (*gpu_hgemm) (T *, T *, T *, int, int, int),
   int M, int N, int K) {
 
   size_t size_a = M * K * sizeof(T);
@@ -167,7 +167,7 @@ float gemm_error_check_tn(
 
 template <typename T>
 float gemm_error_check_tn_swizzle(
-  void (*gpu_hgemm) (const T *, const T *, T *, int, int, int, int),
+  void (*gpu_hgemm) (T *, T *, T *, int, int, int, int),
   int M, int N, int K, int swizzle_stride) {
 
   size_t size_a = M * K * sizeof(T);
@@ -237,7 +237,7 @@ float gemm_error_check_tn_swizzle(
 
 template <typename T>
 float gemm_error_check_nn(
-  void (*gpu_hgemm) (const T *, const T *, T *, int, int, int),
+  void (*gpu_hgemm) (T *, T *, T *, int, int, int),
   int M, int N, int K) {
 
   size_t size_a = M * K * sizeof(T);

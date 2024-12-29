@@ -24,7 +24,7 @@ template <
       typename S2GCopyC,
       const bool BlockSwizzle>
 __global__ void hgemm_mma_stages_block_swizzle_tn_cute_kernel(
-  const T *Aptr, const T *Bptr, T *Dptr, int m, int n, int k) {
+  T *Aptr, T *Bptr, T *Dptr, int m, int n, int k) {
   using namespace cute;
   // Initilize shared memory
   extern __shared__ T shm_data[];
@@ -206,8 +206,8 @@ __global__ void hgemm_mma_stages_block_swizzle_tn_cute_kernel(
 
 // For torch binding, need dynamic block swizzle stride
 template <typename T, const int Stages = 2, const bool BlockSwizzle = false>
-void launch_hgemm_mma_stages_block_swizzle_tn_cute(const T *a, 
-                                                   const T *b, 
+void launch_hgemm_mma_stages_block_swizzle_tn_cute(T *a, 
+                                                   T *b, 
                                                    T *c, 
                                                    int M, 
                                                    int N, 
