@@ -26,6 +26,7 @@ def get_build_sources():
     build_sources.append('mma/basic/hgemm_mma_stage.cu')
     build_sources.append('mma/basic/hgemm_mma_stage_tn.cu')
     build_sources.append('mma/swizzle/hgemm_mma_stage_swizzle.cu')
+    build_sources.append('mma/swizzle/hgemm_mma_stage_tn_swizzle_x4.cu')
     build_sources.append('cutlass/hgemm_mma_stage_tn_cute.cu')
     build_sources.append('pybind/hgemm.cc')
     return build_sources

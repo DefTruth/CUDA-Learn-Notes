@@ -132,29 +132,23 @@ static __device__ __forceinline__ int swizzle_permuted_B_j(int i, int j) {
 // NN: A/B/C All row major
 // TN: A row major MxK, B col major NxK, C row major MxN
 // 128x128, mma2x4, warp4x4(64,32,16), stages, block swizzle, dsmem
-template<const int MMA_M, 
-         const int MMA_N, 
-         const int MMA_K,
-         const int MMA_TILE_M,
-         const int MMA_TILE_N,
-         const int WARP_TILE_M,
-         const int WARP_TILE_N,
-         const int WARP_TILE_K,
-         const int A_PAD, 
-         const int B_PAD,
-         const int K_STAGE, 
-         const bool BLOCK_SWIZZLE,
-         const bool WARP_SWIZZLE>
+template<const int MMA_M=16, 
+         const int MMA_N=8, 
+         const int MMA_K=16,
+         const int MMA_TILE_M=2,
+         const int MMA_TILE_N=4,
+         const int WARP_TILE_M=4,
+         const int WARP_TILE_N=4,
+         const int WARP_TILE_K=2,
+         const int A_PAD=0, 
+         const int B_PAD=0,
+         const int K_STAGE=2, 
+         const bool BLOCK_SWIZZLE=true,
+         const bool WARP_SWIZZLE=true>
 __global__ void  __launch_bounds__(256) 
-hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
+hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x2_kernel(
   const half* __restrict__ A, const half* __restrict__ B, half* __restrict__ C, 
   int M, int N, int K) {
-  // static checks.
-  static_assert(MMA_M == 16 && MMA_N == 8 && MMA_K == 16);
-  static_assert(MMA_TILE_M == 2 && MMA_TILE_N == 4);
-  static_assert(WARP_TILE_M == 4 && WARP_TILE_M == 4 && WARP_TILE_K == 2);
-  static_assert(A_PAD == 0 && B_PAD >= 0 && B_PAD % 8 == 0);
-  static_assert(K_STAGE >= 2);
   // BLOCK_SWIZZLE 0/1 control use block swizzle or not.
   const int bx = ((int) BLOCK_SWIZZLE) * blockIdx.z * gridDim.x + blockIdx.x;
   const int by = blockIdx.y;
@@ -207,9 +201,10 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
     int load_gmem_b_addr = load_gmem_b_n * K + load_gmem_b_k; 
 
     uint32_t load_smem_a_ptr = (
-      smem_a_base_ptr + 
-      (k * s_a_stage_offset + load_smem_a_m * (BK + A_PAD) + 
-      swizzle_permuted_A_j<MMA_K>(load_smem_a_m, load_smem_a_k)) * sizeof(half)
+      smem_a_base_ptr + (k * s_a_stage_offset + 
+                         load_smem_a_m * (BK + A_PAD) + 
+                         swizzle_permuted_A_j<MMA_K>(
+                          load_smem_a_m, load_smem_a_k)) * sizeof(half)
     );
     CP_ASYNC_CG(load_smem_a_ptr, &A[load_gmem_a_addr], 16); // MMA_K 0
     uint32_t load_smem_a_mma_k_ptr = (
@@ -219,35 +214,19 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
     );
     CP_ASYNC_CG(load_smem_a_mma_k_ptr, &A[load_gmem_a_addr + 16], 16); // MMA_K 1
 
-    if constexpr (B_PAD == 0) {
-      uint32_t load_smem_b_ptr = (
-        smem_b_base_ptr + 
-        (k * s_b_stage_offset + load_smem_b_n * (BK + B_PAD) + 
-        swizzle_permuted_B_j<MMA_K>(load_smem_b_n, load_smem_b_k)) * sizeof(half)
-      );
-      CP_ASYNC_CG(load_smem_b_ptr, &B[load_gmem_b_addr], 16);
+    uint32_t load_smem_b_ptr = (
+      smem_b_base_ptr + (k * s_b_stage_offset + 
+                         load_smem_b_n * (BK + B_PAD) + 
+                         load_smem_b_k) * sizeof(half)
+    );
+    CP_ASYNC_CG(load_smem_b_ptr, &B[load_gmem_b_addr], 16);
 
-      uint32_t load_smem_b_mma_k_ptr = (
-        smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) + 
-        (k * s_b_stage_offset + load_smem_b_n * (BK + B_PAD) + 
-        swizzle_permuted_B_j<MMA_K>(load_smem_b_n, load_smem_b_k)) * sizeof(half)
-      );
-      CP_ASYNC_CG(load_smem_b_mma_k_ptr, &B[load_gmem_b_addr + 16], 16);
-    } else { // no swizzle for B, B_PAD = 8
-      uint32_t load_smem_b_ptr = (
-        smem_b_base_ptr + (k * s_b_stage_offset + 
-                          load_smem_b_n * (BK + B_PAD) + 
-                          load_smem_b_k) * sizeof(half)
-      );
-      CP_ASYNC_CG(load_smem_b_ptr, &B[load_gmem_b_addr], 16);
-
-      uint32_t load_smem_b_mma_k_ptr = (
-        smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) + 
-        (k * s_b_stage_offset + load_smem_b_n * (BK + B_PAD) + 
-        load_smem_b_k) * sizeof(half)
-      );
-      CP_ASYNC_CG(load_smem_b_mma_k_ptr, &B[load_gmem_b_addr + 16], 16);
-    }
+    uint32_t load_smem_b_mma_k_ptr = (
+      smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) + 
+      (k * s_b_stage_offset + load_smem_b_n * (BK + B_PAD) + 
+      load_smem_b_k) * sizeof(half)
+    );
+    CP_ASYNC_CG(load_smem_b_mma_k_ptr, &B[load_gmem_b_addr + 16], 16);
 
     CP_ASYNC_COMMIT_GROUP();
   }
@@ -284,25 +263,14 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
       int warp_smem_b_n = warp_n * (MMA_N * WARP_TILE_N) + j * MMA_N;
       int lane_smem_b_n = warp_smem_b_n + lane_id % 8; // 0~7, MMA_N=8
       int lane_smem_b_k = ((lane_id / 8) % 2) * 8; // 0,8
-      if constexpr (B_PAD == 0) {
-        uint32_t lane_smem_b_ptr = (
-          smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) * (lane_id / 16) + 
-          (0 * s_b_stage_offset + lane_smem_b_n * (BK + B_PAD) + 
-          swizzle_permuted_B_j<MMA_K>(lane_smem_b_n, lane_smem_b_k)) * sizeof(half)
-        );
-        LDMATRIX_X4(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
-                    RB[reg_load_idx][j][0], RB[reg_load_idx][j][1], 
-                    lane_smem_b_ptr);
-      } else { // no swizzle for B, B_PAD = 8
-        uint32_t lane_smem_b_ptr = (
-          smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) * (lane_id / 16) + 
-          (0 * s_b_stage_offset + lane_smem_b_n * (BK + B_PAD) + 
-          lane_smem_b_k) * sizeof(half)
-        );
-        LDMATRIX_X4(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
-                    RB[reg_load_idx] [j][0], RB[reg_load_idx ][j][1], 
-                    lane_smem_b_ptr);
-      }
+      uint32_t lane_smem_b_ptr = (
+        smem_b_base_ptr + 
+        (0 * s_b_stage_offset + lane_smem_b_n * (BK + B_PAD) + 
+        lane_smem_b_k) * sizeof(half)
+      );
+      // may use .x4.trans to load 4 matrix for reg double buffers at once?
+      LDMATRIX_X2(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
+                  lane_smem_b_ptr);
     }
   }
   
@@ -320,9 +288,10 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
     int load_gmem_b_addr = load_gmem_b_n * K + load_gmem_b_k; 
 
     uint32_t load_smem_a_ptr = (
-      smem_a_base_ptr + 
-      (smem_sel_next * s_a_stage_offset + load_smem_a_m * (BK + A_PAD) + 
-      swizzle_permuted_A_j<MMA_K>(load_smem_a_m, load_smem_a_k)) * sizeof(half)
+      smem_a_base_ptr + (smem_sel_next * s_a_stage_offset + 
+                         load_smem_a_m * (BK + A_PAD) + 
+                         swizzle_permuted_A_j<MMA_K>(
+                          load_smem_a_m, load_smem_a_k)) * sizeof(half)
     );
     CP_ASYNC_CG(load_smem_a_ptr, &A[load_gmem_a_addr], 16); // MMA_K 0
     uint32_t load_smem_a_mma_k_ptr = (
@@ -331,37 +300,20 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
       swizzle_permuted_A_j<MMA_K>(load_smem_a_m, load_smem_a_k)) * sizeof(half)
     );
     CP_ASYNC_CG(load_smem_a_mma_k_ptr, &A[load_gmem_a_addr + 16], 16); // MMA_K 1
+
+    uint32_t load_smem_b_ptr = (
+      smem_b_base_ptr + (smem_sel_next * s_b_stage_offset + 
+                         load_smem_b_n * (BK + B_PAD) + 
+                         load_smem_b_k) * sizeof(half)
+    );
+    CP_ASYNC_CG(load_smem_b_ptr, &B[load_gmem_b_addr], 16);
     
-    if constexpr (B_PAD == 0) {
-      uint32_t load_smem_b_ptr = (
-        smem_b_base_ptr + 
-        (smem_sel_next * s_b_stage_offset + load_smem_b_n * (BK + B_PAD) + 
-        swizzle_permuted_B_j<MMA_K>(load_smem_b_n, load_smem_b_k)) * sizeof(half)
-      );
-      CP_ASYNC_CG(load_smem_b_ptr, &B[load_gmem_b_addr], 16);
-      
-      uint32_t load_smem_b_mma_k_ptr = (
-        smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) + 
-        (smem_sel_next * s_b_stage_offset + load_smem_b_n * (BK + B_PAD) + 
-        swizzle_permuted_B_j<MMA_K>(load_smem_b_n, load_smem_b_k)) * sizeof(half)
-      );
-      CP_ASYNC_CG(load_smem_b_mma_k_ptr, &B[load_gmem_b_addr + 16], 16);
-    } else { // no swizzle for B, B_PAD = 8
-      uint32_t load_smem_b_ptr = (
-        smem_b_base_ptr + (smem_sel_next * s_b_stage_offset + 
-                          load_smem_b_n * (BK + B_PAD) + 
-                          load_smem_b_k) * sizeof(half)
-      );
-      CP_ASYNC_CG(load_smem_b_ptr, &B[load_gmem_b_addr], 16);
-      
-      uint32_t load_smem_b_mma_k_ptr = (
-        smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) + 
-        (smem_sel_next * s_b_stage_offset + load_smem_b_n * (BK + B_PAD) + 
-        load_smem_b_k) * sizeof(half)
-      );
-      CP_ASYNC_CG(load_smem_b_mma_k_ptr, &B[load_gmem_b_addr + 16], 16);
-    }
-    
+    uint32_t load_smem_b_mma_k_ptr = (
+      smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) + 
+      (smem_sel_next * s_b_stage_offset + load_smem_b_n * (BK + B_PAD) + 
+      load_smem_b_k) * sizeof(half)
+    );
+    CP_ASYNC_CG(load_smem_b_mma_k_ptr, &B[load_gmem_b_addr + 16], 16);
     CP_ASYNC_COMMIT_GROUP();
     
     // ldmatrix for s_a, ldmatrix.trans for s_b.
@@ -380,6 +332,21 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
                   RA[reg_store_idx][i][2], RA[reg_store_idx][i][3], 
                   lane_smem_a_ptr);
     }
+
+    #pragma unroll
+    for (int j = 0; j < WARP_TILE_N; ++j) {
+      int warp_smem_b_n = warp_n * (MMA_N * WARP_TILE_N) + j * MMA_N;
+      int lane_smem_b_n = warp_smem_b_n + lane_id % 8; // 0~7, MMA_N=8
+      int lane_smem_b_k = ((lane_id / 8) % 2) * 8; // 0,8
+      uint32_t lane_smem_b_ptr = (
+        smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) + 
+        (smem_sel * s_b_stage_offset + lane_smem_b_n * (BK + B_PAD) + 
+        lane_smem_b_k) * sizeof(half)
+      );
+      // TODO: use .x4.trans to load 4 matrix for reg double buffers at once?
+      LDMATRIX_X2(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
+                  lane_smem_b_ptr);
+    }
     
     // MMA compute, first MMA_K
     #pragma unroll
@@ -388,11 +355,11 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
       for (int j = 0; j < WARP_TILE_N; ++j) {
         // Warp swizzle: Right -> Left -> Right -> Left
         int j_s = ((i % 2) && WARP_SWIZZLE)? (WARP_TILE_N - j - 1) : j;
-        HMMA16816(RC[i][j_s][0],            RC[i][j_s][1], 
-                  RA[reg_load_idx][i][0],   RA[reg_load_idx][i][1], 
-                  RA[reg_load_idx][i][2],   RA[reg_load_idx][i][3], 
+        HMMA16816(RC[i][j_s][0], RC[i][j_s][1], 
+                  RA[reg_load_idx][i][0], RA[reg_load_idx][i][1], 
+                  RA[reg_load_idx][i][2], RA[reg_load_idx][i][3], 
                   RB[reg_load_idx][j_s][0], RB[reg_load_idx][j_s][1], 
-                  RC[i][j_s][0],            RC[i][j_s][1]);
+                  RC[i][j_s][0], RC[i][j_s][1]);
       }
     }
     
@@ -405,11 +372,11 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
       for (int j = 0; j < WARP_TILE_N; ++j) {
         // Warp swizzle: Right -> Left -> Right -> Left
         int j_s = ((i % 2) && WARP_SWIZZLE)? (WARP_TILE_N - j - 1) : j;
-        HMMA16816(RC[i][j_s][0],            RC[i][j_s][1], 
-                  RA[reg_load_idx][i][0],   RA[reg_load_idx][i][1], 
-                  RA[reg_load_idx][i][2],   RA[reg_load_idx][i][3], 
+        HMMA16816(RC[i][j_s][0], RC[i][j_s][1], 
+                  RA[reg_load_idx][i][0], RA[reg_load_idx][i][1], 
+                  RA[reg_load_idx][i][2], RA[reg_load_idx][i][3], 
                   RB[reg_load_idx][j_s][0], RB[reg_load_idx][j_s][1], 
-                  RC[i][j_s][0],            RC[i][j_s][1]);
+                  RC[i][j_s][0], RC[i][j_s][1]);
       }
     }
 
@@ -426,9 +393,10 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
       int lane_smem_a_m = warp_smem_a_m + lane_id % 16; // 0~15
       int lane_smem_a_k = (lane_id / 16) * 8; // 0,8
       uint32_t lane_smem_a_ptr = (
-        smem_a_base_ptr + 
-        (smem_sel_reg * s_a_stage_offset + lane_smem_a_m * (BK + A_PAD) + 
-        swizzle_permuted_A_j<MMA_K>(lane_smem_a_m, lane_smem_a_k)) * sizeof(half)
+        smem_a_base_ptr + (smem_sel_reg * s_a_stage_offset + 
+                           lane_smem_a_m * (BK + A_PAD) + 
+                           swizzle_permuted_A_j<MMA_K>(
+                            lane_smem_a_m, lane_smem_a_k)) * sizeof(half)
       );
       LDMATRIX_X4(RA[reg_store_idx][i][0], RA[reg_store_idx][i][1], 
                   RA[reg_store_idx][i][2], RA[reg_store_idx][i][3], 
@@ -440,25 +408,13 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
       int warp_smem_b_n = warp_n * (MMA_N * WARP_TILE_N) + j * MMA_N;
       int lane_smem_b_n = warp_smem_b_n + lane_id % 8; // 0~7, MMA_N=8
       int lane_smem_b_k = ((lane_id / 8) % 2) * 8; // 0,8
-      if constexpr (B_PAD == 0) {
-        uint32_t lane_smem_b_ptr = (
-          smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) * (lane_id / 16) +
-          (smem_sel_reg * s_b_stage_offset + lane_smem_b_n * (BK + B_PAD) + 
-          swizzle_permuted_B_j<MMA_K>(lane_smem_b_n, lane_smem_b_k)) * sizeof(half)
-        );
-        LDMATRIX_X4(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
-                    RB[reg_load_idx ][j][0], RB[reg_load_idx ][j][1], 
-                    lane_smem_b_ptr);
-      } else { // no swizzle for B, B_PAD = 8
-        uint32_t lane_smem_b_ptr = (
-          smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) * (lane_id / 16) +
-          (smem_sel_reg * s_b_stage_offset + lane_smem_b_n * (BK + B_PAD) + 
-          lane_smem_b_k) * sizeof(half)
-        );
-        LDMATRIX_X4(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
-                    RB[reg_load_idx ][j][0], RB[reg_load_idx ][j][1], 
-                    lane_smem_b_ptr);
-      }
+      uint32_t lane_smem_b_ptr = (
+        smem_b_base_ptr + 
+        (smem_sel_reg * s_b_stage_offset + lane_smem_b_n * (BK + B_PAD) + 
+        lane_smem_b_k) * sizeof(half)
+      );
+      LDMATRIX_X2(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
+                  lane_smem_b_ptr);
     }
   }
 
@@ -493,6 +449,21 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
                     lane_smem_a_ptr);
       }
 
+      #pragma unroll
+      for (int j = 0; j < WARP_TILE_N; ++j) {
+        int warp_smem_b_n = warp_n * (MMA_N * WARP_TILE_N) + j * MMA_N;
+        int lane_smem_b_n = warp_smem_b_n + lane_id % 8; // 0~7, MMA_N=8
+        int lane_smem_b_k = ((lane_id / 8) % 2) * 8; // 0,8
+        uint32_t lane_smem_b_ptr = (
+          smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) + 
+          (stage_sel * s_b_stage_offset + lane_smem_b_n * (BK + B_PAD) + 
+          lane_smem_b_k) * sizeof(half)
+        );
+        // may use .x4.trans to load 4 matrix for reg double buffers at once?
+        LDMATRIX_X2(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
+                    lane_smem_b_ptr);
+      }
+
       // MMA compute, first MMA_K
       #pragma unroll
       for (int i = 0; i < WARP_TILE_M; ++i) {
@@ -500,11 +471,11 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
         for (int j = 0; j < WARP_TILE_N; ++j) {
           // Warp swizzle: Right -> Left -> Right -> Left
           int j_s = ((i % 2) && WARP_SWIZZLE)? (WARP_TILE_N - j - 1) : j;
-          HMMA16816(RC[i][j_s][0],            RC[i][j_s][1], 
-                    RA[reg_load_idx][i][0],   RA[reg_load_idx][i][1], 
-                    RA[reg_load_idx][i][2],   RA[reg_load_idx][i][3], 
+          HMMA16816(RC[i][j_s][0], RC[i][j_s][1], 
+                    RA[reg_load_idx][i][0], RA[reg_load_idx][i][1], 
+                    RA[reg_load_idx][i][2], RA[reg_load_idx][i][3], 
                     RB[reg_load_idx][j_s][0], RB[reg_load_idx][j_s][1], 
-                    RC[i][j_s][0],            RC[i][j_s][1]);
+                    RC[i][j_s][0], RC[i][j_s][1]);
         }
       }
 
@@ -518,11 +489,11 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
         for (int j = 0; j < WARP_TILE_N; ++j) {
           // Warp swizzle: Right -> Left -> Right -> Left
           int j_s = ((i % 2) && WARP_SWIZZLE)? (WARP_TILE_N - j - 1) : j;
-          HMMA16816(RC[i][j_s][0],            RC[i][j_s][1], 
-                    RA[reg_load_idx][i][0],   RA[reg_load_idx][i][1], 
-                    RA[reg_load_idx][i][2],   RA[reg_load_idx][i][3], 
+          HMMA16816(RC[i][j_s][0], RC[i][j_s][1], 
+                    RA[reg_load_idx][i][0], RA[reg_load_idx][i][1], 
+                    RA[reg_load_idx][i][2], RA[reg_load_idx][i][3], 
                     RB[reg_load_idx][j_s][0], RB[reg_load_idx][j_s][1], 
-                    RC[i][j_s][0],            RC[i][j_s][1]);
+                    RC[i][j_s][0], RC[i][j_s][1]);
         }
       }
       
@@ -536,9 +507,10 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
         int lane_smem_a_m = warp_smem_a_m + lane_id % 16; // 0~15
         int lane_smem_a_k = (lane_id / 16) * 8; // 0,8
         uint32_t lane_smem_a_ptr = (
-          smem_a_base_ptr + 
-          (stage_sel_reg * s_a_stage_offset + lane_smem_a_m * (BK + A_PAD) + 
-          swizzle_permuted_A_j<MMA_K>(lane_smem_a_m, lane_smem_a_k)) * sizeof(half)
+          smem_a_base_ptr + (stage_sel_reg * s_a_stage_offset + 
+                             lane_smem_a_m * (BK + A_PAD) + 
+                             swizzle_permuted_A_j<MMA_K>(
+                              lane_smem_a_m, lane_smem_a_k)) * sizeof(half)
         );
         LDMATRIX_X4(RA[reg_store_idx][i][0], RA[reg_store_idx][i][1], 
                     RA[reg_store_idx][i][2], RA[reg_store_idx][i][3], 
@@ -550,25 +522,14 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
         int warp_smem_b_n = warp_n * (MMA_N * WARP_TILE_N) + j * MMA_N;
         int lane_smem_b_n = warp_smem_b_n + lane_id % 8; // 0~7, MMA_N=8
         int lane_smem_b_k = ((lane_id / 8) % 2) * 8; // 0,8
-        if constexpr (B_PAD == 0) {
-          uint32_t lane_smem_b_ptr = (
-            smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) * (lane_id / 16) +
-            (stage_sel_reg * s_b_stage_offset + lane_smem_b_n * (BK + B_PAD) + 
-            swizzle_permuted_B_j<MMA_K>(lane_smem_b_n, lane_smem_b_k)) * sizeof(half)
-          );
-          LDMATRIX_X4(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
-                      RB[reg_load_idx ][j][0], RB[reg_load_idx ][j][1], 
-                      lane_smem_b_ptr);
-        } else { // no swizzle for B, B_PAD = 8
-          uint32_t lane_smem_b_ptr = (
-            smem_b_base_ptr + s_b_mma_k_store_offset * sizeof(half) * (lane_id / 16) +
-            (stage_sel_reg * s_b_stage_offset + lane_smem_b_n * (BK + B_PAD) + 
-            lane_smem_b_k) * sizeof(half)
-          );
-          LDMATRIX_X4(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
-                      RB[reg_load_idx ][j][0], RB[reg_load_idx ][j][1], 
-                      lane_smem_b_ptr);
-        }
+        uint32_t lane_smem_b_ptr = (
+          smem_b_base_ptr + 
+          (stage_sel_reg * s_b_stage_offset + lane_smem_b_n * (BK + B_PAD) + 
+          lane_smem_b_k) * sizeof(half)
+        );
+        // may use .x4.trans to load 4 matrix for reg double buffers at once?
+        LDMATRIX_X2(RB[reg_store_idx][j][0], RB[reg_store_idx][j][1], 
+                    lane_smem_b_ptr);
       }
     }
   }
@@ -610,15 +571,37 @@ hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel(
 // build cpp binary
 #ifndef NO_MMA_HGEMM_BIN
 
-#include <iostream>
 #include "utils.h"
 
-template <
-          const int K_STAGE, 
-          const int BLOCK_SWIZZLE_STRIDE,
-          const int B_PAD
-         >
-void lanunch_hgemm_mma_m16n8k16_swizzle_tn_x4(
+// 128x128, mma2x4, warp4x4(64,32,16), stages, block&smem swizzle, dsmem, TN
+#define LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X2_KERNEL(stages, stride) \
+{                                                                                      \
+  const int smem_max_size = (                                                          \
+    (stages) * BM * (BK + A_PAD) * WARP_TILE_K * sizeof(half) +                        \
+    (stages) * BN * (BK + B_PAD) * WARP_TILE_K * sizeof(half));                        \
+  cudaFuncSetAttribute(                                                                \
+    hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x2_kernel<             \
+      MMA_M, MMA_N, MMA_K, MMA_TILE_M, MMA_TILE_N,                                     \
+      WARP_TILE_M, WARP_TILE_N, WARP_TILE_K, A_PAD, B_PAD, (stages), true>,            \
+    cudaFuncAttributeMaxDynamicSharedMemorySize,                                       \
+    98304);                                                                            \
+  const int N_SWIZZLE = (N + (stride) - 1) / (stride);                                 \
+  dim3 block(NUM_THREADS);                                                             \
+  dim3 grid((div_ceil(N, BN) + N_SWIZZLE - 1) / N_SWIZZLE,                             \
+             div_ceil(M, BM),                                                          \
+             N_SWIZZLE);                                                               \
+  hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x2_kernel<               \
+    MMA_M, MMA_N, MMA_K, MMA_TILE_M, MMA_TILE_N,                                       \
+    WARP_TILE_M, WARP_TILE_N, WARP_TILE_K, A_PAD, B_PAD, (stages), true><<<            \
+    grid, block, smem_max_size>>>(                                                     \
+    a, b, c,                                                                           \
+    M, N, K                                                                            \
+  );                                                                                   \
+}
+
+template <const int K_STAGE = 2, 
+          const int BLOCK_SWIZZLE_STRIDE = 2048>
+void lanunch_hgemm_mma_m16n8k16_swizzle_tn_x2(
   half* a, half* b, half* c, int M, int N, int K) {
   constexpr int MMA_M = 16;
   constexpr int MMA_N = 8;
@@ -629,63 +612,19 @@ void lanunch_hgemm_mma_m16n8k16_swizzle_tn_x4(
   constexpr int WARP_TILE_N = 4;
   constexpr int WARP_TILE_K = 2;
   constexpr int A_PAD = 0; // apply smem swizzle
+  constexpr int B_PAD = 8;
   constexpr int NUM_THREADS= (
     MMA_TILE_M * MMA_TILE_N * WARP_SIZE); // 2 * 4 * 32 = 256
   constexpr int BM = MMA_M * MMA_TILE_M * WARP_TILE_M;    
   constexpr int BN = MMA_N * MMA_TILE_N * WARP_TILE_N;    
   constexpr int BK = MMA_K;   
-  constexpr bool BLOCK_SWIZZLE = true;
-  constexpr bool WARP_SWIZZLE  = true;
-
-  const int smem_max_size = (                                                          
-    (K_STAGE) * BM * (BK + A_PAD) * WARP_TILE_K * sizeof(half) +                        
-    (K_STAGE) * BN * (BK + B_PAD) * WARP_TILE_K * sizeof(half));          
-
-  cudaFuncSetAttribute(                                                                
-    hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel<             
-      MMA_M, 
-      MMA_N, 
-      MMA_K, 
-      MMA_TILE_M, 
-      MMA_TILE_N,                                     
-      WARP_TILE_M, 
-      WARP_TILE_N, 
-      WARP_TILE_K, 
-      A_PAD, 
-      B_PAD, 
-      K_STAGE, 
-      BLOCK_SWIZZLE, 
-      WARP_SWIZZLE>,            
-    cudaFuncAttributeMaxDynamicSharedMemorySize,                                       
-    98304
-  );
-
-  const int N_SWIZZLE = (N + (BLOCK_SWIZZLE_STRIDE) - 1) / (BLOCK_SWIZZLE_STRIDE);                                 
-  dim3 block(NUM_THREADS);                                                             
-  dim3 grid((div_ceil(N, BN) + N_SWIZZLE - 1) / N_SWIZZLE,                             
-             div_ceil(M, BM),                                                          
-             N_SWIZZLE);
-
-  hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel<               
-    MMA_M, 
-    MMA_N, 
-    MMA_K, 
-    MMA_TILE_M, 
-    MMA_TILE_N,                                       
-    WARP_TILE_M, 
-    WARP_TILE_N, 
-    WARP_TILE_K, 
-    A_PAD, 
-    B_PAD, 
-    K_STAGE, 
-    BLOCK_SWIZZLE,
-    WARP_SWIZZLE
-  ><<<grid, block, smem_max_size>>>(                                                     
-    a, b, c,                                                                           
-    M, N, K                                                                            
-  );                                                    
+  LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X2_KERNEL(
+    K_STAGE, BLOCK_SWIZZLE_STRIDE);
 }
 
+#ifdef HGEMM_MMA_DEBUG  
+#include <iostream>
+#endif
 
 int main(int argc, char *argv[]) {
   // ncu --metrics sm__sass_l1tex_data_bank_conflicts_pipe_lsu_mem_shared_op_ldsm ./hgemm_mma_stage_tn_swizzle.80.debug.bin 1024 1024 1024 0 1
@@ -704,42 +643,27 @@ int main(int argc, char *argv[]) {
     K_list[i] = (i + 1) * 256;
   }
   
-  int B_PAD = 0; // 0, use smem swizzle for B; 8, use smem padding for B.
 #ifdef HGEMM_MMA_DEBUG  
-  // control all M, N, K, warmup, repeat, B_PAD in debug mode.
-  int outer_repeat = 1, inner_repeat = 1, warmup = 1;
   if (argc > 1) M_list[0] = std::stoi(argv[1]);
   if (argc > 2) N_list[0] = std::stoi(argv[2]);
   if (argc > 3) K_list[0] = std::stoi(argv[3]);
-  if (argc > 4) warmup = std::stoi(argv[4]);
-  if (argc > 5) inner_repeat = std::stoi(argv[5]);
-  if (argc > 6) B_PAD = (std::stoi(argv[6]) == 8 ? 8 : 0);
-#else
-  // only control all B_PAD in debug mode.
-  int outer_repeat = 10, inner_repeat = 1, warmup = 1;
-  if (argc > 1) B_PAD = (std::stoi(argv[1]) == 8 ? 8 : 0);
 #endif
   
-  if (B_PAD == 0) {
-    printf("ALGO = MMA16816 HGEMM TN MMA=2x4 WARP=4x4x2 STAGES=2, "); 
-    printf("BLOCK SWIZZLE=2048, A&B SMEM SWIZZLE, B LDMATRIX.X4\n");
-  } else {
-    printf("ALGO = MMA16816 HGEMM TN MMA=2x4 WARP=4x4x2 STAGES=2, "); 
-    printf("BLOCK SWIZZLE=2048, A SMEM SWIZZLE, B Pad = 8, B LDMATRIX.X4\n");
-  }
+#ifdef HGEMM_MMA_DEBUG  
+  int outer_repeat = 1, inner_repeat = 1, warmup = 1;
+  if (argc > 4) warmup = std::stoi(argv[4]);
+  if (argc > 5) inner_repeat = std::stoi(argv[5]);
+#else
+  int outer_repeat = 10, inner_repeat = 1, warmup = 1;
+#endif
+  
+  printf("ALGO = MMA16816 HGEMM TN MMA=2x4 WARP=4x4x2 STAGES=2, BLOCK SWIZZLE=2048, A SMEM SWIZZLE, B Pad = 8\n");
 #ifndef HGEMM_MMA_DEBUG  
   for (int j = 0; j < 5; j++) {
-    float max_error;
     int M = M_list[j], N = N_list[j], K = K_list[j];
-    if (B_PAD == 0) {
-      max_error = gemm_error_check_tn<half>(
-        lanunch_hgemm_mma_m16n8k16_swizzle_tn_x4<2, 2048, 0>, 
-        M, N, K);
-    } else {
-      max_error = gemm_error_check_tn<half>(
-        lanunch_hgemm_mma_m16n8k16_swizzle_tn_x4<2, 2048, 8>, 
-        M, N, K);
-    }
+    float max_error = gemm_error_check_tn<half>(
+      lanunch_hgemm_mma_m16n8k16_swizzle_tn_x2<2, 2048>, 
+      M, N, K);
     printf("M N K = %6d %6d %6d, ", M, N, K);
     printf("Max Error = %f\n", max_error);
   }
@@ -751,23 +675,16 @@ int main(int argc, char *argv[]) {
     double max_sec = 0.0;
     double min_sec = DBL_MAX;
     double total_sec = 0.0;
-
+  
     for (int k = 0; k < outer_repeat; k++) {
-      double this_sec;
-      if (B_PAD == 0) {
-        this_sec = perf_gemm<half>(
-          lanunch_hgemm_mma_m16n8k16_swizzle_tn_x4<2, 2048, 0>, // A&B fully swizzle.
-          M, N, K, inner_repeat, warmup);
-      } else {
-        this_sec = perf_gemm<half>(
-          lanunch_hgemm_mma_m16n8k16_swizzle_tn_x4<2, 2048, 8>, // A swizzle, B padding.
-          M, N, K, inner_repeat, warmup);
-      }
+      double this_sec = perf_gemm<half>(
+        lanunch_hgemm_mma_m16n8k16_swizzle_tn_x2<2, 2048>, 
+        M, N, K, inner_repeat, warmup);
       max_sec = max(max_sec, this_sec);
       min_sec = min(min_sec, this_sec);
       total_sec += this_sec;
     }
-    
+      
     // 1 TFLOPS = 10^12 FLOPS
     // ref: https://imgtec.eetrend.com/blog/2021/100062210.html.
     double avg_sec = total_sec / outer_repeat;
@@ -801,16 +718,15 @@ if (((T).size(0) != (S0)) || ((T).size(1) != (S1))) { \
 }
 
 // 128x128, mma2x4, warp4x4(64,32,16), stages, block&smem swizzle, dsmem, TN
-#define LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X4_KERNEL(stages, stride)\
+#define LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X2_KERNEL(stages, stride)\
 {                                                                                     \
   const int smem_max_size = (                                                         \
     (stages) * BM * (BK + A_PAD) * WARP_TILE_K * sizeof(half) +                       \
     (stages) * BN * (BK + B_PAD) * WARP_TILE_K * sizeof(half));                       \
   cudaFuncSetAttribute(                                                               \
-    hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel<            \
+    hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x2_kernel<            \
       MMA_M, MMA_N, MMA_K, MMA_TILE_M, MMA_TILE_N,                                    \
-      WARP_TILE_M, WARP_TILE_N, WARP_TILE_K, A_PAD, B_PAD,                            \
-      (stages), true, true>,                                                          \
+      WARP_TILE_M, WARP_TILE_N, WARP_TILE_K, A_PAD, B_PAD, (stages), true>,           \
     cudaFuncAttributeMaxDynamicSharedMemorySize,                                      \
   98304);                                                                             \
   const int N_SWIZZLE = (N + (stride) - 1) / (stride);                                \
@@ -818,10 +734,9 @@ if (((T).size(0) != (S0)) || ((T).size(1) != (S1))) { \
   dim3 grid((div_ceil(N, BN) + N_SWIZZLE - 1) / N_SWIZZLE,                            \
              div_ceil(M, BM),                                                         \
              N_SWIZZLE);                                                              \
-  hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel<              \
+  hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x2_kernel<              \
     MMA_M, MMA_N, MMA_K, MMA_TILE_M, MMA_TILE_N,                                      \
-    WARP_TILE_M, WARP_TILE_N, WARP_TILE_K, A_PAD, B_PAD,                              \
-    (stages), true, true><<<                                                          \
+    WARP_TILE_M, WARP_TILE_N, WARP_TILE_K, A_PAD, B_PAD, (stages), true><<<           \
     grid, block, smem_max_size>>>(                                                    \
     reinterpret_cast<half*>(a.data_ptr()),                                            \
     reinterpret_cast<half*>(b.data_ptr()),                                            \
@@ -830,24 +745,22 @@ if (((T).size(0) != (S0)) || ((T).size(1) != (S1))) { \
   );                                                                                  \
 }
 
-#define LAUNCH_16816_STAGE_NO_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X4_KERNEL(stages)\
+#define LAUNCH_16816_STAGE_NO_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X2_KERNEL(stages)\
 {                                                                                \
   const int smem_max_size = (                                                    \
     (stages) * BM * (BK + A_PAD) * WARP_TILE_K * sizeof(half) +                  \
     (stages) * BN * (BK + B_PAD) * WARP_TILE_K * sizeof(half));                  \
   cudaFuncSetAttribute(                                                          \
-    hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel<       \
+    hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x2_kernel<       \
       MMA_M, MMA_N, MMA_K, MMA_TILE_M, MMA_TILE_N,                               \
-      WARP_TILE_M, WARP_TILE_N, WARP_TILE_K, A_PAD, B_PAD,                       \
-      (stages), false, true>,                                                    \
+      WARP_TILE_M, WARP_TILE_N, WARP_TILE_K, A_PAD, B_PAD, (stages), true>,      \
     cudaFuncAttributeMaxDynamicSharedMemorySize,                                 \
   98304);                                                                        \
   dim3 block(NUM_THREADS);                                                       \
   dim3 grid(div_ceil(N, BN), div_ceil(M, BM));                                   \
-  hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4_kernel<         \
+  hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x2_kernel<         \
     MMA_M, MMA_N, MMA_K, MMA_TILE_M, MMA_TILE_N,                                 \
-    WARP_TILE_M, WARP_TILE_N, WARP_TILE_K, A_PAD, B_PAD,                         \
-    (stages), false, true><<<                                                    \
+    WARP_TILE_M, WARP_TILE_N, WARP_TILE_K, A_PAD, B_PAD, (stages), false><<<     \
     grid, block, smem_max_size>>>(                                               \
     reinterpret_cast<half*>(a.data_ptr()),                                       \
     reinterpret_cast<half*>(b.data_ptr()),                                       \
@@ -878,7 +791,7 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4(
   constexpr int WARP_TILE_N = 4;
   constexpr int WARP_TILE_K = 2;
   constexpr int A_PAD = 0; // 0,8,16
-  constexpr int B_PAD = 8; // B swizzle seems can not get good performance than padding, why?
+  constexpr int B_PAD = 8; // 0,8,16
   constexpr int NUM_THREADS= (
     MMA_TILE_M * MMA_TILE_N * WARP_SIZE); // 2 * 4 * 32 = 256
   constexpr int BM = MMA_M * MMA_TILE_M * WARP_TILE_M;    
@@ -890,38 +803,38 @@ void hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4(
     switch (stages)
     {
     case 2: 
-      LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X4_KERNEL(2, swizzle_stride);
+      LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X2_KERNEL(2, swizzle_stride);
       break;
     case 3: 
-      LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X4_KERNEL(3, swizzle_stride);
+      LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X2_KERNEL(3, swizzle_stride);
       break;
     case 4: 
-      LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X4_KERNEL(4, swizzle_stride);
+      LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X2_KERNEL(4, swizzle_stride);
       break;
     case 5: 
-      LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X4_KERNEL(5, swizzle_stride);
+      LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X2_KERNEL(5, swizzle_stride);
       break;
     default:
-      LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X4_KERNEL(2, swizzle_stride);
+      LAUNCH_16816_STAGE_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X2_KERNEL(2, swizzle_stride);
       break;
     }
   } else {
     switch (stages)
     {
     case 2:
-      LAUNCH_16816_STAGE_NO_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X4_KERNEL(2);
+      LAUNCH_16816_STAGE_NO_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X2_KERNEL(2);
       break;
     case 3:
-      LAUNCH_16816_STAGE_NO_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X4_KERNEL(3);
+      LAUNCH_16816_STAGE_NO_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X2_KERNEL(3);
       break;
     case 4:
-      LAUNCH_16816_STAGE_NO_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X4_KERNEL(4);
+      LAUNCH_16816_STAGE_NO_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X2_KERNEL(4);
       break;
     case 5:
-      LAUNCH_16816_STAGE_NO_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X4_KERNEL(5);
+      LAUNCH_16816_STAGE_NO_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X2_KERNEL(5);
       break;
     default:
-      LAUNCH_16816_STAGE_NO_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X4_KERNEL(2);
+      LAUNCH_16816_STAGE_NO_SWIZZLE_MMA2x4_WARP4x4x2_DSMEM_TN_X2_KERNEL(2);
       break;
     }
   }

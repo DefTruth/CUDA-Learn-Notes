@@ -160,11 +160,11 @@ def run_benchmark(perf_func: callable,
         else:
             improve = 0
         MAX_TFLOPS = TFLOPS
-        print(f"{out_info:>52}: {out_val}, time:{mean_time_ms}ms, "
+        print(f"{out_info:>53}: {out_val}, time:{mean_time_ms}ms, "
               f"swizzle<block>: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}(+{improve:.2f}%)")
     else:
         if not only_show_improved or "cublas" in tag:
-            print(f"{out_info:>52}: {out_val}, time:{mean_time_ms}ms, "
+            print(f"{out_info:>53}: {out_val}, time:{mean_time_ms}ms, "
                   f"swizzle<block>: {swizzle_stride:<4}, TFLOPS: {TFLOPS:<6.2f}")
     if show_matrix: print(out)
     if args.plot_flops:
@@ -199,11 +199,11 @@ def get_topk_tflops():
     pretty_print_line(f"THE TOTAL TFLOPS OF {len(topk_tflops)} HGEMM ALGO ON {get_device_name()} DEVICE", " ")
     pretty_print_line()
     for tag, tflops in list(topk_tflops)[::-1]:
-        print(f"{tag:>50}: {tflops:>20.2f} TFLOPS")
+        print(f"{tag:>53}: {tflops:>20.2f} TFLOPS")
     if CUBLAS_TN_TOTAL_TFLOPS > 1:
-        print(f"{'tn(cublas)':>50}: {CUBLAS_TN_TOTAL_TFLOPS:>20.2f} TFLOPS")    
+        print(f"{'tn(cublas)':>53}: {CUBLAS_TN_TOTAL_TFLOPS:>20.2f} TFLOPS")    
     if CUBLAS_TOTAL_TFLOPS > 1:
-        print(f"{'(cublas)':>50}: {CUBLAS_TOTAL_TFLOPS:>20.2f} TFLOPS")    
+        print(f"{'(cublas)':>53}: {CUBLAS_TOTAL_TFLOPS:>20.2f} TFLOPS")    
     pretty_print_line()
     return list(dict(topk_tflops[:args.plot_topk]).keys())
 
@@ -394,8 +394,14 @@ for (M, N, K) in zip(Ms, Ns, Ks):
     if args.enable_mma_tn:
         run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b_col_major, "tn(mma2x4+warp4x4+stage3+dsmem)", c, stages=3)
         run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b_col_major, "tn(mma2x4+warp4x4+stage2+dsmem)", c, stages=2)
+        run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4, a, b_col_major, "tn(mma2x4+warp4x4x2+stage4+dsmem+swizzle<smem>)", c, stages=4)
+        run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4, a, b_col_major, "tn(mma2x4+warp4x4x2+stage3+dsmem+swizzle<smem>)", c, stages=3)
+        run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4, a, b_col_major, "tn(mma2x4+warp4x4x2+stage2+dsmem+swizzle<smem>)", c, stages=2)
         run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b_col_major, "tn(mma2x4+warp4x4+stage3+dsmem+swizzle<block>)", c, stages=3, swizzle=True)
         run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4_stages_dsmem_tn, a, b_col_major, "tn(mma2x4+warp4x4+stage2+dsmem+swizzle<block>)", c, stages=2, swizzle=True)
+        run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4, a, b_col_major, "tn(mma2x4+warp4x4x2+stage4+dsmem+swizzle<smem+block>)", c, stages=4, swizzle=True)
+        run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4, a, b_col_major, "tn(mma2x4+warp4x4x2+stage3+dsmem+swizzle<smem+block>)", c, stages=3, swizzle=True)
+        run_benchmark(hgemm.hgemm_mma_m16n8k16_mma2x4_warp4x4x2_stages_dsmem_tn_swizzle_x4, a, b_col_major, "tn(mma2x4+warp4x4x2+stage2+dsmem+swizzle<smem+block>)", c, stages=2, swizzle=True)
     if args.enable_cute_tn:
         run_benchmark(hgemm.hgemm_mma_stages_block_swizzle_tn_cute, a, b_col_major, "tn(cute+stage4+swizzle<smem>)", c, stages=4)
         run_benchmark(hgemm.hgemm_mma_stages_block_swizzle_tn_cute, a, b_col_major, "tn(cute+stage3+swizzle<smem>)", c, stages=3)
