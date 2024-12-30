@@ -21,6 +21,7 @@ using namespace nvcuda;
 #define DEVICE_INLINE __device__ inline
 #define HOST_DEVICE_INLINE __device__ __host__ inline
 #define INT4(value) (reinterpret_cast<int4*>(&(value))[0])
+#define FLOAT2(value) (reinterpret_cast<float2*>(&(value))[0])
 #define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
 #define HALF2(value) (reinterpret_cast<half2*>(&(value))[0])
 #define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162*>(&(value))[0])
