@@ -197,7 +197,13 @@ The kernels listed here will guide you through a step-by-step progression, rangi
 | ✔️ [swish_f16](./kernels/swish/swish.cu)|f16|/|[link](./kernels/swish/)|⭐️|  
 | ✔️ [swish_f16x2](./kernels/swish/swish.cu)|f16|/|[link](./kernels/swish/)|⭐️|  
 | ✔️ [swish_f16x8](./kernels/swish/swish.cu)|f16|/|[link](./kernels/swish/)|⭐️|  
-| ✔️ [swish_f16x8_pack](./kernels/swish/swish.cu)|f16|/|[link](./kernels/swish/)|⭐️⭐️|  
+| ✔️ [swish_f16x8_pack](./kernels/swish/swish.cu)|f16|/|[link](./kernels/swish/)|⭐️⭐️|
+| ✔️ [hardswish_f32](./kernels/hardswish/hardswish.cu)|f32|/|[link](./kernels/hardswish/)|⭐️|  
+| ✔️ [hardswish_f32x4](./kernels/hardswish/hardswish.cu)|f32|/|[link](./kernels/hardswish/)|⭐️|  
+| ✔️ [hardswish_f16](./kernels/hardswish/hardswish.cu)|f16|/|[link](./kernels/hardswish/)|⭐️|  
+| ✔️ [hardswish_f16x2](./kernels/hardswish/hardswish.cu)|f16|/|[link](./kernels/hardswish/)|⭐️|  
+| ✔️ [hardswish_f16x8](./kernels/hardswish/hardswish.cu)|f16|/|[link](./kernels/hardswish/)|⭐️|  
+| ✔️ [hardswish_f16x8_pack](./kernels/hardswish/hardswish.cu)|f16|/|[link](./kernels/hardswish/)|⭐️⭐️|
 | ✔️ [embedding_f32](./kernels/embedding/embedding.cu)|f32|/|[link](./kernels/embedding/)|⭐️|  
 | ✔️ [embedding_f32x4](./kernels/embedding/embedding.cu)|f32|/|[link](./kernels/embedding/)|⭐️|  
 | ✔️ [embedding_f32x4_pack](./kernels/embedding/embedding.cu)|f32|/|[link](./kernels/embedding/)|⭐️|  
