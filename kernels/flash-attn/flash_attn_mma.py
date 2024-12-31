@@ -92,6 +92,7 @@ def get_build_sources():
     # Others
     if args.build_others:
         build_sources.append('./mma/others/flash_attn_mma_share_qkv_s2g_o.cu')
+        build_sources.append('./mma/others/flash_attn_mma_share_qkv_F32F16F16F32_rr.cu')
     # Pybind
     build_sources.append('./pybind/flash_attn.cc')
     return build_sources
@@ -171,7 +172,8 @@ lib = load(name='flash_attn_lib',
 
 if not args.build_others:
     fake_fa_func = lambda q, k, v, o, s: o # fake FA func
-    setattr(lib, "flash_attn_mma_stages_split_q_shared_qkv_s2g_o",   fake_fa_func)
+    setattr(lib, "flash_attn_mma_stages_split_q_shared_qkv_s2g_o", fake_fa_func)
+    setattr(lib, "flash_attn_mma_stages_split_q_shared_qkv_acc_f32_rr", fake_fa_func)
 
 
 def get_mha_tflops(B: int, H: int, N: int, D: int, secs: float=1.0, 
@@ -243,7 +245,7 @@ def run_benchmark(perf_func: callable,
             return None, None
     
     if not args.build_others:
-        others_tags = ["s2g-o"]
+        others_tags = ["s2g-o", "rr"]
         for o_tag in others_tags:
             if o_tag in tag:
                 return None, None
@@ -439,11 +441,11 @@ MAX_HEADDIM_CFG: dict[str, int] = {
     "mma(split-q+share-kv+swizzle-qk+stage2)":      128,
     "mma(split-q+share-kv+swizzle-qkv+stage1)":     256,
     "mma(split-q+share-kv+swizzle-qkv+stage2)":     128,
-    "mma(split-q+share-qkv+acc-f32+stage1)":        256,
-    "mma(split-q+share-qkv+acc-f32+stage2)":        128,
+    "mma(split-q+share-qkv+acc-f32+stage1)":        512,
+    "mma(split-q+share-qkv+acc-f32+stage2)":        512,
     # Split-Q + Fully Shared QKV SMEM
-    "mma(split-q+share-qkv+stage1)":                256,
-    "mma(split-q+share-qkv+stage2)":                128,
+    "mma(split-q+share-qkv+stage1)":                512, 
+    "mma(split-q+share-qkv+stage2)":                512, 
     "mma(split-q+share-qkv+swizzle-q+stage1)":      256,
     "mma(split-q+share-qkv+swizzle-q+stage2)":      128,
     "mma(split-q+share-qkv+swizzle-qk+stage1)":     256,
@@ -462,6 +464,8 @@ MAX_HEADDIM_CFG: dict[str, int] = {
     # Others, O s2g, etc.
     "mma(split-q+share-qkv+s2g-o+stage1)":          256,
     "mma(split-q+share-qkv+s2g-o+stage2)":          128,
+    "mma(split-q+share-qkv+acc-f32+rr+stage1)":     512,
+    "mma(split-q+share-qkv+acc-f32+rr+stage2)":     512,
 }
 
 seed = args.seed if args.seed else random.choice(range(10000))
@@ -521,6 +525,8 @@ for (B, H, N, D) in BHNDs:
     # Others, O s2g, etc.
     out_mma_share_qkv_s2g1,    _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv_s2g_o, q, k, v, "mma(split-q+share-qkv+s2g-o+stage1)", o, stages=1)
     out_mma_share_qkv_s2g2,    _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv_s2g_o, q, k, v, "mma(split-q+share-qkv+s2g-o+stage2)", o, stages=2)
+    out_mma_share_qkv_rr1,     _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv_acc_f32_rr, q, k, v, "mma(split-q+share-qkv+acc-f32+rr+stage1)", o, stages=1)
+    out_mma_share_qkv_rr2,     _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv_acc_f32_rr, q, k, v, "mma(split-q+share-qkv+acc-f32+rr+stage2)", o, stages=2)
     # FA2, SDPA official
     out_flash,                 _ = run_benchmark(flash_attn_func, fq, fk, fv, "(flash)")
     out_sdpa,                  _ = run_benchmark(partial(sdpa, use_flash=(D<=256)), q, k, v, "(sdpa)")
@@ -568,16 +574,26 @@ for (B, H, N, D) in BHNDs:
             # Others, O s2g, etc.
             check_all_close(out_flash, out_mma_share_qkv_s2g1,    "out_mma_share_qkv_s2g1",   args.check_all)
             check_all_close(out_flash, out_mma_share_qkv_s2g2,    "out_mma_share_qkv_s2g2",   args.check_all)
+            check_all_close(out_flash, out_mma_share_qkv_rr1,     "out_mma_share_qkv_rr1",    args.check_all)
+            check_all_close(out_flash, out_mma_share_qkv_rr2,     "out_mma_share_qkv_rr2",    args.check_all)
             pretty_print_line()
         elif args.run_torch_sdpa:
             pretty_print_line()
+            # Split-Q + Fully Shared QKV SMEM
+            check_all_close(out_sdpa, out_mma_share_qkv1,         "out_mma_share_qkv1",       args.check_all, False)
+            check_all_close(out_sdpa, out_mma_share_qkv2,         "out_mma_share_qkv2",       args.check_all, False)
+            check_all_close(out_sdpa, out_mma_share_qkv_f321,     "out_mma_share_qkv_f321",   args.check_all, False)
+            check_all_close(out_sdpa, out_mma_share_qkv_f322,     "out_mma_share_qkv_f322",   args.check_all, False)
             # Split-Q + QK Fine-grained Tiling
-            check_all_close(out_sdpa, out_mma_tiling_qk1,        "out_mma_tiling_qk1",        args.check_all, False)
-            check_all_close(out_sdpa, out_mma_tiling_qk2,        "out_mma_tiling_qk2",        args.check_all, False)
-            check_all_close(out_sdpa, out_mma_tiling_qk_sq1,     "out_mma_tiling_qk_sq1",     args.check_all, False)
-            check_all_close(out_sdpa, out_mma_tiling_qk_sq2,     "out_mma_tiling_qk_sq2",     args.check_all, False)
-            check_all_close(out_sdpa, out_mma_tiling_qk_sqk1,    "out_mma_tiling_qk_sqk1",    args.check_all, False)
-            check_all_close(out_sdpa, out_mma_tiling_qk_sqk2,    "out_mma_tiling_qk_sqk2",    args.check_all, False)
-            check_all_close(out_sdpa, out_mma_tiling_qk_sqkv1,   "out_mma_tiling_qk_sqkv1",   args.check_all, False)
-            check_all_close(out_sdpa, out_mma_tiling_qk_sqkv2,   "out_mma_tiling_qk_sqkv2",   args.check_all, False)
+            check_all_close(out_sdpa, out_mma_tiling_qk1,         "out_mma_tiling_qk1",       args.check_all, False)
+            check_all_close(out_sdpa, out_mma_tiling_qk2,         "out_mma_tiling_qk2",       args.check_all, False)
+            check_all_close(out_sdpa, out_mma_tiling_qk_sq1,      "out_mma_tiling_qk_sq1",    args.check_all, False)
+            check_all_close(out_sdpa, out_mma_tiling_qk_sq2,      "out_mma_tiling_qk_sq2",    args.check_all, False)
+            check_all_close(out_sdpa, out_mma_tiling_qk_sqk1,     "out_mma_tiling_qk_sqk1",   args.check_all, False)
+            check_all_close(out_sdpa, out_mma_tiling_qk_sqk2,     "out_mma_tiling_qk_sqk2",   args.check_all, False)
+            check_all_close(out_sdpa, out_mma_tiling_qk_sqkv1,    "out_mma_tiling_qk_sqkv1",  args.check_all, False)
+            check_all_close(out_sdpa, out_mma_tiling_qk_sqkv2,    "out_mma_tiling_qk_sqkv2",  args.check_all, False)
+            # Others, O s2g, etc.
+            check_all_close(out_sdpa, out_mma_share_qkv_rr1,      "out_mma_share_qkv_rr1",    args.check_all, False)
+            check_all_close(out_sdpa, out_mma_share_qkv_rr2,      "out_mma_share_qkv_rr2",    args.check_all, False)
             pretty_print_line()
