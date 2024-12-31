@@ -856,12 +856,6 @@ void flash_attn_mma_stages_split_q_shared_qkv_acc_f32(torch::Tensor Q,
     case 128:
       launch_flash_attn_mma_stages_split_q_shared_qkv_acc_f32<128, 2>(Q, K, V, O);
       break;
-    case 256:
-      launch_flash_attn_mma_stages_split_q_shared_qkv_acc_f32<256, 2>(Q, K, V, O);
-      break;
-    case 512:
-      launch_flash_attn_mma_stages_split_q_shared_qkv_acc_f32<512, 2>(Q, K, V, O);
-      break;
     default:
       throw std::runtime_error("headdim not support!");
       break;
@@ -883,9 +877,6 @@ void flash_attn_mma_stages_split_q_shared_qkv_acc_f32(torch::Tensor Q,
       break;
     case 256:
       launch_flash_attn_mma_stages_split_q_shared_qkv_acc_f32<256, 1>(Q, K, V, O);
-      break;
-    case 512:
-      launch_flash_attn_mma_stages_split_q_shared_qkv_acc_f32<512, 1>(Q, K, V, O);
       break;
     default:
       throw std::runtime_error("headdim not support!");

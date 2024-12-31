@@ -441,11 +441,11 @@ MAX_HEADDIM_CFG: dict[str, int] = {
     "mma(split-q+share-kv+swizzle-qk+stage2)":      128,
     "mma(split-q+share-kv+swizzle-qkv+stage1)":     256,
     "mma(split-q+share-kv+swizzle-qkv+stage2)":     128,
-    "mma(split-q+share-qkv+acc-f32+stage1)":        512,
-    "mma(split-q+share-qkv+acc-f32+stage2)":        512,
+    "mma(split-q+share-qkv+acc-f32+stage1)":        256,
+    "mma(split-q+share-qkv+acc-f32+stage2)":        128,
     # Split-Q + Fully Shared QKV SMEM
-    "mma(split-q+share-qkv+stage1)":                512, 
-    "mma(split-q+share-qkv+stage2)":                512, 
+    "mma(split-q+share-qkv+stage1)":                256, 
+    "mma(split-q+share-qkv+stage2)":                128, 
     "mma(split-q+share-qkv+swizzle-q+stage1)":      256,
     "mma(split-q+share-qkv+swizzle-q+stage2)":      128,
     "mma(split-q+share-qkv+swizzle-qk+stage1)":     256,
@@ -464,8 +464,8 @@ MAX_HEADDIM_CFG: dict[str, int] = {
     # Others, O s2g, etc.
     "mma(split-q+share-qkv+s2g-o+stage1)":          256,
     "mma(split-q+share-qkv+s2g-o+stage2)":          128,
-    "mma(split-q+share-qkv+acc-f32+rr+stage1)":     512,
-    "mma(split-q+share-qkv+acc-f32+rr+stage2)":     512,
+    "mma(split-q+share-qkv+acc-f32+rr+stage1)":     256,
+    "mma(split-q+share-qkv+acc-f32+rr+stage2)":     256,
 }
 
 seed = args.seed if args.seed else random.choice(range(10000))
