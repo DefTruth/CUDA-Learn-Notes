@@ -78,6 +78,7 @@ def get_build_sources():
     build_sources.append('./mma/basic/flash_attn_mma_share_kv.cu')
     build_sources.append('./mma/basic/flash_attn_mma_share_qkv.cu')
     build_sources.append('./mma/basic/flash_attn_mma_tiling_qk.cu')
+    build_sources.append('./mma/basic/flash_attn_mma_tiling_qkv.cu')
     build_sources.append('./mma/basic/flash_attn_mma_share_kv_F32F16F16F32.cu')
     build_sources.append('./mma/basic/flash_attn_mma_share_qkv_F32F16F16F32.cu')
     build_sources.append('./mma/basic/flash_attn_mma_tiling_qk_F32F16F16F32.cu')
@@ -545,6 +546,8 @@ for (B, H, N, D) in BHNDs:
     out_mma_tiling_qk_sqkv1,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qk_swizzle_qkv, q, k, tv, "mma(split-q+tiling-qk+swizzle-qkv+stage1)",  o, stages=1)
     out_mma_tiling_qk_sqkv2,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qk_swizzle_qkv, q, k, tv, "mma(split-q+tiling-qk+swizzle-qkv+stage2)",  o, stages=2)
     # Split-Q + QKV Fully Fine-grained Tiling
+    out_mma_tiling_qkv1,       _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qkv, q, k, v, "mma(split-q+tiling-qkv+stage1)",  o, stages=1)
+    out_mma_tiling_qkv2,       _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qkv, q, k, v, "mma(split-q+tiling-qkv+stage2)",  o, stages=2)
     out_mma_tiling_qkv_f321,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qkv_acc_f32, q, k, v, "mma(split-q+tiling-qkv+acc-f32+stage1)",  o, stages=1)
     out_mma_tiling_qkv_f322,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qkv_acc_f32, q, k, v, "mma(split-q+tiling-qkv+acc-f32+stage2)",  o, stages=2)
     # Others, O s2g, etc.
@@ -603,6 +606,8 @@ for (B, H, N, D) in BHNDs:
             check_all_close(out_flash, out_mma_tiling_qk_sqkv1,   "out_mma_tiling_qk_sqkv1",  args.check_all)
             check_all_close(out_flash, out_mma_tiling_qk_sqkv2,   "out_mma_tiling_qk_sqkv2",  args.check_all)
             # Split-Q + QKV Fully Fine-grained Tiling
+            check_all_close(out_flash, out_mma_tiling_qkv1,       "out_mma_tiling_qkv1",      args.check_all)
+            check_all_close(out_flash, out_mma_tiling_qkv2,       "out_mma_tiling_qkv2",      args.check_all)
             check_all_close(out_flash, out_mma_tiling_qkv_f321,   "out_mma_tiling_qkv_f321",  args.check_all)
             check_all_close(out_flash, out_mma_tiling_qkv_f322,   "out_mma_tiling_qkv_f322",  args.check_all)
             # Others, O s2g, etc.
@@ -632,6 +637,8 @@ for (B, H, N, D) in BHNDs:
             check_all_close(out_sdpa, out_mma_tiling_qk_sqkv1,    "out_mma_tiling_qk_sqkv1",  args.check_all, False)
             check_all_close(out_sdpa, out_mma_tiling_qk_sqkv2,    "out_mma_tiling_qk_sqkv2",  args.check_all, False)
             # Split-Q + QKV Fully Fine-grained Tiling
+            check_all_close(out_sdpa, out_mma_tiling_qkv1,        "out_mma_tiling_qkv1",      args.check_all, False)
+            check_all_close(out_sdpa, out_mma_tiling_qkv2,        "out_mma_tiling_qkv2",      args.check_all, False)
             check_all_close(out_sdpa, out_mma_tiling_qkv_f321,    "out_mma_tiling_qkv_f321",  args.check_all, False)
             check_all_close(out_sdpa, out_mma_tiling_qkv_f322,    "out_mma_tiling_qkv_f322",  args.check_all, False)
             # Others, O s2g, etc.

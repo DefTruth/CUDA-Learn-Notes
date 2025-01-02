@@ -12,7 +12,7 @@
 |**Shared QKV/KV** SMEM|**Prefetch Q** s2r|**Prefetch K/V** g2s|**QK Fine-grained Tiling**|
 |✔️|✔️|✔️|✔️|
 
-This repository's implementation of FlashAttention is intended solely for learning CUDA programming. For optimal performance, please use the official [flash-attention](https://github.com/Dao-AILab/flash-attention). Currently, for small-scale attention `(B<=4, H <=48, SeqLen <= 8192, D <= 64)` it can run faster than offical FA2/SDPA on some Devices. However, for large-scale attention, there remains a performance gap. Performance is continuously being optimized. Stay tuned for updates ~  (👇Benchmark)
+This repository's implementation of FlashAttention is intended solely for learning CUDA programming. For optimal performance, please use the official [flash-attention](https://github.com/Dao-AILab/flash-attention). Currently, for small-scale attention `(B<=4, H <=48, SeqLen <= 8192, D <= 64)` it can run faster than offical FA2/SDPA on some Devices. However, for large-scale attention, there remains a performance gap. Performance is continuously being optimized. Stay tuned for updates ~  (MMA Acc F16, softmax Acc F32 vs FA2 MMA/softmax Acc F32, 👇Benchmark)
 
 |Algorithm| (B,H,N,D) | NVIDIA RTX 3080 Laptop | NVIDIA L20 | NVIDIA GeForce RTX 4090 |   
 |:---:|:---:|:---:|:---:|:---:|  
@@ -21,10 +21,10 @@ This repository's implementation of FlashAttention is intended solely for learni
 |FlashAttention-2|(1,48,8192,64)|37 TFLOPS|109 TFLOPS|163 TFLOPS|
 |split-q+share-qkv+stage2|(1,48,8192,64)|**48 TFLOPS**|107 TFLOPS|**224 TFLOPS**|
 |SDPA(EFFICIENT ATTENTION)|(1,48,8192,512)|16 TFLOPS|58 TFLOPS|85 TFLOPS|
-|split-q+tiling-qk+swizzle-qk+stage2|(1,48,8192,512)|**23 TFLOPS**|**81 TFLOPS**|**127 TFLOPS**|
+|split-q+tiling-qkv+stage2|(1,48,8192,512)|**23 TFLOPS**|**90 TFLOPS**|**135 TFLOPS**|
 |Precision Errors vs FA2/SDPA| / | max: < ~1e-3 | min: ~0.0 | mean: < ~1e-5 |
 
-For example, on NVIDIA RTX 3080 Laptop, [📚 Split Q + Fully Shared QKV SMEM](#mma-share-qkv) can achieve **55 TFLOPS (D=64)** that almost **~1.5x** 🎉 faster than FA2. Moreover, on NVIDIA L20, [📚 Split Q + QK Fine-grained Tiling](#mma-tiling-qk) can achieve **81 TFLOPS (D=512)** that almost **~1.4x** 🎉 faster than SDPA (EFFICIENT ATTENTION).
+For example, on NVIDIA RTX 3080 Laptop, [📚 Split Q + Fully Shared QKV SMEM](#mma-share-qkv) method can achieve **55 TFLOPS (D=64)** that almost **~1.5x** 🎉 faster than FA2. On NVIDIA L20, [📚 Split Q + QKV Fully Fine-grained Tiling](#mma-tiling-qkv) method can achieve **90 TFLOPS (D=512)** that almost **~1.6x** 🎉 faster than SDPA (EFFICIENT ATTENTION). However, for large-scale attention, there remains a performance gap. Stay tuned for updates ~ 
 
 ## 📖 Contents
 
@@ -34,6 +34,7 @@ For example, on NVIDIA RTX 3080 Laptop, [📚 Split Q + Fully Shared QKV SMEM](#
   - [📚 Shared KV SMEM](#mma-share-kv)
   - [📚 Fully Shared QKV SMEM](#mma-share-qkv)
   - [📚 QK Fine-grained Tiling](#mma-tiling-qk)
+  - [📚 QKV Fully Fine-grained Tiling](#mma-tiling-qkv)
 - [📖 Prerequisites](#prerequisites)
 - [📖 Installation](#install)
 - [📖 Performance](#perf)
@@ -89,6 +90,18 @@ flash_attn_mma_stages_split_q_shared_qkv_kernel(half* Q, half* K, half* V, half*
 // extend D (head dimension) up to 1024. Stay tuned for updates ~
 __global__ void // Q, K, V, O -> [B, H, N, D]
 flash_attn_mma_stages_split_q_tiling_qk_kernel(half* Q, half* K, half* V, half* O, ...);
+```
+
+- 📚 Split Q + QKV Fully Fine-grained Tiling (**O(Brx16)~O(1) SRAM** vs FA2 **O(4xBrxd) SRAM**)
+
+<div id="mma-tiling-qkv"></div>  
+
+```C++
+// Fine-grained tiling at the MMA level for all Q@K^T and P@V results in a constant SRAM usage of
+// Br * 16 or Bc * 16 for Q, K, V, leading to an overall SRAM complexity of O(Br * 16). Consequently,
+// this approach allows us to run faster than SDPA w or w/o MMA Acc F32, e.g d>=512. 
+__global__ void // Q, K, V, O -> [B, H, N, D]
+flash_attn_mma_stages_split_q_tiling_qkv_kernel(half* Q, half* K, half* V, half* O, ...);
 ```
 
 ## 📖 Prerequisites
@@ -165,12 +178,17 @@ python3 flash_attn_mma.py --B 1 --H 8 --N 8192 --iters 10 --show-all --sdpa --D 
 ----------------------------------------------------------------------------------------------------------------------------------
 ```
 
-- Example: B=1, H=48, N=8192, `D=512` (NVIDIA L20), FA2 not supported, `QK Tiling` Faster than SDPA~🎉🎉
+- Example: B=1, H=48, N=8192, `D=16384` (NVIDIA L20), FA2 not supported, `QKV Tiling` Faster than SDPA~🎉🎉
 ```bash
-python3 flash_attn_mma.py --B 1 --H 48 --D 512 --N 16384 --show-all --check --iters 10
------------------------------------------B=1, H=48, N=16384, D=512, Warmup: 1, Iters: 10------------------------------------------
-   mma(split-q+tiling-qk+stage1): ['0.0079422   ', '-0.02334595 ', '0.00881958  '], time:387.384224ms, TFLOPS:68.28 (+0.00%)
-   mma(split-q+tiling-qk+stage2): ['0.0079422   ', '-0.02334595 ', '0.00881958  '], time:325.593209ms, TFLOPS:81.24 (+18.98%)
-                          (sdpa): ['0.00790405  ', '-0.02330017 ', '0.00875854  '], time:452.067018ms, TFLOPS:58.51
-----------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------B=1, H=48, N=16384, D=512, Warmup: 1, Iters: 10----------------------------------------------------
+                     mma(split-q+tiling-qk+stage1): ['-0.00386429 ', '0.00828552  ', '0.01831055  '], time:374.5436ms, TFLOPS:70.63 (+0.00%)
+                     mma(split-q+tiling-qk+stage2): ['-0.00386429 ', '0.00828552  ', '0.01831055  '], time:320.5431ms, TFLOPS:82.52 (+16.85%)
+           mma(split-q+tiling-qk+swizzle-q+stage1): ['-0.00386429 ', '0.00828552  ', '0.01831055  '], time:370.0427ms, TFLOPS:71.48
+           mma(split-q+tiling-qk+swizzle-q+stage2): ['-0.00386429 ', '0.00828552  ', '0.01831055  '], time:318.7205ms, TFLOPS:83.00 (+0.57%)
+          mma(split-q+tiling-qk+swizzle-qk+stage1): ['-0.00386429 ', '0.00828552  ', '0.01831055  '], time:374.6879ms, TFLOPS:70.60
+          mma(split-q+tiling-qk+swizzle-qk+stage2): ['-0.00386429 ', '0.00828552  ', '0.01831055  '], time:321.8044ms, TFLOPS:82.20
+                    mma(split-q+tiling-qkv+stage1): ['-0.00386429 ', '0.00828552  ', '0.01831055  '], time:383.5075ms, TFLOPS:68.97
+                    mma(split-q+tiling-qkv+stage2): ['-0.00386429 ', '0.00828552  ', '0.01831055  '], time:290.3107ms, TFLOPS:91.12 (+9.79%)
+                                            (sdpa): ['-0.00387764 ', '0.00831604  ', '0.01831055  '], time:452.0751ms, TFLOPS:58.51
+------------------------------------------------------------------------------------------------------------------------------------------------------
 ```
