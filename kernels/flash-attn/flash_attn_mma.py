@@ -250,7 +250,7 @@ def run_benchmark(perf_func: callable,
             return None, None
     
     if not args.build_others:
-        others_tags = ["s2g-o", "rr"]
+        others_tags = ["s2g", "rr"]
         for o_tag in others_tags:
             if o_tag in tag:
                 return None, None
