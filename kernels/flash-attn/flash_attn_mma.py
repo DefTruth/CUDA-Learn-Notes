@@ -81,6 +81,7 @@ def get_build_sources():
     build_sources.append('./mma/basic/flash_attn_mma_share_kv_F32F16F16F32.cu')
     build_sources.append('./mma/basic/flash_attn_mma_share_qkv_F32F16F16F32.cu')
     build_sources.append('./mma/basic/flash_attn_mma_tiling_qk_F32F16F16F32.cu')
+    build_sources.append('./mma/basic/flash_attn_mma_tiling_qkv_F32F16F16F32.cu')
     # Swizzle
     build_sources.append('./mma/swizzle/flash_attn_mma_share_kv_swizzle_q.cu')
     build_sources.append('./mma/swizzle/flash_attn_mma_share_kv_swizzle_qk.cu')
@@ -96,7 +97,6 @@ def get_build_sources():
         build_sources.append('./mma/others/flash_attn_mma_share_qkv_Os2g.cu')
         build_sources.append('./mma/others/flash_attn_mma_share_kv_F32F16F16F32_rr.cu')
         build_sources.append('./mma/others/flash_attn_mma_share_qkv_F32F16F16F32_rr.cu')
-        build_sources.append('./mma/others/flash_attn_mma_tiling_qk_F32F16F16F32_rr.cu')
     # Pybind
     build_sources.append('./pybind/flash_attn.cc')
     return build_sources
@@ -179,7 +179,6 @@ if not args.build_others:
     setattr(lib, "flash_attn_mma_stages_split_q_shared_qkv_Os2g", fake_fa_func)
     setattr(lib, "flash_attn_mma_stages_split_q_shared_kv_acc_f32_rr", fake_fa_func)
     setattr(lib, "flash_attn_mma_stages_split_q_shared_qkv_acc_f32_rr", fake_fa_func)
-    setattr(lib, "flash_attn_mma_stages_split_q_tiling_qk_acc_f32_rr", fake_fa_func)
 
 
 def get_mha_tflops(B: int, H: int, N: int, D: int, secs: float=1.0, 
@@ -471,6 +470,11 @@ MAX_HEADDIM_CFG: dict[str, int] = {
     "mma(split-q+tiling-qk+swizzle-qkv+stage2)":    256,
     "mma(split-q+tiling-qk+acc-f32+stage1)":        1024,
     "mma(split-q+tiling-qk+acc-f32+stage2)":        1024,
+    # Split-Q + QKV Fully Fine-grained Tiling
+    "mma(split-q+tiling-qkv+stage1)":               1024,
+    "mma(split-q+tiling-qkv+stage2)":               1024,
+    "mma(split-q+tiling-qkv+acc-f32+stage1)":       1024,
+    "mma(split-q+tiling-qkv+acc-f32+stage2)":       1024,
     # Others, O s2g, etc.
     "mma(split-q+share-qkv+o-s2g+stage1)":          256,
     "mma(split-q+share-qkv+o-s2g+stage2)":          128,
@@ -540,6 +544,9 @@ for (B, H, N, D) in BHNDs:
     out_mma_tiling_qk_sqk2,    _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qk_swizzle_qk, q, k, v, "mma(split-q+tiling-qk+swizzle-qk+stage2)",  o, stages=2)
     out_mma_tiling_qk_sqkv1,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qk_swizzle_qkv, q, k, tv, "mma(split-q+tiling-qk+swizzle-qkv+stage1)",  o, stages=1)
     out_mma_tiling_qk_sqkv2,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qk_swizzle_qkv, q, k, tv, "mma(split-q+tiling-qk+swizzle-qkv+stage2)",  o, stages=2)
+    # Split-Q + QKV Fully Fine-grained Tiling
+    out_mma_tiling_qkv_f321,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qkv_acc_f32, q, k, v, "mma(split-q+tiling-qkv+acc-f32+stage1)",  o, stages=1)
+    out_mma_tiling_qkv_f322,   _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qkv_acc_f32, q, k, v, "mma(split-q+tiling-qkv+acc-f32+stage2)",  o, stages=2)
     # Others, O s2g, etc.
     out_mma_share_kv_rr1,      _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_kv_acc_f32_rr, q, k, v, "mma(split-q+share-kv+acc-f32+rr+stage1)", o, stages=1)
     out_mma_share_kv_rr2,      _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_kv_acc_f32_rr, q, k, v, "mma(split-q+share-kv+acc-f32+rr+stage2)", o, stages=2)
@@ -547,8 +554,6 @@ for (B, H, N, D) in BHNDs:
     out_mma_share_qkv_s2g2,    _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv_Os2g, q, k, v, "mma(split-q+share-qkv+o-s2g+stage2)", o, stages=2)
     out_mma_share_qkv_rr1,     _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv_acc_f32_rr, q, k, v, "mma(split-q+share-qkv+acc-f32+rr+stage1)", o, stages=1)
     out_mma_share_qkv_rr2,     _ = run_benchmark(lib.flash_attn_mma_stages_split_q_shared_qkv_acc_f32_rr, q, k, v, "mma(split-q+share-qkv+acc-f32+rr+stage2)", o, stages=2)
-    out_mma_tiling_qk_rr1,     _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qk_acc_f32_rr, q, k, v, "mma(split-q+tiling-qk+acc-f32+rr+stage1)",  o, stages=1)
-    out_mma_tiling_qk_rr2,     _ = run_benchmark(lib.flash_attn_mma_stages_split_q_tiling_qk_acc_f32_rr, q, k, v, "mma(split-q+tiling-qk+acc-f32+rr+stage2)",  o, stages=2)
     # FA2, SDPA official
     out_flash,                 _ = run_benchmark(flash_attn_func, fq, fk, fv, "(flash)")
     out_sdpa,                  _ = run_benchmark(partial(sdpa, use_flash=(D<=256)), q, k, v, "(sdpa)")
@@ -597,6 +602,9 @@ for (B, H, N, D) in BHNDs:
             check_all_close(out_flash, out_mma_tiling_qk_sqk2,    "out_mma_tiling_qk_sqk2",   args.check_all)
             check_all_close(out_flash, out_mma_tiling_qk_sqkv1,   "out_mma_tiling_qk_sqkv1",  args.check_all)
             check_all_close(out_flash, out_mma_tiling_qk_sqkv2,   "out_mma_tiling_qk_sqkv2",  args.check_all)
+            # Split-Q + QKV Fully Fine-grained Tiling
+            check_all_close(out_flash, out_mma_tiling_qkv_f321,   "out_mma_tiling_qkv_f321",  args.check_all)
+            check_all_close(out_flash, out_mma_tiling_qkv_f322,   "out_mma_tiling_qkv_f322",  args.check_all)
             # Others, O s2g, etc.
             check_all_close(out_flash, out_mma_share_kv_rr1,      "out_mma_share_kv_rr1",     args.check_all)
             check_all_close(out_flash, out_mma_share_kv_rr2,      "out_mma_share_kv_rr2",     args.check_all)
@@ -604,8 +612,6 @@ for (B, H, N, D) in BHNDs:
             check_all_close(out_flash, out_mma_share_qkv_s2g2,    "out_mma_share_qkv_s2g2",   args.check_all)
             check_all_close(out_flash, out_mma_share_qkv_rr1,     "out_mma_share_qkv_rr1",    args.check_all)
             check_all_close(out_flash, out_mma_share_qkv_rr2,     "out_mma_share_qkv_rr2",    args.check_all)
-            check_all_close(out_flash, out_mma_tiling_qk_rr1,     "out_mma_tiling_qk_rr1",    args.check_all)
-            check_all_close(out_flash, out_mma_tiling_qk_rr2,     "out_mma_tiling_qk_rr2",    args.check_all)
             pretty_print_line()
         elif args.run_torch_sdpa:
             pretty_print_line()
@@ -625,9 +631,10 @@ for (B, H, N, D) in BHNDs:
             check_all_close(out_sdpa, out_mma_tiling_qk_sqk2,     "out_mma_tiling_qk_sqk2",   args.check_all, False)
             check_all_close(out_sdpa, out_mma_tiling_qk_sqkv1,    "out_mma_tiling_qk_sqkv1",  args.check_all, False)
             check_all_close(out_sdpa, out_mma_tiling_qk_sqkv2,    "out_mma_tiling_qk_sqkv2",  args.check_all, False)
+            # Split-Q + QKV Fully Fine-grained Tiling
+            check_all_close(out_sdpa, out_mma_tiling_qkv_f321,    "out_mma_tiling_qkv_f321",  args.check_all, False)
+            check_all_close(out_sdpa, out_mma_tiling_qkv_f322,    "out_mma_tiling_qkv_f322",  args.check_all, False)
             # Others, O s2g, etc.
             check_all_close(out_sdpa, out_mma_share_qkv_rr1,      "out_mma_share_qkv_rr1",    args.check_all, False)
             check_all_close(out_sdpa, out_mma_share_qkv_rr2,      "out_mma_share_qkv_rr2",    args.check_all, False)
-            check_all_close(out_sdpa, out_mma_tiling_qk_rr1,      "out_mma_tiling_qk_rr1",    args.check_all, False)
-            check_all_close(out_sdpa, out_mma_tiling_qk_rr2,      "out_mma_tiling_qk_rr2",    args.check_all, False)
             pretty_print_line()
