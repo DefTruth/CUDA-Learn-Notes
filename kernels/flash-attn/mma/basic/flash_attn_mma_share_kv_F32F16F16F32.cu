@@ -798,7 +798,6 @@ flash_attn_mma_stages_split_q_shared_kv_acc_f32_kernel(half* Q,
   } // end for kWarpTileSeqLenP = 1
 }
 
-// Launch kernel for flash_attn_mma_stages_split_q
 template<const int kHeadDim, const int kStage>
 void launch_flash_attn_mma_stages_split_q_shared_kv_acc_f32(
   torch::Tensor Q, torch::Tensor K, torch::Tensor V, torch::Tensor O) {

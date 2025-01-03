@@ -42,11 +42,9 @@
 // | warp_QP 6 | MMA 6 ... MMA 6 (x8) |
 // | warp_QP 7 | MMA 7 ... MMA 7 (x8) |
 
-// Fine-grained tiling at the MMA level for Q and K results in a constant SRAM usage of
-// 64 * kMmaAtomK for Q and K. For V, the SRAM complexity is O(kMmaAtomK * d), leading to
-// an overall SRAM complexity of O(kMmaAtomK * d). Consequently, this approach allows us to
-// extend D (head dimension) up to 1024. Performance optimizations are ongoing. 
-// Stay tuned for updates ~
+// Fine-grained tiling at the MMA level for all Q@K^T and P@V results in a constant SRAM usage of
+// Br * 16 or Bc * 16 for Q, K, V, leading to an overall SRAM complexity of O(Br * 16). Consequently,
+// this approach allows us to run faster than SDPA w or w/o MMA Acc F32. 
 
 template<
          const int kHeadDim,              // Headdim, 32,64,128     
@@ -729,7 +727,6 @@ flash_attn_mma_stages_split_q_tiling_qkv_acc_f32_kernel(half* Q,
   } // kWarpTileSeqLenP = 1
 }
 
-// Launch kernel for flash_attn_mma_stages_split_q_tiling_qk
 template<const int kHeadDim, const int kStage>
 void launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32(
   torch::Tensor Q, torch::Tensor K, torch::Tensor V, torch::Tensor O) {
@@ -751,7 +748,7 @@ void launch_flash_attn_mma_stages_split_q_tiling_qkv_acc_f32(
   constexpr int kPadQ = 8;
   constexpr int kPadK = 8; 
   constexpr int kPadV = 8;
-  // 0/1, MMA Acc always be fp16, but O storage can be fp32 or half.
+  // 0/1, MMA Acc always be fp32, but O storage can be fp32 or half.
   // FP16 can provide precision to approximately 3-4 decimal places.
   // Thus, if the error does not exceed 1e-3, using FP16 storage is 
   // sufficient for most applications.

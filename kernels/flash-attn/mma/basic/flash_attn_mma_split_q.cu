@@ -654,7 +654,6 @@ flash_attn_mma_stages_split_q_kernel(half* Q,
   } // end for kWarpTileSeqLenQ
 }
 
-// Launch kernel for flash_attn_mma_stages_split_q
 template<const int kHeadDim, const int kStage>
 void launch_flash_attn_mma_stages_split_q(
   torch::Tensor Q, torch::Tensor K, torch::Tensor V, torch::Tensor O) {
