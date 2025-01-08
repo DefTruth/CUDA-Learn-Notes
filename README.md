@@ -19,7 +19,7 @@
 <div id="news"></div>  
 
 - [2025-01-08]: [📚Fully QKV Fine-grained Tiling](#mma-tiling-qkv) has been refactored into 🤖[cuffpa-py](https://github.com/DefTruth/cuffpa-py): 📚FFPA - Yet another Faster Flash Prefill Attention with O(1)🎉SRAM complexity for headdim > 256, ~1.5x🎉faster vs SDPA EA.
-- [2024-12-02]: HGEMM MMA kernels has been refactored into 🤖[hgemm-tensorcores-mma](https://github.com/DefTruth/hgemm-tensorcores-mma): ⚡️Write HGEMM from scratch using Tensor Cores with WMMA, MMA PTX and CuTe API.
+- [2024-12-02]: HGEMM MMA kernels has been refactored into 🤖[cuhgemm-py](https://github.com/DefTruth/cuhgemm-py): ⚡️Write HGEMM from scratch using Tensor Cores with WMMA, MMA and CuTe API, achieve peak⚡️ performance.
 
 ## 📖 Contents👇👀
 
