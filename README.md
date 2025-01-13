@@ -18,9 +18,9 @@
 ## 📖 News 🔥🔥
 <div id="news"></div>  
 
-- [2025-01-08]: [📚QKV Fine-grained Tiling](#mma-tiling-qkv) has been refactored into 🤖[cuffpa-py](https://github.com/DefTruth/cuffpa-py): 📚FFPA - Yet another Faster Flash Prefill Attention with O(1)🎉SRAM complexity for headdim > 256, **1.5x~2x**🎉faster than SDPA EA: [📈L20 ~1.7x↑🎉](https://github.com/DefTruth/cuffpa-py?tab=readme-ov-file#L1-bench), [📈 A30 ~1.5x↑🎉](https://github.com/DefTruth/cuffpa-py?tab=readme-ov-file#L1-bench), [📈3080 ~2.5x↑🎉](https://github.com/DefTruth/cuffpa-py?tab=readme-ov-file#L1-bench), [📈4090 ~1.8x↑🎉](https://github.com/DefTruth/cuffpa-py?tab=readme-ov-file#L1-bench).  
+- [2025-01-08]: [📚QKV Fine-grained Tiling](#mma-tiling-qkv) has been refactored into 🤖[ffpa-attn-mma](https://github.com/DefTruth/ffpa-attn-mma): 📚FFPA - Yet another Faster Flash Prefill Attention with O(1)🎉SRAM complexity for headdim > 256, **1.5x~2x**🎉faster than SDPA EA: [📈L20 ~1.7x↑🎉](https://github.com/DefTruth/ffpa-attn-mma?tab=readme-ov-file#L1-bench), [📈 A30 ~1.5x↑🎉](https://github.com/DefTruth/ffpa-attn-mma?tab=readme-ov-file#L1-bench), [📈3080 ~2.5x↑🎉](https://github.com/DefTruth/ffpa-attn-mma?tab=readme-ov-file#L1-bench), [📈4090 ~1.8x↑🎉](https://github.com/DefTruth/ffpa-attn-mma?tab=readme-ov-file#L1-bench).  
 
-- [2024-12-02]: HGEMM MMA kernels has been refactored into 🤖[cuhgemm-py](https://github.com/DefTruth/cuhgemm-py): ⚡️Write HGEMM from scratch using Tensor Cores with WMMA, MMA and CuTe API, achieve peak⚡️ performance.
+- [2024-12-02]: HGEMM MMA kernels has been refactored into 🤖[hgemm-tensorcores-mma](https://github.com/DefTruth/hgemm-tensorcores-mma): ⚡️Write HGEMM from scratch using Tensor Cores with WMMA, MMA and CuTe API, achieve peak⚡️ performance.
 
 <!--
 ## 📖 Contents👇👀
@@ -45,7 +45,7 @@
 </div> 
 
 
-Currently, on NVIDIA L20, RTX 4090 and RTX 3080 Laptop, compared with cuBLAS's default Tensor Cores algorithm, the `HGEMM (WMMA/MMA/CuTe)` in this repo (`blue`🔵) can achieve `98%~100%` of its (`orange`🟠) performance. Please check [toy-hgemm library⚡️⚡️](./kernels/hgemm) or [cuhgemm-py⚡️⚡️](https://github.com/DefTruth/cuhgemm-py) repo for more details.
+Currently, on NVIDIA L20, RTX 4090 and RTX 3080 Laptop, compared with cuBLAS's default Tensor Cores algorithm, the `HGEMM (WMMA/MMA/CuTe)` in this repo (`blue`🔵) can achieve `98%~100%` of its (`orange`🟠) performance. Please check [toy-hgemm library⚡️⚡️](./kernels/hgemm) or [hgemm-tensorcores-mma⚡️⚡️](https://github.com/DefTruth/hgemm-tensorcores-mma) repo for more details.
 
 ![toy-hgemm-library](https://github.com/user-attachments/assets/962bda14-b494-4423-b8eb-775da9f5503d)
 
