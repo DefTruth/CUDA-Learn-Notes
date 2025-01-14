@@ -55,17 +55,13 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3080 Laptop, compared with cuBLAS's d
 
 ![toy-hgemm-library](https://github.com/user-attachments/assets/962bda14-b494-4423-b8eb-775da9f5503d)
 
-|CUDA Cores|Sliced K (Loop over K)|Tile Block (BMxBK)|Tile Thread (t 8x8)|
+|📚Feature |📚Feature |📚Feature |📚Feature|
 |:---:|:---:|:---:|:---:|
-|✔️|✔️|✔️|✔️|
+|CUDA Cores|Sliced K (Loop over K)|Tile Block (BMxBK)|Tile Thread (t 8x8)|
 |WMMA (m16n16k16)|MMA (m16n8k16)|Pack LDST (128 bits)|SMEM Padding|
-|✔️|✔️|✔️|✔️|
 |Copy Async|Tile MMA (More Threads)|Tile Warp (More Values)|Multi Stages (2/3/4)|  
-|✔️|✔️|✔️|✔️|
 |Reg Double Buffers|Block Swizzle|Warp Swizzle|SMEM Swizzle (CuTe/MMA)|
-|✔️|✔️|✔️|✔️|
 |Collective Store (Shfl)|Row Major (NN)|Col Major (TN)| SGEMM FP32/TF32|
-|✔️|✔️|✔️|✔️|
 
 ## 📖 FA2-MMA Benchmark 🎉🎉 
 
@@ -75,15 +71,12 @@ I have also implemented **FlashAttention-2** using pure MMA PTX instructions, wh
 
 ![flash-attn-mma](https://github.com/user-attachments/assets/6f66796d-44d5-4ec1-b224-af997bd152b2)
 
-|Tensor Cores|Loop over Seqlen/Headdim |Tile Block (Br, Bc)|MMA (m16n8k16)|
+|📚Feature |📚Feature |📚Feature |📚Feature|
 |:---:|:---:|:---:|:---:|
-|✔️|✔️|✔️|✔️|
+|Tensor Cores|Loop over Seqlen/Headdim |Tile Block (Br, Bc)|MMA (m16n8k16)|
 |Pack LDST (128 bits)|SMEM **Swizzle**/Padding |Copy Async|Tile MMA (More Threads)|
-|✔️|✔️|✔️|✔️|
 |Tile Warp (More Values)|Multi Stages (1/2)|Collective Store (Shfl)|**Split KV/Q**|
-|✔️|✔️|✔️|✔️|
 |**Shared QKV/KV** SMEM|**Prefetch Q** s2r|**Prefetch K/V** g2s|**QKV Fine-grained Tiling**|
-|✔️|✔️|✔️|✔️|
 
 Currently, for small-scale attention `(B<=4, H <=48, SeqLen <= 8192, D <= 64)` it can run faster than FA2/SDPA on some Devices. For example, on NVIDIA RTX 3080 Laptop, [📚 Split Q + Fully Shared QKV SMEM](#mma-share-qkv) method can achieve **55 TFLOPS (D=64)** that almost **~1.5x** 🎉 faster than FA2. On NVIDIA L20, [📚 Split Q + Fully QKV Fine-grained Tiling](#mma-tiling-qkv) method can achieve **92 TFLOPS (D=512)** that almost **~1.6x** 🎉 faster than SDPA (EFFICIENT ATTENTION). However, for large-scale attention, there remains a performance gap. Stay tuned for updates ~ (MMA Acc F16/F32, softmax Acc F32 vs FA2 MMA/softmax Acc F32, 👇Benchmark)
 
