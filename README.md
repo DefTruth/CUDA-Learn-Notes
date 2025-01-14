@@ -28,28 +28,15 @@
 
 - [2024-12-02]: HGEMM MMA kernels has been refactored into 🤖[hgemm-tensorcores-mma](https://github.com/DefTruth/hgemm-tensorcores-mma): ⚡️Write HGEMM from scratch using Tensor Cores with WMMA, MMA and CuTe API, achieve peak⚡️ performance.
 
-<!--
-## 📖 Contents👇👀
-
-<div id="contents"></div>  
-
-- [📖 HGEMM Benchmark](#hgemm-mma-bench)
-- [📖 FA2-MMA Benchmark](#fa-mma-bench)
-- [📖 150+ CUDA Kernels](#cuda-kernel)
-- [📖 100+ Blogs(LLM/CUDA)](#my-blogs-part-1)
-
--->
-
-## 📖 HGEMM Benchmark 🎉🎉
-
-<div id="hgemm-mma-bench"></div>  
-
 <div align='center'>
   <img src='https://github.com/user-attachments/assets/71927ac9-72b3-4ce9-b0e2-788b5885bc99' height="170px" width="270px">
   <img src='https://github.com/user-attachments/assets/05ef4f5e-d999-48ea-b58e-782cffb24e85' height="170px" width="270px">
   <img src='https://github.com/user-attachments/assets/9472e970-c083-4b31-9252-3eeecc761078' height="170px" width="270px">
 </div> 
 
+## 📖 HGEMM Benchmark 🎉🎉
+
+<div id="hgemm-mma-bench"></div>  
 
 Currently, on NVIDIA L20, RTX 4090 and RTX 3080 Laptop, compared with cuBLAS's default Tensor Cores algorithm, the `HGEMM (WMMA/MMA/CuTe)` in this repo (`blue`🔵) can achieve `98%~100%` of its (`orange`🟠) performance. Please check [toy-hgemm library⚡️⚡️](./kernels/hgemm) or [hgemm-tensorcores-mma⚡️⚡️](https://github.com/DefTruth/hgemm-tensorcores-mma) repo for more details.
 
@@ -57,11 +44,11 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3080 Laptop, compared with cuBLAS's d
 
 |📚Feature |📚Feature |📚Feature |📚Feature|
 |:---:|:---:|:---:|:---:|
-|CUDA Cores|Sliced K (Loop over K)|Tile Block (BMxBK)|Tile Thread (t 8x8)|
-|WMMA (m16n16k16)|MMA (m16n8k16)|Pack LDST (128 bits)|SMEM Padding|
-|Copy Async|Tile MMA (More Threads)|Tile Warp (More Values)|Multi Stages (2/3/4)|  
-|Reg Double Buffers|Block Swizzle|Warp Swizzle|SMEM Swizzle (CuTe/MMA)|
-|Collective Store (Shfl)|Row Major (NN)|Col Major (TN)| SGEMM FP32/TF32|
+|✔️CUDA Cores|✔️Loop over K|✔️Tile Block(BMxBK)|✔️Tile Thread(t 8x8)|
+|✔️WMMA(m16n16k16)|✔️MMA(m16n8k16)|✔️Pack LDST(128 bits)|✔️SMEM Padding|
+|✔️Copy Async|✔️Tile MMA(More Threads)|✔️Tile Warp(More Values)|✔️Multi Stages(2~4)|  
+|✔️Reg Double Buffers|✔️Block Swizzle|✔️Warp Swizzle|✔️SMEM Swizzle(CuTe/MMA)|
+|✔️Collective Store(Shfl)|✔️Row Major(NN)|✔️Col Major(TN)|✔️SGEMM FP32/TF32|
 
 ## 📖 FA2-MMA Benchmark 🎉🎉 
 
