@@ -62,7 +62,7 @@ I have also implemented **FlashAttention-2** using pure MMA PTX instructions, wh
 |:---:|:---:|:---:|:---:|
 |✔️Tensor Cores|✔️Loop over N/D |✔️Tile Block(Br, Bc)|✔️MMA(m16n8k16)|
 |✔️Pack LDST(128 bits)|✔️SMEM **Swizzle**/Padding |✔️Copy Async|✔️Tile MMAs|
-|✔️Tile Warps|✔️Multi Stages(1/2)|✔️Collective Store Shfl)|✔️**Split KV/Q**|
+|✔️Tile Warps|✔️Multi Stages(1/2)|✔️Collective Store(Shfl)|✔️**Split KV/Q**|
 |✔️**Shared QKV** SMEM|✔️**Prefetch Q** s2r|✔️**Prefetch KV** g2s|✔️**QKV Fine-grained Tiling**|
 
 Currently, for small-scale attention `(B<=4, H <=48, SeqLen <= 8192, D <= 64)` it can run faster than FA2/SDPA on some Devices. For example, on NVIDIA RTX 3080 Laptop, [📚 Split Q + Fully Shared QKV SMEM](#mma-share-qkv) method can achieve **55 TFLOPS (D=64)** that almost **~1.5x** 🎉 faster than FA2. On NVIDIA L20, [📚 Split Q + Fully QKV Fine-grained Tiling](#mma-tiling-qkv) method can achieve **92 TFLOPS (D=512)** that almost **~1.6x** 🎉 faster than SDPA (EFFICIENT ATTENTION). However, for large-scale attention, there remains a performance gap. Stay tuned for updates ~ (MMA Acc F16/F32, softmax Acc F32 vs FA2 MMA/softmax Acc F32, 👇Benchmark)
