@@ -47,10 +47,10 @@ Currently, on NVIDIA L20, RTX 4090 and RTX 3080 Laptop, compared with cuBLAS's d
 
 |📚Feature |📚Feature |📚Feature |📚Feature|
 |:---:|:---:|:---:|:---:|
-|✔️CUDA Cores|✔️Loop over K|✔️Tile Block(BMxBK)|✔️Tile Thread(t 8x8)|
+|✔️CUDA/**Tensor Cores**|✔️Loop over K|✔️Tile Block(BMxBK)|✔️Tile Threads(T 8x8)|
 |✔️WMMA(m16n16k16)|✔️MMA(m16n8k16)|✔️Pack LDST(128 bits)|✔️SMEM Padding|
-|✔️Copy Async|✔️Tile MMAs|✔️Tile Warps|✔️Multi Stages(2~4)|  
-|✔️Reg Double Buffers|✔️Block Swizzle|✔️Warp Swizzle|✔️SMEM Swizzle(CuTe/MMA)|
+|✔️Copy Async|✔️Tile MMAs|✔️Tile Warps|✔️**Multi Stages(2~4)**|  
+|✔️Register Double Buffers|✔️**Block Swizzle**|✔️**Warp Swizzle**|✔️**SMEM Swizzle**(CuTe/MMA)|
 |✔️Collective Store(Shfl)|✔️Row Major(NN)|✔️Col Major(TN)|✔️SGEMM FP32/TF32|
 
 ## 📖 FA2-MMA Benchmark 🎉🎉 
