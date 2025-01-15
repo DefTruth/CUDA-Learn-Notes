@@ -22,4 +22,4 @@ bin
 *.log
 *.txt
 *.tex
-__pycache__
+tmp*
