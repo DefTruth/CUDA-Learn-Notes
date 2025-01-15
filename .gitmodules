@@ -2,3 +2,6 @@
 	path = third-party/cutlass
 	url = https://github.com/NVIDIA/cutlass.git
         tag = v3.5.1
+[submodule "ffpa-attn-mma"]
+	path = ffpa-attn-mma
+	url = https://github.com/DefTruth/ffpa-attn-mma.git
