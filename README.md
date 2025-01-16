@@ -1,18 +1,21 @@
-<div align='center'>
-  <img src='https://github.com/user-attachments/assets/9306862b-2a30-4a87-bb33-0fde9e9d7cea' width=250px>
-</div> 
-
-<div align='center'>
-  <img src=https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg >
-  <img src=https://img.shields.io/badge/Language-CUDA-brightgreen.svg >
-  <img src=https://img.shields.io/github/watchers/DefTruth/CUDA-Learn-Notes?color=9cc >
-  <img src=https://img.shields.io/github/forks/DefTruth/CUDA-Learn-Notes.svg?style=social >
-  <img src=https://img.shields.io/github/stars/DefTruth/CUDA-Learn-Notes.svg?style=social >
-  <img src=https://img.shields.io/badge/Release-v2.6-brightgreen.svg >
-  <img src=https://img.shields.io/badge/License-GPLv3.0-turquoise.svg >
- </div>   
-
---- 
+<div align="center">
+  <p align="center">
+    <h2>📚 Modern CUDA Learn Notes with PyTorch for Beginners 🐑</h2>
+  </p>
+  <img src='https://github.com/user-attachments/assets/9306862b-2a30-4a87-bb33-0fde9e9d7cea' width=250 >
+  <div align='center'>
+      <img src=https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg >
+      <img src=https://img.shields.io/badge/Language-CUDA-brightgreen.svg >
+      <img src=https://img.shields.io/github/watchers/DefTruth/CUDA-Learn-Notes?color=9cc >
+      <img src=https://img.shields.io/github/forks/DefTruth/CUDA-Learn-Notes.svg?style=social >
+      <img src=https://img.shields.io/github/stars/DefTruth/CUDA-Learn-Notes.svg?style=social >
+      <img src=https://img.shields.io/badge/Release-v2.6-brightgreen.svg >
+      <img src=https://img.shields.io/badge/License-GPLv3.0-turquoise.svg >
+ </div>
+  <p align="center">
+    <h2></h2>
+  </p>
+</div>
 
 📚 **Modern CUDA Learn Notes with PyTorch** for Beginners: It includes **Tensor/CUDA Cores, TF32/F16/BF16/F8**, [📖200+ CUDA Kernels🔥🔥(Easy -> Hard++)](#cuda-kernel) with PyTorch bindings, [📖100+ LLM/VLM/CV/CUDA/CuTe🔥](#my-blogs-part-1) blogs, [📖toy-hgemm⚡️⚡️](./kernels/hgemm) which can achieve `98%~100%` performance of **cuBLAS**, and [📖flash-attention-mma⚡️⚡️](./kernels/flash-attn) using Tensor Cores with pure MMA PTX. Welcome to 🌟👆🏻star this repo to support me, many thanks ~ 🎉🎉
 
