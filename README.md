@@ -10,7 +10,7 @@
       <img src=https://img.shields.io/github/watchers/DefTruth/CUDA-Learn-Notes?color=9cc >
       <img src=https://img.shields.io/github/forks/DefTruth/CUDA-Learn-Notes.svg?style=social >
       <img src=https://img.shields.io/github/stars/DefTruth/CUDA-Learn-Notes.svg?style=social >
-      <img src=https://img.shields.io/badge/Release-v2.6-brightgreen.svg >
+      <img src=https://img.shields.io/badge/Release-v3.0.0-brightgreen.svg >
       <img src=https://img.shields.io/badge/License-GPLv3.0-turquoise.svg >
  </div>
 </div>
