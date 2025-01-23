@@ -67,12 +67,6 @@ __global__ void elementwise_add_f16x2_kernel(half* a, half* b, half* c, int N) {
 
 __global__ void elementwise_add_f16x8_kernel(half* a, half* b, half* c, int N) {
   int idx = 8 * (blockIdx.x * blockDim.x + threadIdx.x);
-  // manual unroll and improve L2 cache hit rate.
-  // Only   L2 cache: load 32  bytes in 1 memory issue (default)
-  // Enable L1 cache: load 128 bytes in 1 memory issue (-Xptxas -dlcm=ca)
-  // why try fp16x8 within 1 threads? ref: https://zhuanlan.zhihu.com/p/641639133
-  // 0. first, tid_0 load 32 bytes in 1 memory issue and cache data into L2 cache.
-  // 1. then, tid_1,...,tid_3 hit L2 cache and load data from L2 cache directly.
   half2 reg_a_0 = HALF2(a[idx + 0]);
   half2 reg_a_1 = HALF2(a[idx + 2]);
   half2 reg_a_2 = HALF2(a[idx + 4]);

@@ -252,12 +252,6 @@ __global__ void layer_norm_f16x8_f16_kernel(half* x, half* y, float g, float b, 
 
   __shared__ half s_mean; // shared within block
   __shared__ half s_variance; // shared within block
-  // manual unroll and improve L2 cache hit rate.
-  // Only   L2 cache: load 32  bytes in 1 memory issue (default)
-  // Enable L1 cache: load 128 bytes in 1 memory issue (-Xptxas -dlcm=ca)
-  // why try fp16x8 within 1 threads? ref: https://zhuanlan.zhihu.com/p/641639133
-  // 0. first, tid_0 load 32 bytes in 1 memory issue and cache data into L2 cache.
-  // 1. then, tid_1,...,tid_3 hit L2 cache and load data from L2 cache directly.
   half2 reg_x_0 = HALF2(x[idx + 0]);
   half2 reg_x_1 = HALF2(x[idx + 2]);
   half2 reg_x_2 = HALF2(x[idx + 4]);
