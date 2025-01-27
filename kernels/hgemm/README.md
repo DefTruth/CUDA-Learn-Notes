@@ -1,5 +1,5 @@
 
-# ⚡️⚡️Toy-HGEMM: Achieve the 98%~100% TFLOPS of cuBLAS 🎉🎉
+## ⚡️⚡️Toy-HGEMM: Achieve the 98%~100% TFLOPS of cuBLAS 🎉🎉
 
 ![toy-hgemm-library](https://github.com/user-attachments/assets/962bda14-b494-4423-b8eb-775da9f5503d)
 
@@ -16,17 +16,13 @@
 
 Currently, on NVIDIA L20, RTX 4090 and RTX 3080 Laptop, compared with cuBLAS's default Tensor Cores math algorithm `CUBLAS_GEMM_DEFAULT_TENSOR_OP`, the `HGEMM (WMMA/MMA/CuTe)` implemented in this repo (`blue`🔵) can achieve `98%~100%` of its (`orange`🟠) performance. Please check [toy-hgemm library⚡️⚡️](./kernels/hgemm) for more details.
 
-|CUDA Cores|Sliced K (Loop over K)|Tile Block (BMxBN)|Tile Thread (t 8x8)|
+|📚Feature |📚Feature |📚Feature |📚Feature|
 |:---:|:---:|:---:|:---:|
-|✔️|✔️|✔️|✔️|
-|WMMA (m16n16k16)|MMA (m16n8k16)|Pack LDST (pack 128 bits)|SMEM Padding|
-|✔️|✔️|✔️|✔️|
-|Copy Async (cp.async.cg/ca)|Tile MMA (More Threads)|Tile Warp (More Values)|Multi Stages(2/3/4/5)|  
-|✔️|✔️|✔️|✔️|
-|Register Double Buffers|Block Swizzle (Zigzag N)|Warp Swizzle (Zigzag N)| SMEM Swizzle (CuTe/MMA) |
-|✔️|✔️|✔️|✔️|
-|Collective Store (Warp Shuffle & Reg Reuse)|Row Major (NN)|Col Major (TN)|SGEMM FP32/TF32|
-|✔️|✔️|✔️|✔️|
+|✔️CUDA/**Tensor Cores**|✔️Loop over K|✔️Tile Block(BMxBK)|✔️Tile Threads(T 8x8)|
+|✔️WMMA(m16n16k16)|✔️MMA(m16n8k16)|✔️Pack LDST(128 bits)|✔️SMEM Padding|
+|✔️Copy Async|✔️Tile MMAs|✔️Tile Warps|✔️**Multi Stages(2~4)**|  
+|✔️Register Double Buffers|✔️**Block Swizzle**|✔️**Warp Swizzle**|✔️**SMEM Swizzle**(CuTe/MMA)|
+|✔️Collective Store(Shfl)|✔️Layout NN|✔️Layout TN|✔️SGEMM FP32/TF32|
 
 ## ©️Citations🎉🎉
 
