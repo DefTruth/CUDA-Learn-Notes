@@ -45,7 +45,7 @@ __global__ void block_all_reduce_sum_f32_f32_kernel(float* a, float* y, int N) {
   int idx = blockIdx.x * NUM_THREADS + tid;
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ float reduce_smem[NUM_WARPS];
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   float sum = (idx < N) ? a[idx] : 0.0f;
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
@@ -71,7 +71,7 @@ __global__ void block_all_reduce_sum_f32x4_f32_kernel(float* a, float* y, int N)
   __shared__ float reduce_smem[NUM_WARPS];
 
   float4 reg_a = FLOAT4(a[idx]);
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   float sum = (idx < N) ? (reg_a.x + reg_a.y + reg_a.z + reg_a.w) : 0.0f;
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
@@ -117,7 +117,7 @@ __global__ void block_all_reduce_sum_f16_f16_kernel(half* a, float* y, int N) {
   int idx = blockIdx.x * NUM_THREADS + tid;
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ float reduce_smem[NUM_WARPS];
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   half sum_f16 = (idx < N) ? a[idx] : __float2half(0.0f);
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
@@ -140,7 +140,7 @@ __global__ void block_all_reduce_sum_f16_f32_kernel(half* a, float* y, int N) {
   int idx = blockIdx.x * NUM_THREADS + tid;
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ float reduce_smem[NUM_WARPS];
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   half sum_f16 = (idx < N) ? a[idx] : __float2half(0.0f);
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
@@ -164,7 +164,7 @@ __global__ void block_all_reduce_sum_f16x2_f32_kernel(half* a, float* y, int N) 
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ float reduce_smem[NUM_WARPS];
 
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   half2 reg_a = HALF2(a[idx]);
   half sum_f16 = (idx < N) ? __hadd(reg_a.x, reg_a.y) : __float2half(0.0f);
   int warp = tid / WARP_SIZE;
@@ -189,7 +189,7 @@ __global__ void block_all_reduce_sum_f16x2_f16_kernel(half* a, float* y, int N) 
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ float reduce_smem[NUM_WARPS];
 
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   half2 reg_a = HALF2(a[idx]);
   half sum_f16 = (idx < N) ? __hadd(reg_a.x, reg_a.y) : __float2half(0.0f);
   int warp = tid / WARP_SIZE;
@@ -306,7 +306,7 @@ __global__ void block_all_reduce_sum_bf16_bf16_kernel(
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ __nv_bfloat16 reduce_smem[NUM_WARPS];
 
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   __nv_bfloat16 sum_bf16 = (idx < N) ? a[idx] : __float2bfloat16(0.0f);
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
@@ -331,7 +331,7 @@ __global__ void block_all_reduce_sum_bf16_f32_kernel(
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ float reduce_smem[NUM_WARPS];
 
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   __nv_bfloat16 sum_bf16 = (idx < N) ? a[idx] : __float2bfloat16(0.0f);
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
@@ -356,7 +356,7 @@ __global__ void block_all_reduce_sum_bf16x2_bf16_kernel(
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ __nv_bfloat16 reduce_smem[NUM_WARPS];
 
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   __nv_bfloat162 reg_a = BFLOAT2(a[idx]);
   __nv_bfloat16 sum_bf16 = (idx < N) ? __hadd(reg_a.x, reg_a.y) : __float2bfloat16(0.0f);
   int warp = tid / WARP_SIZE;
@@ -382,7 +382,7 @@ __global__ void block_all_reduce_sum_bf16x2_f32_kernel(
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ float reduce_smem[NUM_WARPS];
 
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   __nv_bfloat162 reg_a = BFLOAT2(a[idx]);
   __nv_bfloat16 sum_bf16 = (idx < N) ? __hadd(reg_a.x, reg_a.y) : __float2bfloat16(0.0f);
   int warp = tid / WARP_SIZE;
@@ -419,7 +419,7 @@ __global__ void block_all_reduce_sum_bf16x8_pack_bf16_kernel(
     sum_bf16 += (((idx + i ) < N) ? pack_a[i] : z);
   }
 
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
   // perform warp sync reduce.
@@ -454,7 +454,7 @@ __global__ void block_all_reduce_sum_bf16x8_pack_f32_kernel(
     sum_bf16 += (((idx + i ) < N) ? pack_a[i] : z);
   }
 
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
   // perform warp sync reduce.
@@ -505,7 +505,7 @@ __global__ void block_all_reduce_sum_fp8_e4m3_f16_kernel(
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ half reduce_smem[NUM_WARPS];
 
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   __nv_fp8_storage_t sum_f8 = (idx < N) ? a[idx] : __nv_cvt_float_to_fp8(
     0.0f, __NV_SATFINITE, __NV_E4M3);
   int warp = tid / WARP_SIZE;
@@ -531,7 +531,7 @@ __global__ void block_all_reduce_sum_fp8_e5m2_f16_kernel(
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ half reduce_smem[NUM_WARPS];
 
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   __nv_fp8_storage_t sum_f8 = (idx < N) ? a[idx] : __nv_cvt_float_to_fp8(
     0.0f, __NV_SATFINITE, __NV_E5M2);
   int warp = tid / WARP_SIZE;
@@ -565,7 +565,7 @@ __global__ void block_all_reduce_sum_fp8_e4m3x16_pack_f16_kernel(
   for (int i = 0; i < 16; ++i) {
     sum_f16 += __nv_cvt_fp8_to_halfraw(pack_a[i], __NV_E4M3);
   }
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
   // perform warp sync reduce.
@@ -597,7 +597,7 @@ __global__ void block_all_reduce_sum_fp8_e5m2x16_pack_f16_kernel(
   for (int i = 0; i < 16; ++i) {
     sum_f16 += __nv_cvt_fp8_to_halfraw(pack_a[i], __NV_E5M2);
   }
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
   // perform warp sync reduce.
@@ -641,7 +641,7 @@ __global__ void block_all_reduce_sum_i8_i32_kernel(
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ int32_t reduce_smem[NUM_WARPS];
 
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   int8_t sum_i8 = (idx < N) ? a[idx] : 0;
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
@@ -666,7 +666,7 @@ __global__ void block_all_reduce_sum_i8x16_pack_i32_kernel(
   // reinterpret as float4 and load 128 bits in 1 memory issue.
   LDST128BITS(pack_a[0]) = LDST128BITS(a[idx]); // load 128 bits
 
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   int32_t sum_i32 = 0;
   #pragma unroll
   for (int i = 0; i < 16; ++i) {
