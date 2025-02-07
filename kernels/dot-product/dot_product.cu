@@ -38,7 +38,7 @@ __global__ void dot_prod_f32_f32_kernel(float* a, float* b, float* y, int N) {
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ float reduce_smem[NUM_WARPS];
 
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   float prod = (idx < N) ? a[idx] * b[idx] : 0.0f;
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
@@ -109,7 +109,7 @@ __global__ void dot_prod_f16_f32_kernel(half* a, half* b, float* y, int N) {
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ float reduce_smem[NUM_WARPS];
 
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   half prod_f16 = (idx < N) ? __hmul(a[idx], b[idx]) : __float2half(0.0f);
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
@@ -131,7 +131,7 @@ __global__ void dot_prod_f16x2_f32_kernel(half* a, half* b, float* y, int N) {
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ float reduce_smem[NUM_WARPS];
 
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   half2 reg_a = HALF2(a[idx]);
   half2 reg_b = HALF2(b[idx]);
   half prod_f16 = (idx < N) ? __hadd(__hmul(reg_a.x, reg_b.x), 

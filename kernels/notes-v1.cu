@@ -281,7 +281,7 @@ __global__ void block_all_reduce_sum(float* a, float* y, int N) {
   int idx = blockIdx.x * NUM_THREADS + tid;
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ float reduce_smem[NUM_WARPS];
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   float sum = (idx < N) ? a[idx] : 0.0f;
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
@@ -307,7 +307,7 @@ __global__ void block_all_reduce_sum_vec4(float* a, float* y, int N) {
   __shared__ float reduce_smem[NUM_WARPS];
 
   float4 reg_a = FLOAT4(a[idx]);
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   float sum = (idx < N) ? (reg_a.x + reg_a.y + reg_a.z + reg_a.w) : 0.0f;
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
@@ -332,7 +332,7 @@ __global__ void dot(float* a, float* b, float* y, int N) {
   constexpr int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
   __shared__ float reduce_smem[NUM_WARPS];
 
-  // keep the data in register is enougth for warp operaion.
+  // keep the data in register is enough for warp operaion.
   float prod = (idx < N) ? a[idx] * b[idx] : 0.0f;
   int warp = tid / WARP_SIZE;
   int lane = tid % WARP_SIZE;
