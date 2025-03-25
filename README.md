@@ -1,3 +1,9 @@
+# Notes 👇👇
+
+This project has been moved to [xlite-dev/lite.ai.toolkit](https://github.com/xlite-dev/CUDA-Learn-Notes). Please check [xlite-dev/lite.ai.toolkit](https://github.com/xlite-dev/CUDA-Learn-Notes) for latest updates! 👏👋
+
+---
+
 <div align="center">
   <p align="center">
     <h2>📚 Modern CUDA Learn Notes with PyTorch for Beginners 🐑</h2>
@@ -7,9 +13,9 @@
   <div align='center'>
       <img src=https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg >
       <img src=https://img.shields.io/badge/Language-CUDA-brightgreen.svg >
-      <img src=https://img.shields.io/github/watchers/DefTruth/CUDA-Learn-Notes?color=9cc >
-      <img src=https://img.shields.io/github/forks/DefTruth/CUDA-Learn-Notes.svg?style=social >
-      <img src=https://img.shields.io/github/stars/DefTruth/CUDA-Learn-Notes.svg?style=social >
+      <img src=https://img.shields.io/github/watchers/xlite-dev/CUDA-Learn-Notes?color=9cc >
+      <img src=https://img.shields.io/github/forks/xlite-dev/CUDA-Learn-Notes.svg?style=social >
+      <img src=https://img.shields.io/github/stars/xlite-dev/CUDA-Learn-Notes.svg?style=social >
       <img src=https://img.shields.io/badge/Release-v3.0.0-brightgreen.svg >
       <img src=https://img.shields.io/badge/License-GPLv3.0-turquoise.svg >
  </div>
@@ -22,7 +28,7 @@
 ## 📖 News 🔥🔥
 <div id="news"></div>  
 
-- [2025-01-08]: [📚Split Q + Fully QKV Fine-grained Tiling](#mma-tiling-qkv) has been refactored into 🤖[ffpa-attn-mma](https://github.com/DefTruth/ffpa-attn-mma.git): 📚FFPA - Yet another Faster Flash Prefill Attention with O(1)🎉SRAM complexity for headdim > 256, **1.8x~3x**🎉faster than SDPA EA: [📈L20 ~1.9x↑🎉](https://github.com/DefTruth/ffpa-attn-mma?tab=readme-ov-file#L1-bench-l20), [📈 A30 ~1.8x↑🎉](https://github.com/DefTruth/ffpa-attn-mma?tab=readme-ov-file#L1-bench-a30), [📈3080 ~2.9x↑🎉](https://github.com/DefTruth/ffpa-attn-mma?tab=readme-ov-file#L1-bench-3080), [📈4090 ~2.1x↑🎉](https://github.com/DefTruth/ffpa-attn-mma?tab=readme-ov-file#L1-bench-4090).  
+- [2025-01-08]: [📚Split Q + Fully QKV Fine-grained Tiling](#mma-tiling-qkv) has been refactored into 🤖[ffpa-attn-mma](https://github.com/xlite-dev/ffpa-attn-mma.git): 📚FFPA - Yet another Faster Flash Prefill Attention with O(1)🎉SRAM complexity for headdim > 256, **1.8x~3x**🎉faster than SDPA EA: [📈L20 ~1.9x↑🎉](https://github.com/xlite-dev/ffpa-attn-mma?tab=readme-ov-file#L1-bench-l20), [📈 A30 ~1.8x↑🎉](https://github.com/xlite-dev/ffpa-attn-mma?tab=readme-ov-file#L1-bench-a30), [📈3080 ~2.9x↑🎉](https://github.com/xlite-dev/ffpa-attn-mma?tab=readme-ov-file#L1-bench-3080), [📈4090 ~2.1x↑🎉](https://github.com/xlite-dev/ffpa-attn-mma?tab=readme-ov-file#L1-bench-4090).  
 
 <div align='center'>
   <img src='https://github.com/user-attachments/assets/cba2edce-ac0d-412e-823c-7eea2cc63f83' height="170px" width="270px">
@@ -30,7 +36,7 @@
   <img src='https://github.com/user-attachments/assets/65a8d564-8fa7-4d66-86b9-e238feb86143' height="170px" width="270px">
 </div> 
 
-- [2024-12-02]: HGEMM MMA kernels has been refactored into 🤖[hgemm-mma](https://github.com/DefTruth/hgemm-mma.git): ⚡️Write HGEMM from scratch using Tensor Cores with WMMA, MMA and CuTe API, achieve peak⚡️ performance.
+- [2024-12-02]: HGEMM MMA kernels has been refactored into 🤖[hgemm-mma](https://github.com/xlite-dev/hgemm-mma.git): ⚡️Write HGEMM from scratch using Tensor Cores with WMMA, MMA and CuTe API, achieve peak⚡️ performance.
 
 <div align='center'>
   <img src='https://github.com/user-attachments/assets/71927ac9-72b3-4ce9-b0e2-788b5885bc99' height="170px" width="270px">
@@ -43,7 +49,7 @@
 
 <div id="hgemm-mma-bench"></div>  
 
-Currently, on NVIDIA L20, RTX 4090 and RTX 3080 Laptop, compared with cuBLAS's default Tensor Cores algorithm, the `HGEMM (WMMA/MMA/CuTe)` in this repo (`blue`🔵) can achieve `98%~100%` of its (`orange`🟠) performance. Please check [toy-hgemm library⚡️⚡️](./kernels/hgemm) or [hgemm-mma⚡️⚡️](https://github.com/DefTruth/hgemm-mma) repo for more details.
+Currently, on NVIDIA L20, RTX 4090 and RTX 3080 Laptop, compared with cuBLAS's default Tensor Cores algorithm, the `HGEMM (WMMA/MMA/CuTe)` in this repo (`blue`🔵) can achieve `98%~100%` of its (`orange`🟠) performance. Please check [toy-hgemm library⚡️⚡️](./kernels/hgemm) or [hgemm-mma⚡️⚡️](https://github.com/xlite-dev/hgemm-mma) repo for more details.
 
 ![toy-hgemm-library](https://github.com/user-attachments/assets/962bda14-b494-4423-b8eb-775da9f5503d)
 
@@ -70,7 +76,7 @@ I have also implemented **FlashAttention-2** using pure MMA PTX instructions, wh
 |✔️Tile Warps|✔️Multi Stages(1/2)|✔️Collective Store(Shfl)|✔️**Split KV/Q**|
 |✔️**Shared QKV** SMEM|✔️**Prefetch Q** s2r|✔️**Prefetch KV** g2s|✔️**QKV Fine-grained Tiling**|
 
-Currently, for small-scale attention `(B<=4, H <=48, SeqLen <= 8192, D <= 64)` it can run faster than FA2/SDPA on some Devices. For example, on NVIDIA RTX 3080 Laptop, [📚 Split Q + Fully Shared QKV SMEM](#mma-share-qkv) method can achieve **55 TFLOPS (D=64)** that almost **~1.5x** 🎉 faster than FA2. On NVIDIA L20, 🤖[ffpa-attn-mma](https://github.com/DefTruth/ffpa-attn-mma) method can achieve **104 TFLOPS (D=512)** that almost **~1.8x** 🎉 faster than SDPA (EFFICIENT ATTENTION). However, for large-scale attention, there remains a performance gap. Stay tuned for updates ~ (MMA Acc F16/F32, softmax Acc F32 vs FA2 MMA/softmax Acc F32, 👇Benchmark)
+Currently, for small-scale attention `(B<=4, H <=48, SeqLen <= 8192, D <= 64)` it can run faster than FA2/SDPA on some Devices. For example, on NVIDIA RTX 3080 Laptop, [📚 Split Q + Fully Shared QKV SMEM](#mma-share-qkv) method can achieve **55 TFLOPS (D=64)** that almost **~1.5x** 🎉 faster than FA2. On NVIDIA L20, 🤖[ffpa-attn-mma](https://github.com/xlite-dev/ffpa-attn-mma) method can achieve **104 TFLOPS (D=512)** that almost **~1.8x** 🎉 faster than SDPA (EFFICIENT ATTENTION). However, for large-scale attention, there remains a performance gap. Stay tuned for updates ~ (MMA Acc F16/F32, softmax Acc F32 vs FA2 MMA/softmax Acc F32, 👇Benchmark)
 
 |Algorithm| (B,H,N,D) | RTX 3080 Laptop | L20 | RTX 4090 |   
 |:---:|:---:|:---:|:---:|:---:|  
@@ -79,7 +85,7 @@ Currently, for small-scale attention `(B<=4, H <=48, SeqLen <= 8192, D <= 64)` i
 |FlashAttention-2|(1,48,8192,64)|37 TFLOPS|109 TFLOPS|163 TFLOPS|
 |share-qkv+stage2|(1,48,8192,64)|**48 TFLOPS**|107 TFLOPS|**224 TFLOPS**|
 |SDPA(EFFICIENT ATTENTION)|(1,48,8192,512)|16 TFLOPS|58 TFLOPS|85 TFLOPS|
-|🤖[ffpa-attn-mma](https://github.com/DefTruth/ffpa-attn-mma)|(1,48,8192,512)|**39 TFLOPS**|**104 TFLOPS**|**200 TFLOPS**|
+|🤖[ffpa-attn-mma](https://github.com/xlite-dev/ffpa-attn-mma)|(1,48,8192,512)|**39 TFLOPS**|**104 TFLOPS**|**200 TFLOPS**|
 |Precision Errors vs FA2/SDPA| / | max: < ~1e-3 | min: ~0.0 | mean: < ~1e-5 |
 
 The `Split KV` and `Split Q` implementations have been carried out in [flash-attention-mma⚡️⚡️](./kernels/flash-attn) for performance comparison. The `Split KV` method, which involves splitting all QKV across MMA (Warps), is slower than `Split Q` method, which splitting Q across MMA(Warps) and keep access KV for all MMA(Warps). 
@@ -157,16 +163,16 @@ flash_attn_mma_stages_split_q_tiling_qk_kernel(half* Q, half* K, half* V, half* 
 __global__ void // Q, K, V, O -> [B, H, N, D]
 flash_attn_mma_stages_split_q_tiling_qkv_kernel(half* Q, half* K, half* V, half* O, ...);
 ```
-💡NOTE: [📚Split Q + Fully QKV Fine-grained Tiling](#mma-tiling-qkv) has been refactored into 🤖[ffpa-attn-mma](https://github.com/DefTruth/ffpa-attn-mma).
+💡NOTE: [📚Split Q + Fully QKV Fine-grained Tiling](#mma-tiling-qkv) has been refactored into 🤖[ffpa-attn-mma](https://github.com/xlite-dev/ffpa-attn-mma).
  
 ## ©️Citations🎉🎉
 
 ```BibTeX
 @misc{CUDA-Learn-Notes@2024,
   title={CUDA-Learn-Notes: A Modern CUDA Learn Notes with PyTorch for Beginners},
-  url={https://github.com/DefTruth/CUDA-Learn-Notes},
-  note={Open-source software available at https://github.com/DefTruth/CUDA-Learn-Notes},
-  author={DefTruth etc},
+  url={https://github.com/xlite-dev/CUDA-Learn-Notes},
+  note={Open-source software available at https://github.com/xlite-dev/CUDA-Learn-Notes},
+  author={xlite-dev etc},
   year={2024}
 }
 ```
@@ -400,17 +406,17 @@ The kernels listed here will guide you through a step-by-step progression, rangi
 
 |📖 CUDA Kernel| 📖 Elem DType| 📖 Acc DType| 📖 Docs | 📖 Level |
 |:---|:---|:---|:---|:---|   
-| ✔️ [ffpa_mma_stages_split_q_L1_F16F16F16](https://github.com/DefTruth/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F16_L1.cu)|f16|f16|[link](https://github.com/DefTruth/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
-| ✔️ [ffpa_mma_stages_split_q_L1_F16F16F32](https://github.com/DefTruth/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L1.cu)|f16|f32|[link](https://github.com/DefTruth/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
-| ✔️ [ffpa_mma_stages_split_q_L1_mixed_acc](https://github.com/DefTruth/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L1.cu)|f16|QK f32, PV f16|[link](https://github.com/DefTruth/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
-| ⚠️ [ffpa_mma_stages_split_q_L2_F16F16F16](https://github.com/DefTruth/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F16_L2.cu)|f16|f16|[link](https://github.com/DefTruth/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
-| ⚠️ [ffpa_mma_stages_split_q_L2_F16F16F32](https://github.com/DefTruth/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L2.cu)|f16|f32|[link](https://github.com/DefTruth/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
-| ⚠️ [ffpa_mma_stages_split_q_L2_mixed_acc](https://github.com/DefTruth/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L2.cu)|f16|QK f32, PV f16|[link](https://github.com/DefTruth/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
-| ⚠️ [ffpa_mma_stages_split_q_L3_F16F16F16](https://github.com/DefTruth/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F16_L3.cu)|f16|f16|[link](https://github.com/DefTruth/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
-| ⚠️ [ffpa_mma_stages_split_q_L3_F16F16F32](https://github.com/DefTruth/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L3.cu)|f16|f32|[link](https://github.com/DefTruth/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
-| ⚠️ [ffpa_mma_stages_split_q_L3_mixed_acc](https://github.com/DefTruth/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L3.cu)|f16|QK f32, PV f16|[link](https://github.com/DefTruth/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
+| ✔️ [ffpa_mma_stages_split_q_L1_F16F16F16](https://github.com/xlite-dev/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F16_L1.cu)|f16|f16|[link](https://github.com/xlite-dev/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
+| ✔️ [ffpa_mma_stages_split_q_L1_F16F16F32](https://github.com/xlite-dev/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L1.cu)|f16|f32|[link](https://github.com/xlite-dev/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
+| ✔️ [ffpa_mma_stages_split_q_L1_mixed_acc](https://github.com/xlite-dev/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L1.cu)|f16|QK f32, PV f16|[link](https://github.com/xlite-dev/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
+| ⚠️ [ffpa_mma_stages_split_q_L2_F16F16F16](https://github.com/xlite-dev/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F16_L2.cu)|f16|f16|[link](https://github.com/xlite-dev/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
+| ⚠️ [ffpa_mma_stages_split_q_L2_F16F16F32](https://github.com/xlite-dev/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L2.cu)|f16|f32|[link](https://github.com/xlite-dev/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
+| ⚠️ [ffpa_mma_stages_split_q_L2_mixed_acc](https://github.com/xlite-dev/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L2.cu)|f16|QK f32, PV f16|[link](https://github.com/xlite-dev/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
+| ⚠️ [ffpa_mma_stages_split_q_L3_F16F16F16](https://github.com/xlite-dev/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F16_L3.cu)|f16|f16|[link](https://github.com/xlite-dev/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
+| ⚠️ [ffpa_mma_stages_split_q_L3_F16F16F32](https://github.com/xlite-dev/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L3.cu)|f16|f32|[link](https://github.com/xlite-dev/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
+| ⚠️ [ffpa_mma_stages_split_q_L3_mixed_acc](https://github.com/xlite-dev/ffpa-attn-mma/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L3.cu)|f16|QK f32, PV f16|[link](https://github.com/xlite-dev/ffpa-attn-mma)|⭐️⭐️⭐️⭐️| 
 
-💡NOTE: 🤖[ffpa-attn-mma](https://github.com/DefTruth/ffpa-attn-mma): 📚FFPA - Yet another Faster Flash Prefill Attention with O(1)🎉SRAM complexity for headdim > 256, **1.8x~3x**🎉faster than SDPA EA: [📈L20 ~1.9x↑🎉](https://github.com/DefTruth/ffpa-attn-mma?tab=readme-ov-file#L1-bench-l20), [📈 A30 ~1.8x↑🎉](https://github.com/DefTruth/ffpa-attn-mma?tab=readme-ov-file#L1-bench-a30), [📈3080 ~2.9x↑🎉](https://github.com/DefTruth/ffpa-attn-mma?tab=readme-ov-file#L1-bench-3080), [📈4090 ~2.1x↑🎉](https://github.com/DefTruth/ffpa-attn-mma?tab=readme-ov-file#L1-bench-4090).  
+💡NOTE: 🤖[ffpa-attn-mma](https://github.com/xlite-dev/ffpa-attn-mma): 📚FFPA - Yet another Faster Flash Prefill Attention with O(1)🎉SRAM complexity for headdim > 256, **1.8x~3x**🎉faster than SDPA EA: [📈L20 ~1.9x↑🎉](https://github.com/xlite-dev/ffpa-attn-mma?tab=readme-ov-file#L1-bench-l20), [📈 A30 ~1.8x↑🎉](https://github.com/xlite-dev/ffpa-attn-mma?tab=readme-ov-file#L1-bench-a30), [📈3080 ~2.9x↑🎉](https://github.com/xlite-dev/ffpa-attn-mma?tab=readme-ov-file#L1-bench-3080), [📈4090 ~2.1x↑🎉](https://github.com/xlite-dev/ffpa-attn-mma?tab=readme-ov-file#L1-bench-4090).  
 
 ## 📖 100+ LLM/VLM/CV/CUDA/CuTe Tech Blogs
 
@@ -420,32 +426,32 @@ The kernels listed here will guide you through a step-by-step progression, rangi
 
 |📖 类型-标题|📖 作者| 📖 推荐 |  
 |:---|:---|:---|    
-|[[vLLM实践]📚vLLM + DeepSeek-R1 671B 多机部署及修Bug笔记](https://zhuanlan.zhihu.com/p/29950052712)|@DefTruth|⭐️⭐️⭐⭐️| 
-|[[Attention优化]📚FFPA(Split-D): FA2无限HeadDim扩展，2x↑🎉 vs SDPA EA](https://zhuanlan.zhihu.com/p/13975660308)|@DefTruth|⭐️⭐️⭐⭐️| 
-|[[CUDA基础][开篇]📖CUDA-Learn-Notes: v3.0 大升级-面试刷题不迷路](https://zhuanlan.zhihu.com/p/19862356369)|@DefTruth|⭐️⭐️⭐⭐️| 
-|[[分布式训推][张量/序列并行]📖图解DeepSpeed-Ulysses&Megatron-LM TP/SP](https://zhuanlan.zhihu.com/p/5750410146)|@DefTruth|⭐️⭐️| 
-|[[VLM推理优化][InternVL系列]📖InternLM2/.../InternVL1.5系列笔记: 核心点解析](https://zhuanlan.zhihu.com/p/702481058)|@DefTruth|⭐️⭐️| 
-|[[LLM推理优化][TensorRT-LLM][5w字]📖TensorRT-LLM部署调优-指北](https://zhuanlan.zhihu.com/p/699333691)|@DefTruth|⭐️⭐️⭐️| 
-|[[LLM推理优化][KV Cache优化]📖GQA/YOCO/CLA/MLKV: 层内和层间KV Cache共享](https://zhuanlan.zhihu.com/p/697311739)|@DefTruth|⭐️⭐️| 
-|[[LLM推理优化][Prefill优化]📖图解vLLM Prefix Prefill Triton Kernel](https://zhuanlan.zhihu.com/p/695799736)|@DefTruth|⭐️⭐️⭐️| 
-|[[LLM推理优化][Prefill优化][万字]📖图解vLLM Automatic Prefix Caching: TTFT优化](https://zhuanlan.zhihu.com/p/693556044)|@DefTruth|⭐️⭐️⭐️| 
-|[[LLM推理优化][Attention优化]📖图解:从Online-Softmax到FlashAttention V1/V2/V3](https://zhuanlan.zhihu.com/p/668888063)|@DefTruth|⭐️⭐️⭐️| 
-|[[LLM推理优化][Decoding优化]📖原理&图解FlashDecoding/FlashDecoding++](https://zhuanlan.zhihu.com/p/696075602)|@DefTruth|⭐️⭐️| 
-|[[VLM推理优化][LLaVA系列]📖CLIP/LLaVA/LLaVA1.5/VILA笔记: 核心点解析](https://zhuanlan.zhihu.com/p/683137074)|@DefTruth|⭐️⭐️| 
-|[[LLM推理优化][Attention优化][万字]📖TensorRT MHA/Myelin vs FlashAttention-2](https://zhuanlan.zhihu.com/p/678873216)|@DefTruth|⭐️⭐️⭐️| 
-|[[LLM推理优化][PTX汇编]📖CUDA 12 PTX汇编: PRMT指令详解-通用模式](https://zhuanlan.zhihu.com/p/660630414)|@DefTruth|⭐️| 
-|[[LLM推理优化][PTX汇编]📖CUDA 12 PTX汇编: LOP3指令详解](https://zhuanlan.zhihu.com/p/659741469)|@DefTruth|⭐️| 
-|[[LLM推理优化][CUDA][3w字]📖高频面试题汇总-大模型手撕CUDA](https://zhuanlan.zhihu.com/p/678903537)|@DefTruth|⭐️⭐️⭐️| 
-|[[LLM推理优化][Weight Only]📖WINT8/4-(00): 通俗易懂讲解-快速反量化算法](https://zhuanlan.zhihu.com/p/657072856)|@DefTruth|⭐️⭐️| 
-|[[LLM推理优化][Weight Only]📖WINT8/4-(01): PRMT指令详解及FT源码解析](https://zhuanlan.zhihu.com/p/657070837)|@DefTruth|⭐️⭐️| 
-|[[LLM推理优化][Weight Only]📖WINT8/4-(02): 快速反量化之INT8转BF16](https://zhuanlan.zhihu.com/p/657073159)|@DefTruth|⭐️⭐️| 
-|[[LLM推理优化][Weight Only]📖WINT8/4-(03): LOP3指令详解及INT4转FP16/BF16](https://zhuanlan.zhihu.com/p/657073857)|@DefTruth|⭐️⭐️| 
-|[[LLM推理优化][LLM Infra整理]📖100+篇: 大模型推理各方向新发展整理](https://zhuanlan.zhihu.com/p/693680304)|@DefTruth|⭐️⭐️| 
-|[[LLM推理优化][LLM Infra整理]📖30+篇: LLM推理论文集-500页PDF](https://zhuanlan.zhihu.com/p/669777159)|@DefTruth|⭐️⭐️| 
-|[[LLM推理优化][LLM Infra整理]📖FlashDecoding++: 比FlashDecoding还要快！](https://zhuanlan.zhihu.com/p/665022589)|@DefTruth|⭐️| 
-|[[LLM推理优化][LLM Infra整理]📖TensorRT-LLM开源，TensorRT 9.1也来了](https://zhuanlan.zhihu.com/p/662361469)|@DefTruth|⭐️| 
-|[[LLM推理优化][LLM Infra整理]📖20+篇: LLM推理论文集-300页PDF](https://zhuanlan.zhihu.com/p/658091768)|@DefTruth|⭐️⭐️| 
-|[[LLM推理优化][LLM Infra整理]📖PagedAttention论文新鲜出炉](https://zhuanlan.zhihu.com/p/617015570)|@DefTruth|⭐️| 
+|[[vLLM实践]📚vLLM + DeepSeek-R1 671B 多机部署及修Bug笔记](https://zhuanlan.zhihu.com/p/29950052712)|@xlite-dev|⭐️⭐️⭐⭐️| 
+|[[Attention优化]📚FFPA(Split-D): FA2无限HeadDim扩展，2x↑🎉 vs SDPA EA](https://zhuanlan.zhihu.com/p/13975660308)|@xlite-dev|⭐️⭐️⭐⭐️| 
+|[[CUDA基础][开篇]📖CUDA-Learn-Notes: v3.0 大升级-面试刷题不迷路](https://zhuanlan.zhihu.com/p/19862356369)|@xlite-dev|⭐️⭐️⭐⭐️| 
+|[[分布式训推][张量/序列并行]📖图解DeepSpeed-Ulysses&Megatron-LM TP/SP](https://zhuanlan.zhihu.com/p/5750410146)|@xlite-dev|⭐️⭐️| 
+|[[VLM推理优化][InternVL系列]📖InternLM2/.../InternVL1.5系列笔记: 核心点解析](https://zhuanlan.zhihu.com/p/702481058)|@xlite-dev|⭐️⭐️| 
+|[[LLM推理优化][TensorRT-LLM][5w字]📖TensorRT-LLM部署调优-指北](https://zhuanlan.zhihu.com/p/699333691)|@xlite-dev|⭐️⭐️⭐️| 
+|[[LLM推理优化][KV Cache优化]📖GQA/YOCO/CLA/MLKV: 层内和层间KV Cache共享](https://zhuanlan.zhihu.com/p/697311739)|@xlite-dev|⭐️⭐️| 
+|[[LLM推理优化][Prefill优化]📖图解vLLM Prefix Prefill Triton Kernel](https://zhuanlan.zhihu.com/p/695799736)|@xlite-dev|⭐️⭐️⭐️| 
+|[[LLM推理优化][Prefill优化][万字]📖图解vLLM Automatic Prefix Caching: TTFT优化](https://zhuanlan.zhihu.com/p/693556044)|@xlite-dev|⭐️⭐️⭐️| 
+|[[LLM推理优化][Attention优化]📖图解:从Online-Softmax到FlashAttention V1/V2/V3](https://zhuanlan.zhihu.com/p/668888063)|@xlite-dev|⭐️⭐️⭐️| 
+|[[LLM推理优化][Decoding优化]📖原理&图解FlashDecoding/FlashDecoding++](https://zhuanlan.zhihu.com/p/696075602)|@xlite-dev|⭐️⭐️| 
+|[[VLM推理优化][LLaVA系列]📖CLIP/LLaVA/LLaVA1.5/VILA笔记: 核心点解析](https://zhuanlan.zhihu.com/p/683137074)|@xlite-dev|⭐️⭐️| 
+|[[LLM推理优化][Attention优化][万字]📖TensorRT MHA/Myelin vs FlashAttention-2](https://zhuanlan.zhihu.com/p/678873216)|@xlite-dev|⭐️⭐️⭐️| 
+|[[LLM推理优化][PTX汇编]📖CUDA 12 PTX汇编: PRMT指令详解-通用模式](https://zhuanlan.zhihu.com/p/660630414)|@xlite-dev|⭐️| 
+|[[LLM推理优化][PTX汇编]📖CUDA 12 PTX汇编: LOP3指令详解](https://zhuanlan.zhihu.com/p/659741469)|@xlite-dev|⭐️| 
+|[[LLM推理优化][CUDA][3w字]📖高频面试题汇总-大模型手撕CUDA](https://zhuanlan.zhihu.com/p/678903537)|@xlite-dev|⭐️⭐️⭐️| 
+|[[LLM推理优化][Weight Only]📖WINT8/4-(00): 通俗易懂讲解-快速反量化算法](https://zhuanlan.zhihu.com/p/657072856)|@xlite-dev|⭐️⭐️| 
+|[[LLM推理优化][Weight Only]📖WINT8/4-(01): PRMT指令详解及FT源码解析](https://zhuanlan.zhihu.com/p/657070837)|@xlite-dev|⭐️⭐️| 
+|[[LLM推理优化][Weight Only]📖WINT8/4-(02): 快速反量化之INT8转BF16](https://zhuanlan.zhihu.com/p/657073159)|@xlite-dev|⭐️⭐️| 
+|[[LLM推理优化][Weight Only]📖WINT8/4-(03): LOP3指令详解及INT4转FP16/BF16](https://zhuanlan.zhihu.com/p/657073857)|@xlite-dev|⭐️⭐️| 
+|[[LLM推理优化][LLM Infra整理]📖100+篇: 大模型推理各方向新发展整理](https://zhuanlan.zhihu.com/p/693680304)|@xlite-dev|⭐️⭐️| 
+|[[LLM推理优化][LLM Infra整理]📖30+篇: LLM推理论文集-500页PDF](https://zhuanlan.zhihu.com/p/669777159)|@xlite-dev|⭐️⭐️| 
+|[[LLM推理优化][LLM Infra整理]📖FlashDecoding++: 比FlashDecoding还要快！](https://zhuanlan.zhihu.com/p/665022589)|@xlite-dev|⭐️| 
+|[[LLM推理优化][LLM Infra整理]📖TensorRT-LLM开源，TensorRT 9.1也来了](https://zhuanlan.zhihu.com/p/662361469)|@xlite-dev|⭐️| 
+|[[LLM推理优化][LLM Infra整理]📖20+篇: LLM推理论文集-300页PDF](https://zhuanlan.zhihu.com/p/658091768)|@xlite-dev|⭐️⭐️| 
+|[[LLM推理优化][LLM Infra整理]📖PagedAttention论文新鲜出炉](https://zhuanlan.zhihu.com/p/617015570)|@xlite-dev|⭐️| 
 
 
 ### 📚 CV推理部署|C++|算法|技术随笔 (本人作者) ([©️back👆🏻](#contents))
@@ -454,50 +460,50 @@ The kernels listed here will guide you through a step-by-step progression, rangi
 
 |📖 类型-标题|📖 作者| 📖 推荐 |  
 |:---|:---|:---|   
-| [[推理部署][CV/NLP]📖FastDeploy三行代码搞定150+ CV、NLP模型部署](https://zhuanlan.zhihu.com/p/581326442)|@DefTruth|⭐️|   
-| [[推理部署][CV]📖如何在lite.ai.toolkit(3.6k+ stars)中增加您的模型？](https://zhuanlan.zhihu.com/p/523876625)|@DefTruth|⭐️⭐️|   
-| [[推理部署][CV]📖美团 YOLOv6 ORT/MNN/TNN/NCNN C++推理部署](https://zhuanlan.zhihu.com/p/533643238)|@DefTruth|⭐️⭐️|   
-| [[推理部署][ONNX]📖ONNX推理加速技术文档-杂记](https://zhuanlan.zhihu.com/p/524023964)|@DefTruth|⭐️|   
-| [[推理部署][TensorFlow]📖Mac源码编译TensorFlow C++指北](https://zhuanlan.zhihu.com/p/524013615)|@DefTruth|⭐️|   
-| [[推理部署][CV]📖1Mb!头部姿态估计: FSANet，一个小而美的模型(C++)](https://zhuanlan.zhihu.com/p/447364201)|@DefTruth|⭐️|   
-| [[推理部署][CV]📖opencv+ffmpeg编译打包全解指南](https://zhuanlan.zhihu.com/p/472115312)|@DefTruth|⭐️⭐️|   
-| [[推理部署][CV]📖RobustVideoMatting视频抠图静态ONNX模型转换](https://zhuanlan.zhihu.com/p/459088407)|@DefTruth|⭐️|   
-| [[推理部署][CV]📖190Kb!SSRNet年龄检测详细解读（含C++工程）](https://zhuanlan.zhihu.com/p/462762797)|@DefTruth|⭐️|   
-| [[推理部署][CV]📖MGMatting(CVPR2021)人像抠图C++应用记录](https://zhuanlan.zhihu.com/p/464732042)|@DefTruth|⭐️|   
-| [[推理部署][CV]📖超准确人脸检测(带关键点)YOLO5Face C++工程详细记录](https://zhuanlan.zhihu.com/p/461878005)|@DefTruth|⭐️⭐️|   
-| [[推理部署][ORT]📖解决: ONNXRuntime(Python) GPU 部署配置记录](https://zhuanlan.zhihu.com/p/457484536)|@DefTruth|⭐️|   
-| [[推理部署][CV]📖记录SCRFD(CVPR2021)人脸检测C++工程化(含docker镜像)](https://zhuanlan.zhihu.com/p/455165568)|@DefTruth|⭐️⭐️|   
-| [[推理部署][NCNN]📖野路子：记录一个解决onnx转ncnn时op不支持的trick](https://zhuanlan.zhihu.com/p/451446147)|@DefTruth|⭐️|   
-| [[推理部署][CV]📖升级版轻量级NanoDet-Plus MNN/TNN/NCNN/ORT C++工程记录](https://zhuanlan.zhihu.com/p/450586647)|@DefTruth|⭐️⭐️|    
-| [[推理部署][CV]📖超轻量级NanoDet MNN/TNN/NCNN/ORT C++工程记录](https://zhuanlan.zhihu.com/p/443419387)|@DefTruth|⭐️|   
-| [[推理部署][CV]📖详细记录MGMatting之MNN、TNN和ORT C++移植](https://zhuanlan.zhihu.com/p/442949027)|@DefTruth|⭐️⭐️|   
-| [[推理部署][CV]📖YOLOX NCNN/MNN/TNN/ONNXRuntime C++工程简记](https://zhuanlan.zhihu.com/p/447364122)|@DefTruth|⭐️|   
-| [[推理部署][TNN]📖手动修改YoloX的tnnproto记录-TNN](https://zhuanlan.zhihu.com/p/425668734)|@DefTruth|⭐️|   
-| [[推理部署][ORT]📖全网最详细 ONNXRuntime C++/Java/Python 资料！](https://zhuanlan.zhihu.com/p/414317269)|@DefTruth|⭐️|   
-| [[推理部署][CV]📖RobustVideoMatting: C++工程化记录-实现篇](https://zhuanlan.zhihu.com/p/413280488)|@DefTruth|⭐️⭐️|   
-| [[推理部署][CV]📖RobustVideoMatting: C++工程化记录-应用篇](https://zhuanlan.zhihu.com/p/412491918)|@DefTruth|⭐️⭐️|   
-| [[推理部署][ORT]📖ONNXRuntime C++ CMake 工程分析及编译](https://zhuanlan.zhihu.com/p/411887386)|@DefTruth|⭐️⭐️|   
-| [[推理部署][ORT]📖如何使用ORT C++ API处理NCHW和NHWC输入？](https://zhuanlan.zhihu.com/p/524230808)|@DefTruth|⭐️|   
-| [[推理部署][TNN]📖tnn-convert搭建简记-YOLOP转TNN](https://zhuanlan.zhihu.com/p/431418709)|@DefTruth|⭐️|   
-| [[推理部署][CV]📖YOLOP ONNXRuntime C++工程化记录](https://zhuanlan.zhihu.com/p/411651933)|@DefTruth|⭐️⭐️|   
-| [[推理部署][NCNN]📖超有用NCNN参考资料整理](https://zhuanlan.zhihu.com/p/449765328)|@DefTruth|⭐️|   
-| [[推理部署][MNN]📖超有用MNN参考资料整理](https://zhuanlan.zhihu.com/p/449761992)|@DefTruth|⭐️|   
-| [[推理部署][TNN]📖超有用TNN参考资料整理](https://zhuanlan.zhihu.com/p/449769615)|@DefTruth|⭐️|   
-| [[推理部署][ONNX]📖超有用ONNX参考资料整理](https://zhuanlan.zhihu.com/p/449773663)|@DefTruth|⭐️|   
-| [[推理部署][ONNX]📖超有用ONNX模型结构参考资料整理](https://zhuanlan.zhihu.com/p/449775926)|@DefTruth|⭐️|   
-| [[推理部署][OpenCV-DNN]📖超有用OpenCV-DNN参考资料整理](https://zhuanlan.zhihu.com/p/449778377)|@DefTruth|⭐️|   
-| [[推理部署][Tensorflow]📖超有用Tensorflow C++工程化知识点](https://zhuanlan.zhihu.com/p/449788027)|@DefTruth|⭐️|   
-| [[推理部署][模型转换]📖深度学习模型转换资料整理](https://zhuanlan.zhihu.com/p/449759361)|@DefTruth|⭐️|   
-| [[技术随笔][C++][CMake]📖超有用CMake参考资料整理](https://zhuanlan.zhihu.com/p/449779892)|@DefTruth|⭐️⭐️|   
-| [[技术随笔][C++][3W字]📖静态链接和静态库实践指北-原理篇](https://zhuanlan.zhihu.com/p/595527528)|@DefTruth|⭐️⭐️⭐️|   
-| [[技术随笔][C++]📖Mac下C++内存检查指北(Valgrind VS Asan)](https://zhuanlan.zhihu.com/p/508470880)|@DefTruth|⭐️|   
-| [[技术随笔][CV]📖torchlm: 人脸关键点检测库](https://zhuanlan.zhihu.com/p/467211561)|@DefTruth|⭐️⭐️|   
-| [[技术随笔][ML]📖《统计学习方法-李航: 笔记-从原理到实现-基于R》](https://zhuanlan.zhihu.com/p/684885595)|@DefTruth|⭐️⭐️|   
-| [[技术随笔][Git]📖如何优雅地git clone和git submodule？](https://zhuanlan.zhihu.com/p/639136221)|@DefTruth|⭐️|   
-| [[技术随笔][3D]📖人脸重建3D参考资料整理](https://zhuanlan.zhihu.com/p/524034741)|@DefTruth|⭐️|   
-| [[技术随笔][3D]📖BlendShapes参考资料整理](https://zhuanlan.zhihu.com/p/524036145)|@DefTruth|⭐️|   
-| [[技术随笔][3D]📖从源码安装Pytorch3D详细记录及学习资料](https://zhuanlan.zhihu.com/p/512347464)|@DefTruth|⭐️|   
-| [[技术随笔][ML]📖200页:《统计学习方法：李航》笔记 -从原理到实现](https://zhuanlan.zhihu.com/p/461520847)|@DefTruth|⭐️⭐️|   
+| [[推理部署][CV/NLP]📖FastDeploy三行代码搞定150+ CV、NLP模型部署](https://zhuanlan.zhihu.com/p/581326442)|@xlite-dev|⭐️|   
+| [[推理部署][CV]📖如何在lite.ai.toolkit(3.6k+ stars)中增加您的模型？](https://zhuanlan.zhihu.com/p/523876625)|@xlite-dev|⭐️⭐️|   
+| [[推理部署][CV]📖美团 YOLOv6 ORT/MNN/TNN/NCNN C++推理部署](https://zhuanlan.zhihu.com/p/533643238)|@xlite-dev|⭐️⭐️|   
+| [[推理部署][ONNX]📖ONNX推理加速技术文档-杂记](https://zhuanlan.zhihu.com/p/524023964)|@xlite-dev|⭐️|   
+| [[推理部署][TensorFlow]📖Mac源码编译TensorFlow C++指北](https://zhuanlan.zhihu.com/p/524013615)|@xlite-dev|⭐️|   
+| [[推理部署][CV]📖1Mb!头部姿态估计: FSANet，一个小而美的模型(C++)](https://zhuanlan.zhihu.com/p/447364201)|@xlite-dev|⭐️|   
+| [[推理部署][CV]📖opencv+ffmpeg编译打包全解指南](https://zhuanlan.zhihu.com/p/472115312)|@xlite-dev|⭐️⭐️|   
+| [[推理部署][CV]📖RobustVideoMatting视频抠图静态ONNX模型转换](https://zhuanlan.zhihu.com/p/459088407)|@xlite-dev|⭐️|   
+| [[推理部署][CV]📖190Kb!SSRNet年龄检测详细解读（含C++工程）](https://zhuanlan.zhihu.com/p/462762797)|@xlite-dev|⭐️|   
+| [[推理部署][CV]📖MGMatting(CVPR2021)人像抠图C++应用记录](https://zhuanlan.zhihu.com/p/464732042)|@xlite-dev|⭐️|   
+| [[推理部署][CV]📖超准确人脸检测(带关键点)YOLO5Face C++工程详细记录](https://zhuanlan.zhihu.com/p/461878005)|@xlite-dev|⭐️⭐️|   
+| [[推理部署][ORT]📖解决: ONNXRuntime(Python) GPU 部署配置记录](https://zhuanlan.zhihu.com/p/457484536)|@xlite-dev|⭐️|   
+| [[推理部署][CV]📖记录SCRFD(CVPR2021)人脸检测C++工程化(含docker镜像)](https://zhuanlan.zhihu.com/p/455165568)|@xlite-dev|⭐️⭐️|   
+| [[推理部署][NCNN]📖野路子：记录一个解决onnx转ncnn时op不支持的trick](https://zhuanlan.zhihu.com/p/451446147)|@xlite-dev|⭐️|   
+| [[推理部署][CV]📖升级版轻量级NanoDet-Plus MNN/TNN/NCNN/ORT C++工程记录](https://zhuanlan.zhihu.com/p/450586647)|@xlite-dev|⭐️⭐️|    
+| [[推理部署][CV]📖超轻量级NanoDet MNN/TNN/NCNN/ORT C++工程记录](https://zhuanlan.zhihu.com/p/443419387)|@xlite-dev|⭐️|   
+| [[推理部署][CV]📖详细记录MGMatting之MNN、TNN和ORT C++移植](https://zhuanlan.zhihu.com/p/442949027)|@xlite-dev|⭐️⭐️|   
+| [[推理部署][CV]📖YOLOX NCNN/MNN/TNN/ONNXRuntime C++工程简记](https://zhuanlan.zhihu.com/p/447364122)|@xlite-dev|⭐️|   
+| [[推理部署][TNN]📖手动修改YoloX的tnnproto记录-TNN](https://zhuanlan.zhihu.com/p/425668734)|@xlite-dev|⭐️|   
+| [[推理部署][ORT]📖全网最详细 ONNXRuntime C++/Java/Python 资料！](https://zhuanlan.zhihu.com/p/414317269)|@xlite-dev|⭐️|   
+| [[推理部署][CV]📖RobustVideoMatting: C++工程化记录-实现篇](https://zhuanlan.zhihu.com/p/413280488)|@xlite-dev|⭐️⭐️|   
+| [[推理部署][CV]📖RobustVideoMatting: C++工程化记录-应用篇](https://zhuanlan.zhihu.com/p/412491918)|@xlite-dev|⭐️⭐️|   
+| [[推理部署][ORT]📖ONNXRuntime C++ CMake 工程分析及编译](https://zhuanlan.zhihu.com/p/411887386)|@xlite-dev|⭐️⭐️|   
+| [[推理部署][ORT]📖如何使用ORT C++ API处理NCHW和NHWC输入？](https://zhuanlan.zhihu.com/p/524230808)|@xlite-dev|⭐️|   
+| [[推理部署][TNN]📖tnn-convert搭建简记-YOLOP转TNN](https://zhuanlan.zhihu.com/p/431418709)|@xlite-dev|⭐️|   
+| [[推理部署][CV]📖YOLOP ONNXRuntime C++工程化记录](https://zhuanlan.zhihu.com/p/411651933)|@xlite-dev|⭐️⭐️|   
+| [[推理部署][NCNN]📖超有用NCNN参考资料整理](https://zhuanlan.zhihu.com/p/449765328)|@xlite-dev|⭐️|   
+| [[推理部署][MNN]📖超有用MNN参考资料整理](https://zhuanlan.zhihu.com/p/449761992)|@xlite-dev|⭐️|   
+| [[推理部署][TNN]📖超有用TNN参考资料整理](https://zhuanlan.zhihu.com/p/449769615)|@xlite-dev|⭐️|   
+| [[推理部署][ONNX]📖超有用ONNX参考资料整理](https://zhuanlan.zhihu.com/p/449773663)|@xlite-dev|⭐️|   
+| [[推理部署][ONNX]📖超有用ONNX模型结构参考资料整理](https://zhuanlan.zhihu.com/p/449775926)|@xlite-dev|⭐️|   
+| [[推理部署][OpenCV-DNN]📖超有用OpenCV-DNN参考资料整理](https://zhuanlan.zhihu.com/p/449778377)|@xlite-dev|⭐️|   
+| [[推理部署][Tensorflow]📖超有用Tensorflow C++工程化知识点](https://zhuanlan.zhihu.com/p/449788027)|@xlite-dev|⭐️|   
+| [[推理部署][模型转换]📖深度学习模型转换资料整理](https://zhuanlan.zhihu.com/p/449759361)|@xlite-dev|⭐️|   
+| [[技术随笔][C++][CMake]📖超有用CMake参考资料整理](https://zhuanlan.zhihu.com/p/449779892)|@xlite-dev|⭐️⭐️|   
+| [[技术随笔][C++][3W字]📖静态链接和静态库实践指北-原理篇](https://zhuanlan.zhihu.com/p/595527528)|@xlite-dev|⭐️⭐️⭐️|   
+| [[技术随笔][C++]📖Mac下C++内存检查指北(Valgrind VS Asan)](https://zhuanlan.zhihu.com/p/508470880)|@xlite-dev|⭐️|   
+| [[技术随笔][CV]📖torchlm: 人脸关键点检测库](https://zhuanlan.zhihu.com/p/467211561)|@xlite-dev|⭐️⭐️|   
+| [[技术随笔][ML]📖《统计学习方法-李航: 笔记-从原理到实现-基于R》](https://zhuanlan.zhihu.com/p/684885595)|@xlite-dev|⭐️⭐️|   
+| [[技术随笔][Git]📖如何优雅地git clone和git submodule？](https://zhuanlan.zhihu.com/p/639136221)|@xlite-dev|⭐️|   
+| [[技术随笔][3D]📖人脸重建3D参考资料整理](https://zhuanlan.zhihu.com/p/524034741)|@xlite-dev|⭐️|   
+| [[技术随笔][3D]📖BlendShapes参考资料整理](https://zhuanlan.zhihu.com/p/524036145)|@xlite-dev|⭐️|   
+| [[技术随笔][3D]📖从源码安装Pytorch3D详细记录及学习资料](https://zhuanlan.zhihu.com/p/512347464)|@xlite-dev|⭐️|   
+| [[技术随笔][ML]📖200页:《统计学习方法：李航》笔记 -从原理到实现](https://zhuanlan.zhihu.com/p/461520847)|@xlite-dev|⭐️⭐️|   
 
 
 ### 📚 CUTLASS|CuTe|NCCL|CUDA|文章推荐 (其他作者) ([©️back👆🏻](#contents))
@@ -578,14 +584,14 @@ GNU General Public License v3.0
 
 <div id="contribute"></div>  
 
-How to contribute? Star this repo or check [🌤🌤CONTRIBUTE🎉🎉](https://github.com/DefTruth/CUDA-Learn-Notes/issues/50). 
+How to contribute? Star this repo or check [🌤🌤CONTRIBUTE🎉🎉](https://github.com/xlite-dev/CUDA-Learn-Notes/issues/50). 
 
 <div align='center'>
-<a href="https://star-history.com/#DefTruth/CUDA-Learn-Notes&Date">
+<a href="https://star-history.com/#xlite-dev/CUDA-Learn-Notes&Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=DefTruth/CUDA-Learn-Notes&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=DefTruth/CUDA-Learn-Notes&type=Date" />
-   <img width=400 height=300 alt="Star History Chart" src="https://api.star-history.com/svg?repos=DefTruth/CUDA-Learn-Notes&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=xlite-dev/CUDA-Learn-Notes&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=xlite-dev/CUDA-Learn-Notes&type=Date" />
+   <img width=400 height=300 alt="Star History Chart" src="https://api.star-history.com/svg?repos=xlite-dev/CUDA-Learn-Notes&type=Date" />
  </picture>
 </a>
 </div>
