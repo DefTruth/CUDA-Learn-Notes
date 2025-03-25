@@ -1,6 +1,6 @@
 # Notes 👇👇
 
-This project has been moved to [xlite-dev/lite.ai.toolkit](https://github.com/xlite-dev/CUDA-Learn-Notes). Please check [xlite-dev/lite.ai.toolkit](https://github.com/xlite-dev/CUDA-Learn-Notes) for latest updates! 👏👋
+This project has been moved to [xlite-dev/CUDA-Learn-Notes](https://github.com/xlite-dev/CUDA-Learn-Notes). Please check [xlite-dev/CUDA-Learn-Notes](https://github.com/xlite-dev/CUDA-Learn-Notes) for latest updates! 👏👋
 
 ---
 
