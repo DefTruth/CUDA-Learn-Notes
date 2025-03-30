@@ -3,7 +3,7 @@
 This project has been moved to [xlite-dev/CUDA-Learn-Notes](https://github.com/xlite-dev/CUDA-Learn-Notes). Please check [xlite-dev/CUDA-Learn-Notes](https://github.com/xlite-dev/CUDA-Learn-Notes) for latest updates! 👏👋
 
 ---
-
+<!--
 <div align="center">
   <p align="center">
     <h2>📚 Modern CUDA Learn Notes with PyTorch for Beginners 🐑</h2>
@@ -610,3 +610,4 @@ How to contribute? Star this repo or check [🌤🌤CONTRIBUTE🎉🎉](https://
 - [how-to-optim-algorithm-in-cuda](https://github.com/BBuf/how-to-optim-algorithm-in-cuda) 
 - [cute_gemm](https://github.com/weishengying/cute_gemm)
 - [cutlass](https://github.com/NVIDIA/cutlass)
+-->
