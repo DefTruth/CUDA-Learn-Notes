@@ -1,6 +1,6 @@
 # Notes 👇👇
 
-This project has been moved to [xlite-dev/LeetCUDA](https://github.com/xlite-dev/LeetCUDA). Please check [xlite-dev/CUDA-Learn-Notes](https://github.com/xlite-dev/LeetCUDA) for latest updates! 👏👋
+This project has been moved to [xlite-dev/LeetCUDA](https://github.com/xlite-dev/LeetCUDA). Please check [xlite-dev/LeetCUDA](https://github.com/xlite-dev/LeetCUDA) for latest updates! 👏👋
 
 ---
 <!--
